@@ -90,15 +90,27 @@ lib/
     program_catalog.dart Profile → recommended TrainingProgram (deterministic)
     program_progress.dart completed / remaining / % math (Train progress card)
     vert_assessment.dart  Height+age+hops → reach, vert-to-dunk, gap, projection
+    workout_streak.dart   Consecutive-day streak from completion timestamps
+    jump_trend.dart       Latest vertical + delta-from-first-test, from jump log
   services/
     onboarding_store.dart shared_preferences wrapper (persist profile + flag)
+    workout_session_store.dart  Persists completed WorkoutSessions (one JSON
+                         string per entry, so one corrupt entry can't sink
+                         the rest)
+    jump_log_store.dart  Persists JumpLogEntry history (fed by Analyze),
+                         same one-entry-per-string pattern
   features/
     onboarding/          Welcome hook + 10-question quiz + sell screens
     paywall/             Presentation-only paywall (IAP is a follow-up)
     home/                5-tab shell (Home, Analyze, Train, Feed, Progress);
-                         Train + Analyze are functional, Feed is a placeholder
+                         Train + Analyze + Progress are functional, Feed is
+                         a placeholder
     analyze/             Source (record/pick video) → mark takeoff/landing →
-                         processing beat → result dashboard (flight-time vert)
+                         processing beat → result dashboard (flight-time vert);
+                         a valid result is persisted to JumpLogStore
+    train/               SessionFlow: warm-up → per-exercise set/reps/lbs
+                         logging (one screen per exercise) → summary, then
+                         persists a WorkoutSession via WorkoutSessionStore
     shared/widgets/      PrimaryButton (gradient CTA), SelectableCard
 test/                    Core unit tests + app smoke test
 ```
@@ -175,9 +187,17 @@ loader → plan reveal → **paywall** → app shell.
 
 Built & CI-green:
 - Full onboarding (13 screens) wired to the tested core.
-- Tested core: program catalog, program progress, vert/gap/projection math.
-- App shell (5 tabs); **Train** tab functional (enrolled program, today's
-  exercises, live progress card, "complete session" increments progress).
+- Tested core: program catalog, program progress, vert/gap/projection math,
+  workout session/streak, jump trend.
+- App shell (5 tabs); **Train** tab functional: 3-day program rotations
+  (Power/Strength/Speed split, per program), warm-up → per-exercise
+  set/reps/lbs logging → summary flow, persisted via `WorkoutSessionStore`.
+- **Analyze** tab functional (flight-time vert measurement, see below);
+  results persist to `JumpLogStore`.
+- **Progress** tab functional: workouts completed (X/total), day streak
+  (`WorkoutStreak`, counts across all programs — a habit metric, not
+  program-scoped), current vertical + trend since first test
+  (`JumpTrendCalculator`, honest "—" empty state if no jump logged yet).
 - Presentation-only paywall.
 - CI (analyze+test, unsigned iOS build) + web-preview workflow.
 
@@ -188,9 +208,13 @@ TODO (rough priority):
       marking), pose-based Bounce/Power/Control/Form scores + coaching,
       potential projection on the result screen, share, camera/library
       Info.plist permissions (see above).
-- [ ] **Train** — real multi-week programs; per-exercise workout sessions
-      with warm-up + set/reps/lbs logging + "complete workout".
-- [ ] **Progress** — current vertical, day streak, workouts X/56, vert trend.
+- [x] **Train v2** — 3-day rotation per program + warm-up/set/reps/lbs
+      logging, persisted. Still TODO: only 3 days are authored per program
+      (repeats indefinitely rather than progressing week-to-week/deload
+      weeks), no rest-day concept, no per-set edit/undo after logging.
+- [x] **Progress v2** — workouts X/total, day streak, current vertical +
+      trend, all real/persisted. Still TODO: no vertical-trend chart (just
+      the latest number + delta), no workout history list/detail view.
 - [ ] **Feed** (social) and **Coach** (AI chat).
 - [ ] **iOS signing** → IPA on device (see above).
 - [ ] **IAP via RevenueCat** (real paywall + 3-day trial; same account
