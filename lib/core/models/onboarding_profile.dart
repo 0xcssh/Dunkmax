@@ -1,22 +1,41 @@
 import 'dart:convert';
 
+import 'commitment_level.dart';
 import 'court_position.dart';
 import 'dunk_goal.dart';
 import 'experience_level.dart';
+import 'hops_level.dart';
+import 'training_location.dart';
 
 /// Everything the onboarding quiz collects. Serialisable to a JSON string so
 /// it can be dropped straight into shared_preferences.
+///
+/// The four "core" answers are required; the vitals + newer questions carry
+/// sensible defaults so older persisted payloads (and tests) keep decoding.
 class OnboardingProfile {
   final Set<DunkGoal> goals;
   final ExperienceLevel experience;
   final CourtPosition position;
   final int daysPerWeek;
 
+  final TrainingLocation trainingLocation;
+  final HopsLevel hopsLevel;
+  final int heightInches;
+  final int weightLbs;
+  final int ageYears;
+  final CommitmentLevel commitment;
+
   const OnboardingProfile({
     required this.goals,
     required this.experience,
     required this.position,
     required this.daysPerWeek,
+    this.trainingLocation = TrainingLocation.both,
+    this.hopsLevel = HopsLevel.touchRim,
+    this.heightInches = 70,
+    this.weightLbs = 175,
+    this.ageYears = 25,
+    this.commitment = CommitmentLevel.very,
   });
 
   OnboardingProfile copyWith({
@@ -24,12 +43,24 @@ class OnboardingProfile {
     ExperienceLevel? experience,
     CourtPosition? position,
     int? daysPerWeek,
+    TrainingLocation? trainingLocation,
+    HopsLevel? hopsLevel,
+    int? heightInches,
+    int? weightLbs,
+    int? ageYears,
+    CommitmentLevel? commitment,
   }) {
     return OnboardingProfile(
       goals: goals ?? this.goals,
       experience: experience ?? this.experience,
       position: position ?? this.position,
       daysPerWeek: daysPerWeek ?? this.daysPerWeek,
+      trainingLocation: trainingLocation ?? this.trainingLocation,
+      hopsLevel: hopsLevel ?? this.hopsLevel,
+      heightInches: heightInches ?? this.heightInches,
+      weightLbs: weightLbs ?? this.weightLbs,
+      ageYears: ageYears ?? this.ageYears,
+      commitment: commitment ?? this.commitment,
     );
   }
 
@@ -38,6 +69,12 @@ class OnboardingProfile {
         'experience': experience.storageKey,
         'position': position.storageKey,
         'daysPerWeek': daysPerWeek,
+        'trainingLocation': trainingLocation.storageKey,
+        'hopsLevel': hopsLevel.storageKey,
+        'heightInches': heightInches,
+        'weightLbs': weightLbs,
+        'ageYears': ageYears,
+        'commitment': commitment.storageKey,
       };
 
   String toJson() => jsonEncode(toMap());
@@ -61,6 +98,17 @@ class OnboardingProfile {
       experience: experience,
       position: position,
       daysPerWeek: daysPerWeek,
+      trainingLocation: TrainingLocation.fromStorageKey(
+              map['trainingLocation'] as String? ?? '') ??
+          TrainingLocation.both,
+      hopsLevel: HopsLevel.fromStorageKey(map['hopsLevel'] as String? ?? '') ??
+          HopsLevel.touchRim,
+      heightInches: map['heightInches'] is int ? map['heightInches'] as int : 70,
+      weightLbs: map['weightLbs'] is int ? map['weightLbs'] as int : 175,
+      ageYears: map['ageYears'] is int ? map['ageYears'] as int : 25,
+      commitment:
+          CommitmentLevel.fromStorageKey(map['commitment'] as String? ?? '') ??
+              CommitmentLevel.very,
     );
   }
 

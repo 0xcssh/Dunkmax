@@ -1,21 +1,52 @@
 import 'package:flutter/material.dart';
 
+import '../../core/models/commitment_level.dart';
 import '../../core/models/court_position.dart';
 import '../../core/models/dunk_goal.dart';
 import '../../core/models/experience_level.dart';
+import '../../core/models/hops_level.dart';
 import '../../core/models/onboarding_profile.dart';
+import '../../core/models/training_location.dart';
 import '../../core/program_catalog.dart';
+import 'screens/age_screen.dart';
 import 'screens/building_plan_screen.dart';
+import 'screens/commitment_screen.dart';
 import 'screens/days_per_week_screen.dart';
 import 'screens/experience_screen.dart';
+import 'screens/gap_screen.dart';
 import 'screens/goal_screen.dart';
+import 'screens/height_screen.dart';
+import 'screens/hops_screen.dart';
+import 'screens/plan_reveal_screen.dart';
 import 'screens/position_screen.dart';
+import 'screens/potential_screen.dart';
+import 'screens/social_proof_screen.dart';
+import 'screens/training_location_screen.dart';
+import 'screens/weight_screen.dart';
 import 'screens/welcome_screen.dart';
 
-enum _Step { welcome, goal, experience, position, days, building }
+enum _Step {
+  welcome,
+  goal,
+  experience,
+  position,
+  days,
+  location,
+  hops,
+  height,
+  weight,
+  age,
+  commitment,
+  gap,
+  potential,
+  social,
+  building,
+  planReveal,
+}
 
-/// Drives the whole onboarding sequence, holding the draft selections until
-/// they form a complete [OnboardingProfile], then handing it to [onCompleted].
+/// Drives the full onboarding sequence: a 10-question quiz (with progress bar)
+/// followed by the sell screens (gap → potential → social proof → plan
+/// reveal), then hands the completed [OnboardingProfile] to [onCompleted].
 class OnboardingFlow extends StatefulWidget {
   final ValueChanged<OnboardingProfile> onCompleted;
 
@@ -32,31 +63,37 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   ExperienceLevel? _experience;
   CourtPosition? _position;
   int? _daysPerWeek;
+  TrainingLocation? _location;
+  HopsLevel? _hops;
+  int _heightInches = 70; // 5'10"
+  int _weightLbs = 180;
+  int _ageYears = 25;
+  CommitmentLevel? _commitment;
 
-  // The four quiz questions drive the progress bar (welcome/building excluded).
-  static const _totalQuizSteps = 4;
+  static const _totalQuizSteps = 10;
 
   void _go(_Step step) => setState(() => _step = step);
 
   OnboardingProfile get _draftProfile => OnboardingProfile(
         goals: _goals,
-        experience: _experience!,
-        position: _position!,
-        daysPerWeek: _daysPerWeek!,
+        experience: _experience ?? ExperienceLevel.beginner,
+        position: _position ?? CourtPosition.pointGuard,
+        daysPerWeek: _daysPerWeek ?? 3,
+        trainingLocation: _location ?? TrainingLocation.both,
+        hopsLevel: _hops ?? HopsLevel.touchRim,
+        heightInches: _heightInches,
+        weightLbs: _weightLbs,
+        ageYears: _ageYears,
+        commitment: _commitment ?? CommitmentLevel.very,
       );
 
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: child,
-      ),
-      child: KeyedSubtree(
-        key: ValueKey(_step),
-        child: _buildStep(),
-      ),
+      duration: const Duration(milliseconds: 200),
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
+      child: KeyedSubtree(key: ValueKey(_step), child: _buildStep()),
     );
   }
 
@@ -70,11 +107,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           step: 1,
           totalSteps: _totalQuizSteps,
           selected: _goals,
-          onToggle: (goal) => setState(() {
-            if (_goals.contains(goal)) {
-              _goals.remove(goal);
+          onToggle: (g) => setState(() {
+            if (_goals.contains(g)) {
+              _goals.remove(g);
             } else {
-              _goals.add(goal);
+              _goals.add(g);
             }
           }),
           onBack: () => _go(_Step.welcome),
@@ -86,7 +123,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           step: 2,
           totalSteps: _totalQuizSteps,
           selected: _experience,
-          onSelect: (level) => setState(() => _experience = level),
+          onSelect: (v) => setState(() => _experience = v),
           onBack: () => _go(_Step.goal),
           onContinue: () => _go(_Step.position),
         );
@@ -96,7 +133,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           step: 3,
           totalSteps: _totalQuizSteps,
           selected: _position,
-          onSelect: (position) => setState(() => _position = position),
+          onSelect: (v) => setState(() => _position = v),
           onBack: () => _go(_Step.experience),
           onContinue: () => _go(_Step.days),
         );
@@ -106,15 +143,102 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           step: 4,
           totalSteps: _totalQuizSteps,
           selected: _daysPerWeek,
-          onSelect: (days) => setState(() => _daysPerWeek = days),
+          onSelect: (v) => setState(() => _daysPerWeek = v),
           onBack: () => _go(_Step.position),
+          onContinue: () => _go(_Step.location),
+        );
+
+      case _Step.location:
+        return TrainingLocationScreen(
+          step: 5,
+          totalSteps: _totalQuizSteps,
+          selected: _location,
+          onSelect: (v) => setState(() => _location = v),
+          onBack: () => _go(_Step.days),
+          onContinue: () => _go(_Step.hops),
+        );
+
+      case _Step.hops:
+        return HopsScreen(
+          step: 6,
+          totalSteps: _totalQuizSteps,
+          selected: _hops,
+          onSelect: (v) => setState(() => _hops = v),
+          onBack: () => _go(_Step.location),
+          onContinue: () => _go(_Step.height),
+        );
+
+      case _Step.height:
+        return HeightScreen(
+          step: 7,
+          totalSteps: _totalQuizSteps,
+          heightInches: _heightInches,
+          onChanged: (v) => _heightInches = v,
+          onBack: () => _go(_Step.hops),
+          onContinue: () => _go(_Step.weight),
+        );
+
+      case _Step.weight:
+        return WeightScreen(
+          step: 8,
+          totalSteps: _totalQuizSteps,
+          weightLbs: _weightLbs,
+          onChanged: (v) => setState(() => _weightLbs = v),
+          onBack: () => _go(_Step.height),
+          onContinue: () => _go(_Step.age),
+        );
+
+      case _Step.age:
+        return AgeScreen(
+          step: 9,
+          totalSteps: _totalQuizSteps,
+          ageYears: _ageYears,
+          onChanged: (v) => _ageYears = v,
+          onBack: () => _go(_Step.weight),
+          onContinue: () => _go(_Step.commitment),
+        );
+
+      case _Step.commitment:
+        return CommitmentScreen(
+          step: 10,
+          totalSteps: _totalQuizSteps,
+          selected: _commitment,
+          onSelect: (v) => setState(() => _commitment = v),
+          onBack: () => _go(_Step.age),
+          onContinue: () => _go(_Step.gap),
+        );
+
+      case _Step.gap:
+        return GapScreen(
+          profile: _draftProfile,
+          onBack: () => _go(_Step.commitment),
+          onContinue: () => _go(_Step.potential),
+        );
+
+      case _Step.potential:
+        return PotentialScreen(
+          profile: _draftProfile,
+          onBack: () => _go(_Step.gap),
+          onContinue: () => _go(_Step.social),
+        );
+
+      case _Step.social:
+        return SocialProofScreen(
+          onBack: () => _go(_Step.potential),
           onContinue: () => _go(_Step.building),
         );
 
       case _Step.building:
         return BuildingPlanScreen(
           program: ProgramCatalog.recommend(_draftProfile),
-          onDone: () => widget.onCompleted(_draftProfile),
+          onDone: () => _go(_Step.planReveal),
+        );
+
+      case _Step.planReveal:
+        return PlanRevealScreen(
+          profile: _draftProfile,
+          onBack: () => _go(_Step.social),
+          onContinue: () => widget.onCompleted(_draftProfile),
         );
     }
   }
