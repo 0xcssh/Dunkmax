@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/onboarding_profile.dart';
 import '../../core/program_catalog.dart';
 import '../../theme/app_theme.dart';
+import '../analyze/analyze_flow.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/placeholder_tab.dart';
 import 'tabs/progress_tab.dart';
@@ -41,11 +42,7 @@ class _RootShellState extends State<RootShell> {
         program: program,
         onStartTraining: () => setState(() => _index = 2),
       ),
-      const PlaceholderTab(
-        title: 'Analyze',
-        icon: Icons.monitor_heart_outlined,
-        message: 'Film your jump and get form feedback. Coming soon.',
-      ),
+      AnalyzeFlow(profile: widget.profile),
       TrainTab(program: program),
       const PlaceholderTab(
         title: 'Feed',
