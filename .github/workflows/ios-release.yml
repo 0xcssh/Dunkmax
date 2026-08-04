@@ -1,0 +1,120 @@
+name: iOS Release
+
+# Signed device builds — manual only (spares shared macOS-runner minutes,
+# same discipline as ci.yml's unsigned check). Mirrors PodRadar/RepLock's
+# ios.yml signing flow (apple-actions/import-codesign-certs + ASC API key +
+# `-allowProvisioningUpdates` for zero-touch provisioning), adapted for a
+# Flutter project: `flutter build ios --no-codesign` does the CocoaPods
+# install + asset build, then a raw `xcodebuild archive` on the resulting
+# .xcworkspace handles signing/export, since `flutter build ipa` doesn't
+# expose the `-allowProvisioningUpdates`/API-key flags this flow needs.
+on:
+  workflow_dispatch:
+    inputs:
+      export_method:
+        description: "IPA export method (debugging = dev-signed for USB sideload)"
+        type: choice
+        options: [debugging, app-store-connect]
+        default: debugging
+
+jobs:
+  device-build:
+    name: Signed device build (IPA)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Materialize platform scaffolding
+        run: |
+          flutter create --platforms=ios --org com.awdia --project-name dunkmax .
+          rm -f test/widget_test.dart
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build (CocoaPods install + asset compile, unsigned)
+        run: flutter build ios --release --no-codesign
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          # Both import steps must share the SAME keychain password — the
+          # second one unlocks the keychain the first one created.
+          keychain-password: ${{ github.run_id }}
+          p12-file-base64: ${{ secrets.CERT_P12_BASE64 }}
+          p12-password: ${{ secrets.CERT_P12_PASSWORD }}
+
+      - name: Import distribution certificate (TestFlight only)
+        if: github.event.inputs.export_method == 'app-store-connect'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          create-keychain: false
+          keychain-password: ${{ github.run_id }}
+          p12-file-base64: ${{ secrets.CERT_DIST_P12_BASE64 }}
+          p12-password: ${{ secrets.CERT_P12_PASSWORD }}
+
+      - name: Install App Store Connect API key
+        run: |
+          mkdir -p "$HOME/private_keys"
+          echo "${{ secrets.ASC_API_KEY_P8_BASE64 }}" | base64 --decode \
+            > "$HOME/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8"
+
+      - name: Archive
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/DunkMax.xcarchive \
+            -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
+            DEVELOPMENT_TEAM="${{ vars.APPLE_TEAM_ID }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+
+      - name: Export IPA
+        run: |
+          METHOD="${{ github.event.inputs.export_method || 'debugging' }}"
+          # app-store-connect + destination upload sends the build straight to
+          # TestFlight during the export; debugging keeps a local IPA artifact.
+          if [ "$METHOD" = "app-store-connect" ]; then DEST="upload"; else DEST="export"; fi
+          cat > ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>${METHOD}</string>
+            <key>teamID</key>
+            <string>${{ vars.APPLE_TEAM_ID }}</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>destination</key>
+            <string>${DEST}</string>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/DunkMax.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+
+      - name: Upload IPA artifact
+        if: github.event.inputs.export_method != 'app-store-connect'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DunkMax-ipa
+          path: build/export/*.ipa
