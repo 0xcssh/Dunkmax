@@ -1,0 +1,151 @@
+import 'package:flutter/material.dart';
+
+import '../../../theme/app_theme.dart';
+import '../widgets/onboarding_scaffold.dart';
+
+class DaysPerWeekScreen extends StatelessWidget {
+  final int? selected;
+  final ValueChanged<int> onSelect;
+  final VoidCallback? onContinue;
+  final VoidCallback onBack;
+  final int step;
+  final int totalSteps;
+
+  const DaysPerWeekScreen({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+    required this.onContinue,
+    required this.onBack,
+    required this.step,
+    required this.totalSteps,
+  });
+
+  // Value paired with the label shown ("5+" maps to 5).
+  static const _options = [(2, '2'), (3, '3'), (4, '4'), (5, '5+')];
+
+  @override
+  Widget build(BuildContext context) {
+    return OnboardingScaffold(
+      step: step,
+      totalSteps: totalSteps,
+      title: 'HOW MANY DAYS\nPER WEEK\nCAN YOU TRAIN?',
+      subtitle: "We'll keep it realistic. Consistency beats intensity.",
+      onBack: onBack,
+      onContinue: selected == null ? null : onContinue,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _MotivationBanner(),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              for (final (value, label) in _options) ...[
+                Expanded(
+                  child: _DayChip(
+                    label: label,
+                    selected: selected == value,
+                    onTap: () => onSelect(value),
+                  ),
+                ),
+                if (value != 5) const SizedBox(width: 12),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MotivationBanner extends StatelessWidget {
+  const _MotivationBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: DunkColors.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: DunkColors.primary.withValues(alpha: 0.5)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.local_fire_department, color: DunkColors.primary, size: 20),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Athletes who train 4+ days see results 2x faster',
+              style: TextStyle(
+                color: DunkColors.primaryBright,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DayChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: AspectRatio(
+          aspectRatio: 0.82,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            decoration: BoxDecoration(
+              color: DunkColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? DunkColors.primary : DunkColors.stroke,
+                width: selected ? 1.6 : 1,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: selected ? DunkColors.primary : Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'days',
+                  style: TextStyle(color: DunkColors.textSecondary, fontSize: 14),
+                ),
+                const SizedBox(height: 6),
+                if (selected)
+                  const Icon(Icons.check_circle, color: DunkColors.primary, size: 22)
+                else
+                  const SizedBox(height: 22),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

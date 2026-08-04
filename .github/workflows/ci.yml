@@ -1,0 +1,64 @@
+name: CI
+
+# Cheap analyze+test on every push (Ubuntu); the macOS iOS build is manual
+# (workflow_dispatch) to spare macOS-runner minutes — same discipline as
+# PodRadar. Generated platform folders are gitignored and regenerated here.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  analyze-test:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Backfill platform folders, then drop the template smoke test it
+      # generates (it references the default MyApp we replaced with our own).
+      - name: Materialize platform scaffolding
+        run: |
+          flutter create --platforms=ios,android --project-name dunkmax .
+          rm -f test/widget_test.dart
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test
+
+  ios-build:
+    name: iOS build (unsigned)
+    runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Materialize platform scaffolding
+        run: |
+          flutter create --platforms=ios,android --project-name dunkmax .
+          rm -f test/widget_test.dart
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Compile-only validation on the real macOS toolchain. Signing/IPA export
+      # needs Apple certs + a registered bundle id (see README) and is added
+      # once those secrets exist in this repo.
+      - name: Build iOS (no code signing)
+        run: flutter build ios --release --no-codesign

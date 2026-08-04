@@ -1,0 +1,24 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# Generated platform folders — CI regenerates them with `flutter create`
+# (no local macOS/Flutter here; keeping them out of git avoids drift).
+/ios/
+/android/
+/macos/
+/linux/
+/windows/
+/web/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store
