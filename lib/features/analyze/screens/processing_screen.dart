@@ -7,7 +7,7 @@ import '../../../theme/app_theme.dart';
 /// A brief "crunching the numbers" beat between marking the jump and seeing
 /// the result — the math itself is instant, but a flash cut feels cheap.
 class ProcessingScreen extends StatefulWidget {
-  final VoidCallback onDone;
+  final Future<void> Function() onDone;
 
   const ProcessingScreen({super.key, required this.onDone});
 

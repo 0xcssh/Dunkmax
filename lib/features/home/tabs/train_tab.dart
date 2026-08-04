@@ -3,30 +3,44 @@ import 'package:flutter/material.dart';
 import '../../../core/models/exercise.dart';
 import '../../../core/models/training_program.dart';
 import '../../../core/program_progress.dart';
+import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
+import '../../train/session_flow.dart';
 
 /// The TRAIN tab: enrolled program header, today's exercises, and a live
 /// progress card. Completing a session increments progress through the pure
 /// [ProgramProgress] model so the numbers on screen come straight from core.
 class TrainTab extends StatefulWidget {
   final TrainingProgram program;
+  final WorkoutSessionStore sessionStore;
 
-  const TrainTab({super.key, required this.program});
+  const TrainTab({super.key, required this.program, required this.sessionStore});
 
   @override
   State<TrainTab> createState() => _TrainTabState();
 }
 
 class _TrainTabState extends State<TrainTab> {
-  int _completed = 0;
+  int get _completed => widget.sessionStore.sessions
+      .where((s) => s.programId == widget.program.id)
+      .length;
 
-  int get _currentDay =>
+  int get _currentSessionNumber =>
       (_completed + 1).clamp(1, widget.program.totalSessions);
 
-  void _completeSession() {
-    setState(() {
-      if (_completed < widget.program.totalSessions) _completed++;
-    });
+  Future<void> _startSession() async {
+    final day = widget.program.dayFor(_currentSessionNumber);
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => SessionFlow(
+          program: widget.program,
+          day: day,
+          sessionNumber: _currentSessionNumber,
+          sessionStore: widget.sessionStore,
+        ),
+      ),
+    );
+    if (saved == true && mounted) setState(() {});
   }
 
   @override
@@ -36,7 +50,7 @@ class _TrainTabState extends State<TrainTab> {
       totalSessions: program.totalSessions,
       completedSessions: _completed,
     );
-    final today = program.dayFor(_currentDay);
+    final today = program.dayFor(_currentSessionNumber);
 
     return SafeArea(
       child: ListView(
@@ -66,15 +80,19 @@ class _TrainTabState extends State<TrainTab> {
             ],
           ),
           const SizedBox(height: 20),
-          _EnrolledCard(program: program, currentDay: _currentDay),
+          _EnrolledCard(program: program, currentDay: _currentSessionNumber),
           const SizedBox(height: 16),
-          _TodaysExercises(exercises: today.exercises),
+          _TodaysExercises(
+            focus: today.focus,
+            warmUp: today.warmUp,
+            exercises: today.exercises,
+          ),
           const SizedBox(height: 16),
           _ProgressCard(progress: progress),
           const SizedBox(height: 20),
           _CompleteButton(
             done: progress.isComplete,
-            onTap: progress.isComplete ? null : _completeSession,
+            onTap: progress.isComplete ? null : _startSession,
           ),
         ],
       ),
@@ -130,9 +148,15 @@ class _EnrolledCard extends StatelessWidget {
 }
 
 class _TodaysExercises extends StatelessWidget {
+  final String focus;
+  final String warmUp;
   final List<Exercise> exercises;
 
-  const _TodaysExercises({required this.exercises});
+  const _TodaysExercises({
+    required this.focus,
+    required this.warmUp,
+    required this.exercises,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +196,14 @@ class _TodaysExercises extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${focus.toUpperCase()} • $warmUp',
+            style: const TextStyle(
+              color: DunkColors.textSecondary,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < exercises.length; i++) ...[
@@ -357,7 +389,7 @@ class _CompleteButton extends StatelessWidget {
             border: done ? Border.all(color: DunkColors.stroke) : null,
           ),
           child: Text(
-            done ? 'PROGRAM COMPLETE' : "COMPLETE TODAY'S SESSION",
+            done ? 'PROGRAM COMPLETE' : "START TODAY'S SESSION",
             style: TextStyle(
               color: done ? DunkColors.textSecondary : Colors.white,
               fontSize: 16,

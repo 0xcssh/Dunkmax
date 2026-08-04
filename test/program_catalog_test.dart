@@ -60,5 +60,18 @@ void main() {
       expect(program.sampleDays, isNotEmpty);
       expect(program.dayFor(1).exercises, isNotEmpty);
     });
+
+    test('every recommended program has a full 3-day rotation', () {
+      for (final experience in ExperienceLevel.values) {
+        final program =
+            ProgramCatalog.recommend(_profile(experience: experience));
+        expect(program.sampleDays.length, 3,
+            reason: '${program.id} should have 3 authored days');
+        for (final day in program.sampleDays) {
+          expect(day.exercises, isNotEmpty,
+              reason: '${program.id} day ${day.day} has no exercises');
+        }
+      }
+    });
   });
 }

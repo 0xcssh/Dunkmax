@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/jump_result.dart';
+import '../../core/models/jump_log_entry.dart';
 import '../../core/models/jump_measurement.dart';
 import '../../core/models/onboarding_profile.dart';
 import '../../core/vert_assessment.dart';
+import '../../services/jump_log_store.dart';
 import 'screens/jump_result_screen.dart';
 import 'screens/mark_jump_screen.dart';
 import 'screens/processing_screen.dart';
@@ -20,8 +22,13 @@ enum _Step { source, mark, processing, result }
 /// CLAUDE.md), so the result screen shows them locked rather than fabricated.
 class AnalyzeFlow extends StatefulWidget {
   final OnboardingProfile profile;
+  final JumpLogStore jumpLogStore;
 
-  const AnalyzeFlow({super.key, required this.profile});
+  const AnalyzeFlow({
+    super.key,
+    required this.profile,
+    required this.jumpLogStore,
+  });
 
   @override
   State<AnalyzeFlow> createState() => _AnalyzeFlowState();
@@ -51,7 +58,19 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     });
   }
 
-  void _onProcessed() => setState(() => _step = _Step.result);
+  Future<void> _onProcessed() async {
+    final result = _result!;
+    if (result.measurement.isValid) {
+      await widget.jumpLogStore.addEntry(
+        JumpLogEntry(
+          verticalInches: result.verticalInches,
+          recordedAt: DateTime.now(),
+        ),
+      );
+    }
+    if (!mounted) return;
+    setState(() => _step = _Step.result);
+  }
 
   void _reset() => setState(() {
         _video = null;

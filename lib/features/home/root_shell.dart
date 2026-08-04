@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/onboarding_profile.dart';
 import '../../core/program_catalog.dart';
+import '../../services/jump_log_store.dart';
+import '../../services/workout_session_store.dart';
 import '../../theme/app_theme.dart';
 import '../analyze/analyze_flow.dart';
 import 'tabs/home_tab.dart';
@@ -13,8 +15,15 @@ import 'tabs/train_tab.dart';
 /// Train, Feed, Progress). Train is the functional centrepiece.
 class RootShell extends StatefulWidget {
   final OnboardingProfile profile;
+  final WorkoutSessionStore sessionStore;
+  final JumpLogStore jumpLogStore;
 
-  const RootShell({super.key, required this.profile});
+  const RootShell({
+    super.key,
+    required this.profile,
+    required this.sessionStore,
+    required this.jumpLogStore,
+  });
 
   @override
   State<RootShell> createState() => _RootShellState();
@@ -42,14 +51,19 @@ class _RootShellState extends State<RootShell> {
         program: program,
         onStartTraining: () => setState(() => _index = 2),
       ),
-      AnalyzeFlow(profile: widget.profile),
-      TrainTab(program: program),
+      AnalyzeFlow(profile: widget.profile, jumpLogStore: widget.jumpLogStore),
+      TrainTab(program: program, sessionStore: widget.sessionStore),
       const PlaceholderTab(
         title: 'Feed',
         icon: Icons.groups_outlined,
         message: 'See what other athletes are hitting. Coming soon.',
       ),
-      const ProgressTab(),
+      ProgressTab(
+        program: program,
+        sessionStore: widget.sessionStore,
+        jumpLogStore: widget.jumpLogStore,
+        onGoToAnalyze: () => setState(() => _index = 1),
+      ),
     ];
 
     return Scaffold(

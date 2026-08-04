@@ -4,7 +4,9 @@ import 'core/models/onboarding_profile.dart';
 import 'features/home/root_shell.dart';
 import 'features/onboarding/onboarding_flow.dart';
 import 'features/paywall/paywall_screen.dart';
+import 'services/jump_log_store.dart';
 import 'services/onboarding_store.dart';
+import 'services/workout_session_store.dart';
 import 'theme/app_theme.dart';
 
 /// Top-level phase machine: onboarding → paywall → app shell. On a returning
@@ -13,8 +15,15 @@ enum _Phase { onboarding, paywall, app }
 
 class DunkMaxApp extends StatefulWidget {
   final OnboardingStore store;
+  final WorkoutSessionStore sessionStore;
+  final JumpLogStore jumpLogStore;
 
-  const DunkMaxApp({super.key, required this.store});
+  const DunkMaxApp({
+    super.key,
+    required this.store,
+    required this.sessionStore,
+    required this.jumpLogStore,
+  });
 
   @override
   State<DunkMaxApp> createState() => _DunkMaxAppState();
@@ -63,7 +72,11 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
       case _Phase.paywall:
         return PaywallScreen(onClose: _enterApp, onContinue: _enterApp);
       case _Phase.app:
-        return RootShell(profile: _profile!);
+        return RootShell(
+          profile: _profile!,
+          sessionStore: widget.sessionStore,
+          jumpLogStore: widget.jumpLogStore,
+        );
     }
   }
 }
