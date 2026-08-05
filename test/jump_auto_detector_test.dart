@@ -117,6 +117,53 @@ void main() {
       expect(result.landing, const Duration(milliseconds: 1100));
     });
 
+    test(
+        'a long, perfectly still pre-jump pause loses to the shorter real '
+        'jump window bounded by explosive spikes (regression for the '
+        '"reports 1-2 inches" bug)', () {
+      // Real-world pattern that was mis-detected: the athlete settles into
+      // frame (moderate motion), stands PERFECTLY still for a while gearing
+      // up (energy ~0.01 — often quieter than the actual airborne phase,
+      // since a still standing body produces almost zero frame difference),
+      // then explodes into the jump (spike), is airborne with low-but-real
+      // motion from the body translating through frame (energy ~0.07,
+      // noticeably above the stillness), then lands (spike), then settles.
+      final samples = <MotionSample>[
+        const MotionSample(timestamp: Duration(milliseconds: 0), energy: 0.5), // settling in
+        for (var i = 1; i <= 7; i++)
+          MotionSample(timestamp: Duration(milliseconds: i * 50), energy: 0.01), // standing still, 350ms
+        const MotionSample(timestamp: Duration(milliseconds: 400), energy: 0.85), // takeoff drive
+        for (var i = 9; i <= 14; i++)
+          MotionSample(timestamp: Duration(milliseconds: i * 50), energy: 0.07), // airborne, 300ms
+        const MotionSample(timestamp: Duration(milliseconds: 750), energy: 0.9), // landing impact
+        const MotionSample(timestamp: Duration(milliseconds: 800), energy: 0.3), // settling after
+      ];
+
+      final result = JumpAutoDetector.detect(samples);
+
+      expect(result, isNotNull);
+      // Must land on the real jump window (400ms -> 750ms), not the
+      // stiller-but-irrelevant pre-jump pause (0ms -> 400ms).
+      expect(result!.takeoff, const Duration(milliseconds: 400));
+      expect(result.landing, const Duration(milliseconds: 750));
+    });
+
+    test('a plausible-but-sub-4" window is discarded by the stricter auto-detection floor', () {
+      // 250ms is within FlightTime's global plausible range (>=150ms) but
+      // below the auto-detector's own stricter floor (280ms) — should not
+      // be selected even as the only candidate.
+      final samples = <MotionSample>[
+        const MotionSample(timestamp: Duration(milliseconds: 0), energy: 0.8),
+        const MotionSample(timestamp: Duration(milliseconds: 50), energy: 0.05),
+        const MotionSample(timestamp: Duration(milliseconds: 100), energy: 0.05),
+        const MotionSample(timestamp: Duration(milliseconds: 150), energy: 0.05),
+        const MotionSample(timestamp: Duration(milliseconds: 200), energy: 0.05),
+        const MotionSample(timestamp: Duration(milliseconds: 250), energy: 0.8),
+      ];
+
+      expect(JumpAutoDetector.detect(samples), isNull);
+    });
+
     test('out-of-order input is sorted before detection', () {
       final samples = _clip(
         leadInCount: 5,

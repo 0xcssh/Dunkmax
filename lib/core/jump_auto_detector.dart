@@ -9,10 +9,27 @@ import 'models/motion_sample.dart';
 ///
 /// Heuristic: the body moves smoothly (low motion) while airborne, framed
 /// by higher motion before (the jump drive) and after (landing impact).
-/// Finds the longest/quietest contiguous low-motion run bounded by higher
-/// motion on both sides, filtered to a physically plausible airborne
-/// duration. Returns null if no clear window is found.
+/// Finds contiguous low-motion runs bounded by higher motion on both sides,
+/// filtered to a physically plausible airborne duration, and picks the one
+/// with the highest *prominence* — how much more violent the bounding
+/// motion is than the window itself.
+///
+/// Prominence, not "lowest average energy", is the ranking signal on
+/// purpose: a person standing perfectly still before or after the jump is
+/// often even quieter than a body smoothly translating through the air, so
+/// picking the single stillest moment in the clip tends to land on
+/// pre-jump stillness instead of the actual flight phase. Requiring a
+/// dramatic contrast with the bounding motion (the explosive takeoff drive
+/// and the landing impact) targets the jump specifically, not just any
+/// quiet moment. Returns null if no clear window is found.
 abstract class JumpAutoDetector {
+  /// Auto-detection-only floor, stricter than [FlightTime.minAirborneSeconds]
+  /// (which also gates manual marking, where a real athlete's genuinely weak
+  /// jump should still be accepted). A sub-4" "jump" is far more likely to be
+  /// a mis-detected stillness window than a real attempt, so auto-detection
+  /// discards candidates below this before ranking.
+  static const double _minAutoDetectSeconds = 0.28;
+
   static JumpMeasurement? detect(List<MotionSample> samples) {
     if (samples.length < 3) return null;
 
@@ -54,7 +71,7 @@ abstract class JumpAutoDetector {
     // as takeoff, and the sample just after the run (or the run's own last
     // sample, if it runs to the end) as landing.
     _Run? best;
-    double? bestAvgEnergy;
+    double? bestProminence;
     for (final run in candidates) {
       final takeoffIndex = run.start > 0 ? run.start - 1 : run.start;
       final landingIndex =
@@ -65,13 +82,17 @@ abstract class JumpAutoDetector {
       final airborneSeconds =
           (landing - takeoff).inMicroseconds / Duration.microsecondsPerSecond;
       if (!FlightTime.isPlausible(airborneSeconds)) continue;
+      if (airborneSeconds < _minAutoDetectSeconds) continue;
 
       final runEnergies =
           sorted.sublist(run.start, run.end + 1).map((s) => s.energy);
       final avgEnergy = runEnergies.reduce((a, b) => a + b) / runEnergies.length;
-      if (best == null || avgEnergy < bestAvgEnergy!) {
+      final boundingEnergy =
+          (sorted[takeoffIndex].energy + sorted[landingIndex].energy) / 2;
+      final prominence = boundingEnergy - avgEnergy;
+      if (best == null || prominence > bestProminence!) {
         best = _Run(takeoffIndex, landingIndex);
-        bestAvgEnergy = avgEnergy;
+        bestProminence = prominence;
       }
     }
     if (best == null) return null;
