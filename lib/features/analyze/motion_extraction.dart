@@ -10,27 +10,37 @@ import '../../core/models/motion_sample.dart';
 const _maxSamples = 50;
 const _thumbSize = 32;
 
-/// Samples ~[_maxSamples] evenly-spaced still frames across [video] and
-/// computes frame-to-frame motion energy between them, for
-/// JumpAutoDetector (see core/jump_auto_detector.dart) to find the
-/// airborne window from. Thin Flutter/plugin glue — the actual detection
-/// logic is pure and lives in core/.
-Future<List<MotionSample>> extractMotionSamples(File video) async {
-  final controller = VideoPlayerController.file(video);
-  await controller.initialize();
-  final duration = controller.value.duration;
-  await controller.dispose();
+/// Samples evenly-spaced still frames and computes frame-to-frame motion
+/// energy between them, for JumpAutoDetector (see
+/// core/jump_auto_detector.dart) to find the airborne window from. Thin
+/// Flutter/plugin glue — the actual detection logic is pure and lives in
+/// core/.
+///
+/// By default samples ~[_maxSamples] frames across the whole clip. Pass
+/// [rangeStart]/[rangeEnd] to restrict sampling to a narrower window (e.g. a
+/// coarse jump window found by a first pass) and/or a higher [sampleCount]
+/// to sample that window much more densely, for a more precise second pass.
+Future<List<MotionSample>> extractMotionSamples(
+  File video, {
+  Duration? rangeStart,
+  Duration? rangeEnd,
+  int sampleCount = _maxSamples,
+}) async {
+  final start = rangeStart ?? Duration.zero;
+  final end = rangeEnd ?? await _videoDuration(video);
+  if (end <= start) return const [];
 
-  if (duration <= Duration.zero) return const [];
-
-  final sampleCount = _maxSamples;
-  final stepMs = duration.inMilliseconds / sampleCount;
+  final totalMs = (end - start).inMilliseconds;
+  final stepMs = totalMs / sampleCount;
 
   img.Image? previousGray;
   final samples = <MotionSample>[];
 
   for (var i = 0; i < sampleCount; i++) {
-    final timeMs = (i * stepMs).round().clamp(0, duration.inMilliseconds - 1);
+    final timeMs = (start.inMilliseconds + i * stepMs).round().clamp(
+          start.inMilliseconds,
+          end.inMilliseconds - 1,
+        );
     final Uint8List? bytes = await VideoThumbnail.thumbnailData(
       video: video.path,
       imageFormat: ImageFormat.JPEG,
@@ -52,6 +62,14 @@ Future<List<MotionSample>> extractMotionSamples(File video) async {
   }
 
   return samples;
+}
+
+Future<Duration> _videoDuration(File video) async {
+  final controller = VideoPlayerController.file(video);
+  await controller.initialize();
+  final duration = controller.value.duration;
+  await controller.dispose();
+  return duration;
 }
 
 /// Mean absolute pixel-luminance difference between two same-size grayscale

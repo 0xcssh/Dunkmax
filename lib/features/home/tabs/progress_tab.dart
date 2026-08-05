@@ -1,12 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/jump_trend.dart';
+import '../../../core/models/jump_log_entry.dart';
 import '../../../core/models/training_program.dart';
 import '../../../core/program_progress.dart';
 import '../../../core/workout_streak.dart';
 import '../../../services/jump_log_store.dart';
 import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
+import '../../progress/jump_history_screen.dart';
+import 'widgets/jump_trend_chart.dart';
 
 /// PROGRESS tab: real numbers pulled from the persisted session + jump-log
 /// stores, run through the pure core calculators (`ProgramProgress`,
@@ -41,7 +46,13 @@ class ProgressTab extends StatelessWidget {
     final streak = WorkoutStreak.currentStreak(
       sessionStore.sessions.map((s) => s.completedAt).toList(),
     );
-    final trend = JumpTrendCalculator.compute(jumpLogStore.entries);
+    final allJumpEntries = jumpLogStore.entries;
+    final trend = JumpTrendCalculator.compute(allJumpEntries);
+    final recentEntries = [...allJumpEntries]
+      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    final recentToShow = recentEntries.length > 5
+        ? recentEntries.sublist(0, 5)
+        : recentEntries;
 
     return SafeArea(
       child: ListView(
@@ -59,9 +70,197 @@ class ProgressTab extends StatelessWidget {
           const SizedBox(height: 20),
           _VerticalCard(trend: trend, onGoToAnalyze: onGoToAnalyze),
           const SizedBox(height: 16),
+          _TrendChartCard(entries: allJumpEntries),
+          const SizedBox(height: 16),
           _WorkoutsCard(progress: progress),
           const SizedBox(height: 16),
           _StreakCard(streak: streak),
+          if (allJumpEntries.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _RecentAnalysesSection(
+              allEntries: allJumpEntries,
+              recentEntries: recentToShow,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendChartCard extends StatelessWidget {
+  final List<JumpLogEntry> entries;
+
+  const _TrendChartCard({required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: DunkColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DunkColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.show_chart, color: DunkColors.primary, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'VERTICAL JUMP TREND',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          JumpTrendChart(entries: entries),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentAnalysesSection extends StatelessWidget {
+  final List<JumpLogEntry> allEntries;
+  final List<JumpLogEntry> recentEntries;
+
+  const _RecentAnalysesSection({
+    required this.allEntries,
+    required this.recentEntries,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.videocam_outlined, color: DunkColors.primary, size: 18),
+            const SizedBox(width: 8),
+            const Text(
+              'RECENT ANALYSES',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => JumpHistoryScreen(entries: allEntries),
+                  ),
+                );
+              },
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                  color: DunkColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 140,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: recentEntries.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) => _RecentAnalysisThumb(entry: recentEntries[i]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentAnalysisThumb extends StatelessWidget {
+  final JumpLogEntry entry;
+
+  const _RecentAnalysisThumb({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final date = entry.recordedAt;
+    return SizedBox(
+      width: 110,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            height: 90,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 110,
+                    height: 90,
+                    child: entry.thumbnailPath != null
+                        ? Image.file(
+                            File(entry.thumbnailPath!),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: DunkColors.surfaceRaised,
+                              child: const Icon(
+                                Icons.videocam_off_outlined,
+                                color: DunkColors.textTertiary,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: DunkColors.surfaceRaised,
+                            child: const Icon(
+                              Icons.videocam_off_outlined,
+                              color: DunkColors.textTertiary,
+                            ),
+                          ),
+                  ),
+                ),
+                Positioned(
+                  right: 6,
+                  bottom: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: DunkColors.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${entry.verticalInches}"',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${date.month}/${date.day}',
+            style: const TextStyle(color: DunkColors.textSecondary, fontSize: 11),
+          ),
         ],
       ),
     );

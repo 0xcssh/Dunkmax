@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/jump_feedback.dart';
 import '../../../core/jump_result.dart';
+import '../../../core/jump_trend.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
 /// The Analyze payoff: the measured vertical plus where it puts the athlete
 /// relative to their dunk goal. The four form scores (Bounce/Power/Control/
 /// Form) need pose detection — not built yet (see CLAUDE.md) — so they're
-/// shown locked rather than faked; no fabricated numbers.
+/// shown locked rather than faked; no fabricated numbers. Same rule for the
+/// written breakdown below: it's built entirely from real measured numbers
+/// (see core/jump_feedback.dart) — no claims about form we can't observe.
 class JumpResultScreen extends StatelessWidget {
   final JumpResult result;
+  final JumpTrend? trend;
   final VoidCallback onAnalyzeAnother;
 
   const JumpResultScreen({
     super.key,
     required this.result,
+    required this.trend,
     required this.onAnalyzeAnother,
   });
 
   @override
   Widget build(BuildContext context) {
+    final feedback = JumpFeedback.build(result, trend: trend);
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -36,12 +43,137 @@ class JumpResultScreen extends StatelessWidget {
           const SizedBox(height: 20),
           _VertCard(result: result),
           const SizedBox(height: 16),
+          _BreakdownCard(feedback: feedback),
+          const SizedBox(height: 16),
           const _ScoresCard(),
           const SizedBox(height: 20),
           PrimaryButton(
             label: 'ANALYZE ANOTHER JUMP',
             onPressed: onAnalyzeAnother,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BreakdownCard extends StatelessWidget {
+  final JumpFeedbackSummary feedback;
+
+  const _BreakdownCard({required this.feedback});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: DunkColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DunkColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.bolt, color: DunkColors.primary, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'JUMP BREAKDOWN',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            feedback.headline,
+            style: const TextStyle(
+              color: DunkColors.textSecondary,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: DunkColors.accentGreen.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: DunkColors.accentGreen.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.show_chart, color: DunkColors.accentGreen, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    feedback.focusNote,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'GENERAL TIPS TO CLOSE THE GAP',
+            style: TextStyle(
+              color: DunkColors.textTertiary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < feedback.tips.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == feedback.tips.length - 1 ? 0 : 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 20,
+                    height: 20,
+                    margin: const EdgeInsets.only(top: 1),
+                    decoration: BoxDecoration(
+                      color: DunkColors.surfaceRaised,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${i + 1}',
+                        style: const TextStyle(
+                          color: DunkColors.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      feedback.tips[i],
+                      style: const TextStyle(
+                        color: DunkColors.textSecondary,
+                        fontSize: 13,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

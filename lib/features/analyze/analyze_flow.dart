@@ -1,8 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../../core/jump_result.dart';
+import '../../core/jump_trend.dart';
 import '../../core/models/jump_log_entry.dart';
 import '../../core/models/jump_measurement.dart';
 import '../../core/models/onboarding_profile.dart';
@@ -38,6 +41,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   _Step _step = _Step.source;
   File? _video;
   JumpResult? _result;
+  JumpTrend? _trend;
 
   void _onVideoSelected(File video) {
     setState(() {
@@ -67,16 +71,33 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     );
     final result = JumpResult(measurement: measurement, assessment: assessment);
     if (measurement.isValid) {
+      String? thumbnailPath;
+      try {
+        final dir = await getApplicationDocumentsDirectory();
+        final path = '${dir.path}/jump_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        thumbnailPath = await VideoThumbnail.thumbnailFile(
+          video: _video!.path,
+          thumbnailPath: path,
+          imageFormat: ImageFormat.JPEG,
+          timeMs: measurement.takeoff.inMilliseconds,
+          quality: 70,
+        );
+      } catch (_) {
+        thumbnailPath = null;
+      }
       await widget.jumpLogStore.addEntry(
         JumpLogEntry(
           verticalInches: result.verticalInches,
           recordedAt: DateTime.now(),
+          thumbnailPath: thumbnailPath,
         ),
       );
     }
+    final trend = JumpTrendCalculator.compute(widget.jumpLogStore.entries);
     if (!mounted) return;
     setState(() {
       _result = result;
+      _trend = trend;
       _step = _Step.result;
     });
   }
@@ -84,6 +105,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   void _reset() => setState(() {
         _video = null;
         _result = null;
+        _trend = null;
         _step = _Step.source;
       });
 
@@ -111,7 +133,11 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
           isFallback: true,
         );
       case _Step.result:
-        return JumpResultScreen(result: _result!, onAnalyzeAnother: _reset);
+        return JumpResultScreen(
+          result: _result!,
+          trend: _trend,
+          onAnalyzeAnother: _reset,
+        );
     }
   }
 }

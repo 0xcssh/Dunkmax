@@ -5,11 +5,20 @@ import 'dart:convert';
 class JumpLogEntry {
   final int verticalInches;
   final DateTime recordedAt;
-  const JumpLogEntry({required this.verticalInches, required this.recordedAt});
+  // Local file path to a still frame captured near takeoff; null if
+  // generation failed or this entry predates the thumbnail feature.
+  final String? thumbnailPath;
+
+  const JumpLogEntry({
+    required this.verticalInches,
+    required this.recordedAt,
+    this.thumbnailPath,
+  });
 
   Map<String, dynamic> toMap() => {
         'verticalInches': verticalInches,
         'recordedAt': recordedAt.toIso8601String(),
+        'thumbnailPath': thumbnailPath,
       };
 
   String toJson() => jsonEncode(toMap());
@@ -20,7 +29,12 @@ class JumpLogEntry {
     if (verticalInches is! int || recordedAtRaw is! String) return null;
     final recordedAt = DateTime.tryParse(recordedAtRaw);
     if (recordedAt == null) return null;
-    return JumpLogEntry(verticalInches: verticalInches, recordedAt: recordedAt);
+    final rawThumb = map['thumbnailPath'];
+    return JumpLogEntry(
+      verticalInches: verticalInches,
+      recordedAt: recordedAt,
+      thumbnailPath: rawThumb is String ? rawThumb : null,
+    );
   }
 
   static JumpLogEntry? fromJson(String source) {
