@@ -7,11 +7,11 @@ import '../../theme/app_theme.dart';
 enum _Plan { yearly, weekly }
 
 /// Presentation-only paywall. Real StoreKit/RevenueCat wiring is a follow-up
-/// (see CLAUDE.md). This is a HARD gate by design — deliberately no back/
-/// close/skip affordance, since "Start Free Trial" is meant to be the only
-/// way past it (per product decision: nobody should reach the app without
-/// starting the trial). Pricing shown is a placeholder mockup, not tied to
-/// real App Store Connect products yet.
+/// (see CLAUDE.md). Still a hard gate — "Start Free Trial" is the only way
+/// into the app itself — but [onBack] lets the athlete step back to the
+/// free-analysis screen (product decision: no dead end, but no way to reach
+/// the app without starting the trial either). Pricing shown is a
+/// placeholder mockup, not tied to real App Store Connect products yet.
 ///
 /// Deliberately does NOT show a star-rating/review-count badge like the
 /// reference app's — this is a brand-new, unpublished app with zero real
@@ -22,11 +22,13 @@ enum _Plan { yearly, weekly }
 class PaywallScreen extends StatefulWidget {
   final OnboardingProfile profile;
   final VoidCallback onContinue;
+  final VoidCallback onBack;
 
   const PaywallScreen({
     super.key,
     required this.profile,
     required this.onContinue,
+    required this.onBack,
   });
 
   @override
@@ -62,7 +64,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    onPressed: widget.onBack,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.chevron_left,
+                        color: Colors.white, size: 28),
+                  ),
+                ),
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.zero,

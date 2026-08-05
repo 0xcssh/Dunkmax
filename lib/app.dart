@@ -92,7 +92,11 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
           onFirstResult: _goToPaywall,
         );
       case _Phase.paywall:
-        return PaywallScreen(profile: _profile!, onContinue: _enterApp);
+        return PaywallScreen(
+          profile: _profile!,
+          onContinue: _enterApp,
+          onBack: () => setState(() => _phase = _Phase.freeAnalysis),
+        );
       case _Phase.app:
         return RootShell(
           profile: _profile!,
