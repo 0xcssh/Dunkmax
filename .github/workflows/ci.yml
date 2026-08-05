@@ -54,11 +54,17 @@ jobs:
           flutter create --platforms=ios,android --project-name dunkmax .
           rm -f test/widget_test.dart
 
+      - name: Add camera/photo library usage descriptions
+        # Kept in sync with ios-release.yml's signed build — see that
+        # workflow for why these can't just live in the repo.
+        run: |
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Dunk It uses your camera to film your jump for vertical analysis.'" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Dunk It needs access to your photo library to analyze a previously recorded jump.'" ios/Runner/Info.plist
+
       - name: Install dependencies
         run: flutter pub get
 
       # Compile-only validation on the real macOS toolchain. Signing/IPA export
-      # needs Apple certs + a registered bundle id (see README) and is added
-      # once those secrets exist in this repo.
+      # is handled by ios-release.yml once signing secrets exist in this repo.
       - name: Build iOS (no code signing)
         run: flutter build ios --release --no-codesign

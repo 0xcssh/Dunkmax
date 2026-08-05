@@ -16,6 +16,7 @@ class ProgressTab extends StatelessWidget {
   final WorkoutSessionStore sessionStore;
   final JumpLogStore jumpLogStore;
   final VoidCallback onGoToAnalyze;
+  final VoidCallback onRestartOnboarding;
 
   const ProgressTab({
     super.key,
@@ -23,6 +24,7 @@ class ProgressTab extends StatelessWidget {
     required this.sessionStore,
     required this.jumpLogStore,
     required this.onGoToAnalyze,
+    required this.onRestartOnboarding,
   });
 
   @override
@@ -62,10 +64,56 @@ class ProgressTab extends StatelessWidget {
           _WorkoutsCard(progress: progress),
           const SizedBox(height: 16),
           _StreakCard(streak: streak),
+          const SizedBox(height: 24),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => _confirmRestart(context, onRestartOnboarding),
+              icon: const Icon(
+                Icons.refresh,
+                color: DunkColors.textSecondary,
+                size: 18,
+              ),
+              label: const Text(
+                'Retake onboarding',
+                style: TextStyle(
+                  color: DunkColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+Future<void> _confirmRestart(
+  BuildContext context,
+  VoidCallback onRestartOnboarding,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: DunkColors.surface,
+      title: const Text('Retake onboarding?', style: TextStyle(color: Colors.white)),
+      content: const Text(
+        "This clears your current profile and takes you back through the quiz from the start.",
+        style: TextStyle(color: DunkColors.textSecondary),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancel', style: TextStyle(color: DunkColors.textSecondary)),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Retake', style: TextStyle(color: DunkColors.primary)),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true) onRestartOnboarding();
 }
 
 class _VerticalCard extends StatelessWidget {

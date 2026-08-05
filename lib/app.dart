@@ -55,6 +55,15 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
 
   void _enterApp() => setState(() => _phase = _Phase.app);
 
+  Future<void> _restartOnboarding() async {
+    await widget.store.reset();
+    if (!mounted) return;
+    setState(() {
+      _profile = null;
+      _phase = _Phase.onboarding;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -76,6 +85,7 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
           profile: _profile!,
           sessionStore: widget.sessionStore,
           jumpLogStore: widget.jumpLogStore,
+          onRestartOnboarding: _restartOnboarding,
         );
     }
   }

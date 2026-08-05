@@ -42,6 +42,14 @@ jobs:
           flutter create --platforms=ios --org com.awdia --project-name dunkmax .
           rm -f test/widget_test.dart
 
+      - name: Add camera/photo library usage descriptions
+        # ios/ is gitignored and regenerated above, so these can't live in the
+        # repo — Analyze needs both to record or pick a jump clip; without
+        # them iOS kills the app on access instead of prompting.
+        run: |
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Dunk It uses your camera to film your jump for vertical analysis.'" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Dunk It needs access to your photo library to analyze a previously recorded jump.'" ios/Runner/Info.plist
+
       - name: Install dependencies
         run: flutter pub get
 

@@ -17,12 +17,14 @@ class RootShell extends StatefulWidget {
   final OnboardingProfile profile;
   final WorkoutSessionStore sessionStore;
   final JumpLogStore jumpLogStore;
+  final VoidCallback onRestartOnboarding;
 
   const RootShell({
     super.key,
     required this.profile,
     required this.sessionStore,
     required this.jumpLogStore,
+    required this.onRestartOnboarding,
   });
 
   @override
@@ -63,6 +65,7 @@ class _RootShellState extends State<RootShell> {
         sessionStore: widget.sessionStore,
         jumpLogStore: widget.jumpLogStore,
         onGoToAnalyze: () => setState(() => _index = 1),
+        onRestartOnboarding: widget.onRestartOnboarding,
       ),
     ];
 
