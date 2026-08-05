@@ -14,9 +14,12 @@ abstract class FlightTime {
   static const double minAirborneSeconds = 0.15;
 
   /// Longest airborne time that's physically plausible for a standing
-  /// vertical leap (comfortably above the ~1.0–1.1s elite range) — beyond
-  /// this the mark was almost certainly wrong.
-  static const double maxAirborneSeconds = 1.3;
+  /// vertical leap. 0.98s corresponds to ~46" — above the tracked NBA
+  /// vertical-leap record and every realistic recreational or pro athlete's
+  /// jump. (The old 1.3s ceiling corresponded to ~81", which is nonsensical
+  /// for a human and let a real bug — the detector locking onto the wrong
+  /// window — produce a "50 inch" reading instead of being caught here.)
+  static const double maxAirborneSeconds = 0.98;
 
   /// Airborne height in inches for a hang time of [airborneSeconds].
   /// Returns 0 for non-positive input.

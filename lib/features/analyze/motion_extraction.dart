@@ -7,7 +7,7 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../../core/models/motion_sample.dart';
 
-const _maxSamples = 50;
+const _maxSamples = 80;
 const _thumbSize = 32;
 
 /// Samples evenly-spaced still frames and computes frame-to-frame motion

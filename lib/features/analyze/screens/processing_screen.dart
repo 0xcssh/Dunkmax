@@ -12,11 +12,15 @@ import '../motion_extraction.dart';
 /// algorithm. Calls [onDetected] with the result, or null if no clear jump
 /// was found (the caller falls back to manual marking).
 ///
-/// Two real passes are run: a coarse full-clip pass to find an approximate
-/// jump window, then a dense pass restricted to just that window (padded by
-/// 250ms either side) to pin down takeoff/landing far more precisely. The UI
-/// below reflects these real stages as they complete — it is not a
-/// decorative animation.
+/// This used to run a second, denser pass restricted to a small window
+/// around the coarse result to refine the exact timestamps — reverted: that
+/// refine pass re-derived its own relative energy threshold from just that
+/// narrow window, which turned out to be an unreliable, non-representative
+/// sample (confirmed by a real clip going from a ~20" reading to a bogus
+/// ~50" reading after the refine step was added). A single full-clip pass
+/// is coarser but far more predictable. The UI below reflects the real
+/// stages of that single pass as they complete — it is not a decorative
+/// animation.
 class ProcessingScreen extends StatefulWidget {
   final File video;
   final ValueChanged<JumpMeasurement?> onDetected;
@@ -31,7 +35,7 @@ class ProcessingScreen extends StatefulWidget {
   State<ProcessingScreen> createState() => _ProcessingScreenState();
 }
 
-enum _Phase { extracting, locating, refining, estimating }
+enum _Phase { extracting, locating, estimating }
 
 class _ProcessingScreenState extends State<ProcessingScreen> {
   _Phase _phase = _Phase.extracting;
@@ -46,28 +50,12 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
     JumpMeasurement? result;
     try {
       if (mounted) setState(() => _phase = _Phase.extracting);
-      final coarse = await extractMotionSamples(widget.video);
+      final samples = await extractMotionSamples(widget.video);
 
       if (mounted) setState(() => _phase = _Phase.locating);
-      final coarseResult = JumpAutoDetector.detect(coarse);
+      result = JumpAutoDetector.detect(samples);
 
-      if (coarseResult != null) {
-        if (mounted) setState(() => _phase = _Phase.refining);
-        var start = coarseResult.takeoff - const Duration(milliseconds: 250);
-        if (start < Duration.zero) start = Duration.zero;
-        final end = coarseResult.landing + const Duration(milliseconds: 250);
-        final refined = await extractMotionSamples(
-          widget.video,
-          rangeStart: start,
-          rangeEnd: end,
-          sampleCount: 60,
-        );
-
-        if (mounted) setState(() => _phase = _Phase.estimating);
-        result = JumpAutoDetector.detect(refined) ?? coarseResult;
-      } else {
-        result = null;
-      }
+      if (mounted) setState(() => _phase = _Phase.estimating);
     } catch (_) {
       result = null;
     }
@@ -168,7 +156,6 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                   children: [
                     _StepRow(label: 'Extracting frames', stepPhase: _Phase.extracting, currentPhase: _phase),
                     _StepRow(label: 'Locating your jump', stepPhase: _Phase.locating, currentPhase: _phase),
-                    _StepRow(label: 'Refining takeoff & landing', stepPhase: _Phase.refining, currentPhase: _phase),
                     _StepRow(
                       label: 'Estimating your vertical',
                       stepPhase: _Phase.estimating,
