@@ -53,14 +53,9 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
   }
 
   void _share() {
-    // NOTE: share_plus v10.x API used here — `SharePlus.instance.share`
-    // taking a `ShareParams`. Older share_plus majors exposed a top-level
-    // `Share.shareXFiles([...])` function instead. This could not be
-    // verified against a locally resolved package (no local Flutter/pub
-    // available in this environment) — double-check against the actual
-    // resolved `share_plus` version if analysis fails on this file.
-    SharePlus.instance.share(
-      ShareParams(files: [XFile(widget.videoPath)], text: '${widget.verticalInches}" vertical — Dunk It'),
+    Share.shareXFiles(
+      [XFile(widget.videoPath)],
+      text: '${widget.verticalInches}" vertical — Dunk It',
     );
   }
 
