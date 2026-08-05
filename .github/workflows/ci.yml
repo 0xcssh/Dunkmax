@@ -67,4 +67,8 @@ jobs:
       # Compile-only validation on the real macOS toolchain. Signing/IPA export
       # is handled by ios-release.yml once signing secrets exist in this repo.
       - name: Build iOS (no code signing)
+        # Kept in sync with ios-release.yml's deployment target — Apple
+        # requires MinimumOSVersion >= 15.0 for App Store Connect uploads.
+        env:
+          FLUTTER_XCODE_IPHONEOS_DEPLOYMENT_TARGET: "15.0"
         run: flutter build ios --release --no-codesign

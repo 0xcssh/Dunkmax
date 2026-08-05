@@ -54,6 +54,12 @@ jobs:
         run: flutter pub get
 
       - name: Build (CocoaPods install + asset compile, unsigned)
+        # Apple requires MinimumOSVersion >= 15.0 for App Store Connect
+        # uploads (warning today, hard block from spring 2027); Flutter's
+        # default deployment target is lower. FLUTTER_XCODE_* env vars are
+        # forwarded to xcodebuild as build settings.
+        env:
+          FLUTTER_XCODE_IPHONEOS_DEPLOYMENT_TARGET: "15.0"
         run: flutter build ios --release --no-codesign
 
       - name: Import signing certificate
@@ -95,7 +101,8 @@ jobs:
             -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
             -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
             DEVELOPMENT_TEAM="${{ vars.APPLE_TEAM_ID }}" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            IPHONEOS_DEPLOYMENT_TARGET="15.0"
 
       - name: Export IPA
         run: |
