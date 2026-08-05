@@ -1,0 +1,90 @@
+import 'flight_time.dart';
+import 'models/jump_measurement.dart';
+import 'models/motion_sample.dart';
+
+/// Finds the airborne window in a jump clip from a motion-energy time
+/// series, without any pose/frame-pixel dependencies (that glue lives in
+/// features/analyze/motion_extraction.dart — this is the pure, testable
+/// decision logic).
+///
+/// Heuristic: the body moves smoothly (low motion) while airborne, framed
+/// by higher motion before (the jump drive) and after (landing impact).
+/// Finds the longest/quietest contiguous low-motion run bounded by higher
+/// motion on both sides, filtered to a physically plausible airborne
+/// duration. Returns null if no clear window is found.
+abstract class JumpAutoDetector {
+  static JumpMeasurement? detect(List<MotionSample> samples) {
+    if (samples.length < 3) return null;
+
+    final sorted = [...samples]
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    final energies = sorted.map((s) => s.energy).toList()..sort();
+    final maxEnergy = energies.last;
+    if (maxEnergy <= 0) return null;
+
+    // Threshold: whichever is more permissive of the 35th percentile or a
+    // flat fraction of the peak, so a clip with mostly-low motion (little
+    // camera shake) still finds a real quiet window instead of thresholding
+    // everything as "low".
+    final percentileIndex =
+        (energies.length * 0.35).floor().clamp(0, energies.length - 1).toInt();
+    final percentileThreshold = energies[percentileIndex];
+    final fractionThreshold = maxEnergy * 0.25;
+    final threshold = percentileThreshold > fractionThreshold
+        ? percentileThreshold
+        : fractionThreshold;
+
+    // Find maximal contiguous runs of sorted[i].energy <= threshold.
+    final candidates = <_Run>[];
+    int? runStart;
+    for (var i = 0; i < sorted.length; i++) {
+      final isLow = sorted[i].energy <= threshold;
+      if (isLow && runStart == null) {
+        runStart = i;
+      } else if (!isLow && runStart != null) {
+        candidates.add(_Run(runStart, i - 1));
+        runStart = null;
+      }
+    }
+    if (runStart != null) candidates.add(_Run(runStart, sorted.length - 1));
+
+    // Filter to a plausible airborne duration, using the sample just before
+    // the run (or the run's own first sample, if the run starts at index 0)
+    // as takeoff, and the sample just after the run (or the run's own last
+    // sample, if it runs to the end) as landing.
+    _Run? best;
+    double? bestAvgEnergy;
+    for (final run in candidates) {
+      final takeoffIndex = run.start > 0 ? run.start - 1 : run.start;
+      final landingIndex =
+          run.end < sorted.length - 1 ? run.end + 1 : run.end;
+      final takeoff = sorted[takeoffIndex].timestamp;
+      final landing = sorted[landingIndex].timestamp;
+      if (landing <= takeoff) continue;
+      final airborneSeconds =
+          (landing - takeoff).inMicroseconds / Duration.microsecondsPerSecond;
+      if (!FlightTime.isPlausible(airborneSeconds)) continue;
+
+      final runEnergies =
+          sorted.sublist(run.start, run.end + 1).map((s) => s.energy);
+      final avgEnergy = runEnergies.reduce((a, b) => a + b) / runEnergies.length;
+      if (best == null || avgEnergy < bestAvgEnergy!) {
+        best = _Run(takeoffIndex, landingIndex);
+        bestAvgEnergy = avgEnergy;
+      }
+    }
+    if (best == null) return null;
+
+    return JumpMeasurement(
+      takeoff: sorted[best.start].timestamp,
+      landing: sorted[best.end].timestamp,
+    );
+  }
+}
+
+class _Run {
+  final int start;
+  final int end;
+  const _Run(this.start, this.end);
+}

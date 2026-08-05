@@ -14,12 +14,14 @@ class MarkJumpScreen extends StatefulWidget {
   final File video;
   final ValueChanged<JumpMeasurement> onMarked;
   final VoidCallback onCancel;
+  final bool isFallback;
 
   const MarkJumpScreen({
     super.key,
     required this.video,
     required this.onMarked,
     required this.onCancel,
+    this.isFallback = false,
   });
 
   @override
@@ -119,6 +121,30 @@ class _MarkJumpScreenState extends State<MarkJumpScreen> {
               ],
             ),
           ),
+          if (widget.isFallback)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: DunkColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: DunkColors.stroke),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: DunkColors.textSecondary, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        "We couldn't auto-detect your jump — mark takeoff and landing manually.",
+                        style: TextStyle(color: DunkColors.textSecondary, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Expanded(
             child: Center(
               child: AspectRatio(

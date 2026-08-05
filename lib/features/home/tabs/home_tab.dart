@@ -1,102 +1,443 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/jump_trend.dart';
 import '../../../core/models/onboarding_profile.dart';
 import '../../../core/models/training_program.dart';
+import '../../../core/workout_streak.dart';
+import '../../../services/jump_log_store.dart';
+import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
 
-/// Landing tab: a quick welcome and a shortcut into today's training.
+const _weekdayInitials = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+/// Landing tab: a DunkMax-style home dashboard — brand header, a 5-day
+/// training strip, today's session hero card, and a quick-glance stats row.
+/// Every number here comes from the real stores (or a pure calculator over
+/// them); nothing is fabricated.
 class HomeTab extends StatelessWidget {
   final OnboardingProfile profile;
   final TrainingProgram program;
+  final WorkoutSessionStore sessionStore;
+  final JumpLogStore jumpLogStore;
   final VoidCallback onStartTraining;
+  final VoidCallback onOpenSettings;
 
   const HomeTab({
     super.key,
     required this.profile,
     required this.program,
+    required this.sessionStore,
+    required this.jumpLogStore,
     required this.onStartTraining,
+    required this.onOpenSettings,
   });
 
   @override
   Widget build(BuildContext context) {
+    final completedForProgram = sessionStore.sessions
+        .where((s) => s.programId == program.id)
+        .length;
+    final currentSessionNumber =
+        (completedForProgram + 1).clamp(1, program.totalSessions);
+    final isProgramComplete = completedForProgram >= program.totalSessions;
+    final today = program.dayFor(currentSessionNumber);
+    final streak = WorkoutStreak.currentStreak(
+      sessionStore.sessions.map((s) => s.completedAt).toList(),
+    );
+    final trend = JumpTrendCalculator.compute(jumpLogStore.entries);
+    final weekNumber = ((currentSessionNumber - 1) ~/ program.sessionsPerWeek) + 1;
+    final completedDaySet = sessionStore.sessions
+        .map((s) => _dateOnly(s.completedAt))
+        .toSet();
+
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
         children: [
-          const Text(
-            "LET'S GET UP",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.5,
-            ),
+          _HeaderRow(streak: streak, onOpenSettings: onOpenSettings),
+          const SizedBox(height: 20),
+          _DayStrip(
+            currentSessionNumber: currentSessionNumber,
+            totalSessions: program.totalSessions,
+            completedDaySet: completedDaySet,
+            isProgramComplete: isProgramComplete,
           ),
-          const SizedBox(height: 6),
-          Text(
-            "You're on the ${program.name}. Time to put in work.",
-            style: DunkTheme.onboardingSubtitle,
-          ),
-          const SizedBox(height: 24),
-          _TodayCard(program: program, onStartTraining: onStartTraining),
           const SizedBox(height: 16),
-          _FocusCard(profile: profile),
+          _HeroCard(
+            today: today,
+            weekNumber: weekNumber,
+            currentSessionNumber: currentSessionNumber,
+            totalSessions: program.totalSessions,
+            isProgramComplete: isProgramComplete,
+            onStartTraining: onStartTraining,
+          ),
+          const SizedBox(height: 16),
+          _StatsRow(trend: trend, streak: streak),
         ],
       ),
     );
   }
 }
 
-class _TodayCard extends StatelessWidget {
-  final TrainingProgram program;
-  final VoidCallback onStartTraining;
+class _HeaderRow extends StatelessWidget {
+  final int streak;
+  final VoidCallback onOpenSettings;
 
-  const _TodayCard({required this.program, required this.onStartTraining});
+  const _HeaderRow({required this.streak, required this.onOpenSettings});
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            gradient: DunkColors.primaryGradient,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.sports_basketball, color: Colors.white, size: 22),
+        ),
+        const SizedBox(width: 10),
+        RichText(
+          text: const TextSpan(
+            children: [
+              TextSpan(
+                text: 'DUNK',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              TextSpan(
+                text: 'IT',
+                style: TextStyle(
+                  color: DunkColors.primary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: DunkColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: DunkColors.stroke),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.local_fire_department, color: DunkColors.primary, size: 16),
+              const SizedBox(width: 4),
+              Text(
+                '$streak',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Material(
+          color: DunkColors.surface,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onOpenSettings,
+            child: const Padding(
+              padding: EdgeInsets.all(10),
+              child: Icon(Icons.settings_outlined, color: Colors.white, size: 20),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DayStrip extends StatelessWidget {
+  final int currentSessionNumber;
+  final int totalSessions;
+  final Set<DateTime> completedDaySet;
+  final bool isProgramComplete;
+
+  const _DayStrip({
+    required this.currentSessionNumber,
+    required this.totalSessions,
+    required this.completedDaySet,
+    required this.isProgramComplete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final todayDate = _dateOnly(DateTime.now());
+    final dates = List.generate(
+      5,
+      (i) => todayDate.add(Duration(days: i - 2)),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'DAY $currentSessionNumber/$totalSessions',
+              style: const TextStyle(
+                color: DunkColors.textTertiary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: DunkColors.accentGreen.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'TODAY',
+                style: TextStyle(
+                  color: DunkColors.accentGreen,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            for (final date in dates)
+              _DayCard(
+                date: date,
+                isToday: date == todayDate,
+                isPast: date.isBefore(todayDate),
+                wasCompleted: completedDaySet.contains(date),
+                isProgramComplete: isProgramComplete,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _DayCard extends StatelessWidget {
+  final DateTime date;
+  final bool isToday;
+  final bool isPast;
+  final bool wasCompleted;
+  final bool isProgramComplete;
+
+  const _DayCard({
+    required this.date,
+    required this.isToday,
+    required this.isPast,
+    required this.wasCompleted,
+    required this.isProgramComplete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    late final Color bg;
+    late final Widget statusIcon;
+    Border? border;
+
+    if (isToday) {
+      statusIcon = Container(
+        width: 22,
+        height: 22,
+        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+        child: Icon(
+          isProgramComplete ? Icons.nightlight_round : Icons.bolt,
+          color: DunkColors.primaryDeep,
+          size: 14,
+        ),
+      );
+    } else if (isPast) {
+      if (wasCompleted) {
+        bg = DunkColors.surface;
+        statusIcon = const Icon(Icons.check_circle, color: DunkColors.accentGreen, size: 22);
+      } else {
+        bg = Colors.red.withValues(alpha: 0.12);
+        statusIcon = Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: Colors.redAccent.withValues(alpha: 0.25),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.close, color: Colors.redAccent, size: 14),
+        );
+      }
+    } else {
+      bg = DunkColors.surface;
+      statusIcon = const Icon(Icons.nightlight_round, color: DunkColors.textTertiary, size: 20);
+    }
+
+    if (!isToday) {
+      border = Border.all(color: DunkColors.stroke);
+    }
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: 60,
+      padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        gradient: DunkColors.primaryGradient,
-        borderRadius: BorderRadius.circular(20),
+        gradient: isToday ? DunkColors.primaryGradient : null,
+        color: isToday ? null : bg,
+        borderRadius: BorderRadius.circular(14),
+        border: border,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            "TODAY'S SESSION",
+          Text(
+            _weekdayInitials[date.weekday - 1],
             style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
+              color: isToday ? Colors.white70 : DunkColors.textTertiary,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
-              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          statusIcon,
+          const SizedBox(height: 8),
+          Text(
+            '${date.day}',
+            style: TextStyle(
+              color: isToday ? Colors.white : DunkColors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroCard extends StatelessWidget {
+  final ProgramDay today;
+  final int weekNumber;
+  final int currentSessionNumber;
+  final int totalSessions;
+  final bool isProgramComplete;
+  final VoidCallback onStartTraining;
+
+  const _HeroCard({
+    required this.today,
+    required this.weekNumber,
+    required this.currentSessionNumber,
+    required this.totalSessions,
+    required this.isProgramComplete,
+    required this.onStartTraining,
+  });
+
+  IconData get _focusIcon {
+    switch (today.focus.toLowerCase()) {
+      case 'power':
+        return Icons.bolt;
+      case 'strength':
+        return Icons.fitness_center;
+      case 'speed':
+        return Icons.speed;
+      default:
+        return Icons.sports_basketball;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final headline = isProgramComplete
+        ? 'PROGRAM COMPLETE'
+        : '${today.focus.toUpperCase()} DAY';
+    final ctaLabel = isProgramComplete ? 'VIEW TRAIN' : 'START SESSION';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: DunkColors.primaryGradient,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isProgramComplete ? Icons.emoji_events : _focusIcon,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            headline,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontStyle: FontStyle.italic,
+              fontWeight: FontWeight.w900,
+              fontSize: 26,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            program.dayFor(1).exercises.map((e) => e.name).join(' · '),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
+            isProgramComplete
+                ? "You've finished every session — nice work."
+                : 'Week $weekNumber • Session $currentSessionNumber/$totalSessions',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
-          const SizedBox(height: 16),
+          if (!isProgramComplete) ...[
+            const SizedBox(height: 6),
+            Text(
+              today.warmUp,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ],
+          const SizedBox(height: 20),
           Material(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               onTap: onStartTraining,
               child: Container(
-                height: 46,
+                height: 52,
+                width: double.infinity,
                 alignment: Alignment.center,
-                child: const Text(
-                  'START TRAINING',
-                  style: TextStyle(
+                child: Text(
+                  ctaLabel,
+                  style: const TextStyle(
                     color: DunkColors.primaryDeep,
                     fontWeight: FontWeight.w800,
+                    fontSize: 15,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -109,14 +450,79 @@ class _TodayCard extends StatelessWidget {
   }
 }
 
-class _FocusCard extends StatelessWidget {
-  final OnboardingProfile profile;
+class _StatsRow extends StatelessWidget {
+  final JumpTrend? trend;
+  final int streak;
 
-  const _FocusCard({required this.profile});
+  const _StatsRow({required this.trend, required this.streak});
 
   @override
   Widget build(BuildContext context) {
-    final goals = profile.goals.map((g) => g.title).join(', ');
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            icon: Icons.straighten,
+            value: trend == null ? '—' : '${trend!.latestVerticalInches}"',
+            label: 'LATEST VERT',
+            trailing: trend != null && trend!.isImproving
+                ? _GreenDelta(text: '+${trend!.deltaFromFirstInches}"')
+                : null,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.local_fire_department,
+            value: '$streak',
+            label: 'DAY STREAK',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GreenDelta extends StatelessWidget {
+  final String text;
+
+  const _GreenDelta({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: DunkColors.accentGreen.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: DunkColors.accentGreen,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Widget? trailing;
+
+  const _StatCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -127,28 +533,41 @@ class _FocusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'YOUR FOCUS',
-            style: TextStyle(
-              color: DunkColors.textTertiary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: DunkColors.surfaceRaised,
+              borderRadius: BorderRadius.circular(9),
             ),
+            child: Icon(icon, color: DunkColors.primary, size: 17),
           ),
-          const SizedBox(height: 8),
-          Text(
-            goals.isEmpty ? 'Max Vertical' : goals,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: 8),
+                trailing!,
+              ],
+            ],
           ),
           const SizedBox(height: 4),
           Text(
-            '${profile.position.label} · ${profile.daysPerWeek} days/week',
-            style: const TextStyle(color: DunkColors.textSecondary, fontSize: 13),
+            label,
+            style: const TextStyle(
+              color: DunkColors.textTertiary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
           ),
         ],
       ),

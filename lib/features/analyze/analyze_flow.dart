@@ -42,25 +42,31 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   void _onVideoSelected(File video) {
     setState(() {
       _video = video;
-      _step = _Step.mark;
+      _step = _Step.processing;
     });
   }
 
-  void _onMarked(JumpMeasurement measurement) {
+  void _onAutoDetected(JumpMeasurement? measurement) {
+    if (measurement == null) {
+      // Auto-detection couldn't find a clear jump — fall back to manual
+      // marking rather than dead-ending the user.
+      setState(() => _step = _Step.mark);
+      return;
+    }
+    _finishWithMeasurement(measurement);
+  }
+
+  void _onMarked(JumpMeasurement measurement) =>
+      _finishWithMeasurement(measurement);
+
+  Future<void> _finishWithMeasurement(JumpMeasurement measurement) async {
     final assessment = VertAssessment(
       heightInches: widget.profile.heightInches,
       ageYears: widget.profile.ageYears,
       hops: widget.profile.hopsLevel,
     );
-    setState(() {
-      _result = JumpResult(measurement: measurement, assessment: assessment);
-      _step = _Step.processing;
-    });
-  }
-
-  Future<void> _onProcessed() async {
-    final result = _result!;
-    if (result.measurement.isValid) {
+    final result = JumpResult(measurement: measurement, assessment: assessment);
+    if (measurement.isValid) {
       await widget.jumpLogStore.addEntry(
         JumpLogEntry(
           verticalInches: result.verticalInches,
@@ -69,7 +75,10 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
       );
     }
     if (!mounted) return;
-    setState(() => _step = _Step.result);
+    setState(() {
+      _result = result;
+      _step = _Step.result;
+    });
   }
 
   void _reset() => setState(() {
@@ -92,14 +101,15 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     switch (_step) {
       case _Step.source:
         return SourceScreen(onVideoSelected: _onVideoSelected);
+      case _Step.processing:
+        return ProcessingScreen(video: _video!, onDetected: _onAutoDetected);
       case _Step.mark:
         return MarkJumpScreen(
           video: _video!,
           onMarked: _onMarked,
           onCancel: _reset,
+          isFallback: true,
         );
-      case _Step.processing:
-        return ProcessingScreen(onDone: _onProcessed);
       case _Step.result:
         return JumpResultScreen(result: _result!, onAnalyzeAnother: _reset);
     }

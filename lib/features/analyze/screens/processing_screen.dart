@@ -1,35 +1,47 @@
-import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/jump_auto_detector.dart';
+import '../../../core/models/jump_measurement.dart';
 import '../../../theme/app_theme.dart';
+import '../motion_extraction.dart';
 
-/// A brief "crunching the numbers" beat between marking the jump and seeing
-/// the result — the math itself is instant, but a flash cut feels cheap.
+/// Runs motion-energy analysis on the recorded clip to auto-detect the
+/// jump's takeoff/landing — see core/jump_auto_detector.dart for the
+/// algorithm. Calls [onDetected] with the result, or null if no clear jump
+/// was found (the caller falls back to manual marking).
 class ProcessingScreen extends StatefulWidget {
-  final Future<void> Function() onDone;
+  final File video;
+  final ValueChanged<JumpMeasurement?> onDetected;
 
-  const ProcessingScreen({super.key, required this.onDone});
+  const ProcessingScreen({
+    super.key,
+    required this.video,
+    required this.onDetected,
+  });
 
   @override
   State<ProcessingScreen> createState() => _ProcessingScreenState();
 }
 
 class _ProcessingScreenState extends State<ProcessingScreen> {
-  Timer? _timer;
-
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(milliseconds: 1400), () {
-      if (mounted) widget.onDone();
-    });
+    _run();
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+  Future<void> _run() async {
+    JumpMeasurement? result;
+    try {
+      final samples = await extractMotionSamples(widget.video);
+      result = JumpAutoDetector.detect(samples);
+    } catch (_) {
+      result = null;
+    }
+    if (!mounted) return;
+    widget.onDetected(result);
   }
 
   @override
@@ -59,7 +71,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
             ),
             SizedBox(height: 8),
             Text(
-              'Measuring hang time…',
+              'Finding your takeoff and landing…',
               style: DunkTheme.onboardingSubtitle,
             ),
           ],

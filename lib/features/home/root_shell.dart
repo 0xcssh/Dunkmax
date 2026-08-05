@@ -51,7 +51,10 @@ class _RootShellState extends State<RootShell> {
       HomeTab(
         profile: widget.profile,
         program: program,
+        sessionStore: widget.sessionStore,
+        jumpLogStore: widget.jumpLogStore,
         onStartTraining: () => setState(() => _index = 2),
+        onOpenSettings: () => _openSettings(context),
       ),
       AnalyzeFlow(profile: widget.profile, jumpLogStore: widget.jumpLogStore),
       TrainTab(program: program, sessionStore: widget.sessionStore),
@@ -65,7 +68,6 @@ class _RootShellState extends State<RootShell> {
         sessionStore: widget.sessionStore,
         jumpLogStore: widget.jumpLogStore,
         onGoToAnalyze: () => setState(() => _index = 1),
-        onRestartOnboarding: widget.onRestartOnboarding,
       ),
     ];
 
@@ -77,6 +79,103 @@ class _RootShellState extends State<RootShell> {
         onTap: (i) => setState(() => _index = i),
       ),
     );
+  }
+
+  Future<void> _openSettings(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: DunkColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: DunkColors.stroke,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const Text(
+                  'SETTINGS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Material(
+                  color: DunkColors.surfaceRaised,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _confirmRestartOnboarding(context);
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Icon(Icons.refresh, color: DunkColors.textSecondary, size: 20),
+                          SizedBox(width: 12),
+                          Text(
+                            'Retake onboarding',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmRestartOnboarding(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: DunkColors.surface,
+        title: const Text('Retake onboarding?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          "This clears your current profile and takes you back through the quiz from the start.",
+          style: TextStyle(color: DunkColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: DunkColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Retake', style: TextStyle(color: DunkColors.primary)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) widget.onRestartOnboarding();
   }
 }
 
@@ -93,26 +192,37 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: DunkColors.surface,
-        border: Border(top: BorderSide(color: DunkColors.stroke)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              for (var i = 0; i < tabs.length; i++)
-                _BarItem(
-                  icon: tabs[i].$1,
-                  label: tabs[i].$2,
-                  active: i == index,
-                  onTap: () => onTap(i),
-                ),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: DunkColors.surface,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: DunkColors.stroke),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
             ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                for (var i = 0; i < tabs.length; i++)
+                  _BarItem(
+                    icon: tabs[i].$1,
+                    label: tabs[i].$2,
+                    active: i == index,
+                    onTap: () => onTap(i),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -135,7 +245,7 @@ class _BarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? DunkColors.primary : DunkColors.textTertiary;
+    final color = active ? Colors.white : DunkColors.textTertiary;
     return Expanded(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -145,12 +255,22 @@ class _BarItem extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 24),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active ? DunkColors.primary : Colors.transparent,
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
               const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
-                  color: color,
+                  color: active ? DunkColors.primary : DunkColors.textTertiary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5,
