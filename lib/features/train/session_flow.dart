@@ -70,6 +70,12 @@ class _SessionFlowState extends State<SessionFlow> {
             onCancel: () => Navigator.of(context).pop(false),
           ),
         _Step.exercise => LogExerciseScreen(
+            // Keyed by index so Flutter creates a fresh State per exercise
+            // instead of reusing the previous exercise's — without this, the
+            // set-validation flags (and text controllers) from exercise N
+            // carried over to exercise N+1, showing every set as already
+            // "DONE" the moment the new exercise loaded.
+            key: ValueKey(_exerciseIndex),
             exercise: widget.day.exercises[_exerciseIndex],
             exerciseIndex: _exerciseIndex,
             totalExercises: widget.day.exercises.length,

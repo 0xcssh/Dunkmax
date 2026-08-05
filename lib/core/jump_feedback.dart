@@ -44,7 +44,7 @@ abstract class JumpFeedback {
   static JumpFeedbackSummary build(JumpResult result, {JumpTrend? trend}) {
     return JumpFeedbackSummary(
       headline: _headline(result),
-      focusNote: _focusNote(trend),
+      focusNote: _focusNote(result, trend),
       tips: _pickTips(result),
     );
   }
@@ -60,9 +60,32 @@ abstract class JumpFeedback {
         'at your height.';
   }
 
-  static String _focusNote(JumpTrend? trend) {
+  static String _focusNote(JumpResult result, JumpTrend? trend) {
     if (trend == null) {
-      return 'Log a few more jumps to start tracking your trend over time.';
+      // First-ever logged jump: this is the first time real data exists,
+      // and it will often disagree with the self-reported hops-level guess
+      // from onboarding (assessment.estimatedCurrentVert) — sometimes by a
+      // lot, since a self-report is a coarse category, not a measurement.
+      // Naming that difference explicitly beats leaving the athlete to
+      // wonder why the gap they saw at onboarding doesn't match this one.
+      final selfReported = result.assessment.estimatedCurrentVert;
+      final measured = result.verticalInches;
+      final delta = measured - selfReported;
+      if (delta.abs() <= 2) {
+        return 'Your measured jump lines up closely with your onboarding '
+            'estimate — good self-awareness. Log a few more to start '
+            'tracking your trend.';
+      }
+      if (delta > 0) {
+        return 'Your measured jump ($measured") came in $delta" above your '
+            'onboarding estimate ($selfReported") — that estimate was a '
+            'guess from a self-reported category, not a measurement. This '
+            'real number is what we track from here.';
+      }
+      return 'Your measured jump ($measured") came in ${delta.abs()}" below '
+          'your onboarding estimate ($selfReported") — self-reports run '
+          'optimistic more often than not. This real number is what we '
+          'track from here.';
     }
     final delta = trend.deltaFromFirstInches;
     if (delta > 0) {

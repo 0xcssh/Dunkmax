@@ -20,6 +20,7 @@ class JumpResultScreen extends StatelessWidget {
   final JumpDetectionDiagnostics diagnostics;
   final VideoAttemptType attemptType;
   final VoidCallback onAnalyzeAnother;
+  final String ctaLabel;
 
   const JumpResultScreen({
     super.key,
@@ -28,6 +29,7 @@ class JumpResultScreen extends StatelessWidget {
     required this.diagnostics,
     required this.attemptType,
     required this.onAnalyzeAnother,
+    this.ctaLabel = 'ANALYZE ANOTHER JUMP',
   });
 
   @override
@@ -58,7 +60,7 @@ class JumpResultScreen extends StatelessWidget {
           ],
           const SizedBox(height: 20),
           PrimaryButton(
-            label: 'ANALYZE ANOTHER JUMP',
+            label: ctaLabel,
             onPressed: onAnalyzeAnother,
           ),
         ],

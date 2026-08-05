@@ -29,10 +29,19 @@ class AnalyzeFlow extends StatefulWidget {
   final OnboardingProfile profile;
   final JumpLogStore jumpLogStore;
 
+  /// When set, this is the pre-paywall "try it free" run: the source screen
+  /// offers a skip link (straight to the paywall) and the result screen's
+  /// primary action continues to the paywall instead of resetting to
+  /// analyze another jump. Both null in the normal Analyze-tab usage.
+  final VoidCallback? onSkip;
+  final VoidCallback? onFirstResult;
+
   const AnalyzeFlow({
     super.key,
     required this.profile,
     required this.jumpLogStore,
+    this.onSkip,
+    this.onFirstResult,
   });
 
   @override
@@ -143,7 +152,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   Widget _buildStep() {
     switch (_step) {
       case _Step.source:
-        return SourceScreen(onVideoSelected: _onVideoSelected);
+        return SourceScreen(onVideoSelected: _onVideoSelected, onSkip: widget.onSkip);
       case _Step.processing:
         return ProcessingScreen(video: _video!, onDetected: _onDetected);
       case _Step.mark:
@@ -159,7 +168,8 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
           trend: _trend,
           diagnostics: _diagnostics,
           attemptType: _attemptType,
-          onAnalyzeAnother: _reset,
+          onAnalyzeAnother: widget.onFirstResult ?? _reset,
+          ctaLabel: widget.onFirstResult != null ? 'CONTINUE' : 'ANALYZE ANOTHER JUMP',
         );
     }
   }

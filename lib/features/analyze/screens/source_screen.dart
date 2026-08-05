@@ -11,7 +11,11 @@ import '../../shared/widgets/primary_button.dart';
 class SourceScreen extends StatefulWidget {
   final void Function(File video, VideoAttemptType attemptType) onVideoSelected;
 
-  const SourceScreen({super.key, required this.onVideoSelected});
+  /// Set only for the pre-paywall "try it free" run — shows an "I'll do
+  /// this later" skip link. Null in the normal Analyze-tab usage.
+  final VoidCallback? onSkip;
+
+  const SourceScreen({super.key, required this.onVideoSelected, this.onSkip});
 
   @override
   State<SourceScreen> createState() => _SourceScreenState();
@@ -143,6 +147,30 @@ class _SourceScreenState extends State<SourceScreen> {
                 ),
               ),
             ),
+            if (widget.onSkip != null) ...[
+              const SizedBox(height: 4),
+              Center(
+                child: TextButton(
+                  onPressed: _busy ? null : widget.onSkip,
+                  child: const Column(
+                    children: [
+                      Text(
+                        "I'll do this later",
+                        style: TextStyle(
+                          color: DunkColors.textTertiary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'You can analyze anytime from the app.',
+                        style: TextStyle(color: DunkColors.textTertiary, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

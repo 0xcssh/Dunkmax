@@ -7,9 +7,11 @@ import '../../theme/app_theme.dart';
 enum _Plan { yearly, weekly }
 
 /// Presentation-only paywall. Real StoreKit/RevenueCat wiring is a follow-up
-/// (see CLAUDE.md) — the CTA and the close button both continue into the app
-/// so the flow is fully walkable on device. Pricing shown is a placeholder
-/// mockup, not tied to real App Store Connect products yet.
+/// (see CLAUDE.md). This is a HARD gate by design — deliberately no back/
+/// close/skip affordance, since "Start Free Trial" is meant to be the only
+/// way past it (per product decision: nobody should reach the app without
+/// starting the trial). Pricing shown is a placeholder mockup, not tied to
+/// real App Store Connect products yet.
 ///
 /// Deliberately does NOT show a star-rating/review-count badge like the
 /// reference app's — this is a brand-new, unpublished app with zero real
@@ -19,13 +21,11 @@ enum _Plan { yearly, weekly }
 /// discipline). No badge is better than a fake one.
 class PaywallScreen extends StatefulWidget {
   final OnboardingProfile profile;
-  final VoidCallback onClose;
   final VoidCallback onContinue;
 
   const PaywallScreen({
     super.key,
     required this.profile,
-    required this.onClose,
     required this.onContinue,
   });
 
@@ -62,15 +62,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: IconButton(
-                    onPressed: widget.onClose,
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.chevron_left,
-                        color: Colors.white, size: 28),
-                  ),
-                ),
+                const SizedBox(height: 8),
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.zero,

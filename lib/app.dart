@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/models/onboarding_profile.dart';
+import 'features/analyze/analyze_flow.dart';
 import 'features/home/root_shell.dart';
 import 'features/onboarding/onboarding_flow.dart';
 import 'features/paywall/paywall_screen.dart';
@@ -9,9 +10,12 @@ import 'services/onboarding_store.dart';
 import 'services/workout_session_store.dart';
 import 'theme/app_theme.dart';
 
-/// Top-level phase machine: onboarding → paywall → app shell. On a returning
-/// launch (onboarding already complete) it jumps straight to the shell.
-enum _Phase { onboarding, paywall, app }
+/// Top-level phase machine: onboarding → free analysis → paywall → app
+/// shell. On a returning launch (onboarding already complete) it jumps
+/// straight to the shell. The paywall is a hard gate — the only way past it
+/// is starting the free trial (see PaywallScreen); free analysis, right
+/// before it, is the one thing an athlete can try before that gate.
+enum _Phase { onboarding, freeAnalysis, paywall, app }
 
 class DunkMaxApp extends StatefulWidget {
   final OnboardingStore store;
@@ -49,9 +53,11 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
     if (!mounted) return;
     setState(() {
       _profile = profile;
-      _phase = _Phase.paywall;
+      _phase = _Phase.freeAnalysis;
     });
   }
+
+  void _goToPaywall() => setState(() => _phase = _Phase.paywall);
 
   void _enterApp() => setState(() => _phase = _Phase.app);
 
@@ -78,8 +84,15 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
     switch (_phase) {
       case _Phase.onboarding:
         return OnboardingFlow(onCompleted: _onOnboardingCompleted);
+      case _Phase.freeAnalysis:
+        return AnalyzeFlow(
+          profile: _profile!,
+          jumpLogStore: widget.jumpLogStore,
+          onSkip: _goToPaywall,
+          onFirstResult: _goToPaywall,
+        );
       case _Phase.paywall:
-        return PaywallScreen(profile: _profile!, onClose: _enterApp, onContinue: _enterApp);
+        return PaywallScreen(profile: _profile!, onContinue: _enterApp);
       case _Phase.app:
         return RootShell(
           profile: _profile!,

@@ -1,3 +1,5 @@
+import 'dart:math' show sqrt;
+
 import 'package:dunkmax/core/jump_feedback.dart';
 import 'package:dunkmax/core/models/hops_level.dart';
 import 'package:dunkmax/core/models/jump_measurement.dart';
@@ -51,13 +53,54 @@ void main() {
     });
   });
 
-  group('JumpFeedback.build — focusNote', () {
-    final result = resultWithVert(20);
+  group('JumpFeedback.build — focusNote (first jump, no trend yet)', () {
+    // touchRim/73"/26yo -> assessment.estimatedCurrentVert == 23" (see
+    // vert_assessment_test.dart's calibration case).
+    JumpResult resultWithMeasuredVert(int targetInches) {
+      // Solve landing duration t s.t. FlightTime.heightInches(t) ~= target
+      // (h = g*t^2/8 => t = sqrt(h*8/g)), then trust the actual rounded
+      // result rather than the target.
+      final tSeconds = sqrt(targetInches * 8 / 386.09);
+      final ms = (tSeconds * 1000).round();
+      return JumpResult(
+        measurement: JumpMeasurement(
+          takeoff: Duration.zero,
+          landing: Duration(milliseconds: ms),
+        ),
+        assessment: assessment(),
+      );
+    }
 
-    test('null trend prompts logging more jumps, no fabricated trend claim', () {
+    test('measured close to onboarding estimate reads as good self-awareness, not a fabricated trend', () {
+      final result = resultWithMeasuredVert(23); // ~= estimatedCurrentVert
+      expect((result.verticalInches - result.assessment.estimatedCurrentVert).abs(),
+          lessThanOrEqualTo(2));
+
       final summary = JumpFeedback.build(result, trend: null);
-      expect(summary.focusNote, contains('Log a few more jumps'));
+      expect(summary.focusNote, contains('lines up closely'));
     });
+
+    test('measured well above onboarding estimate is named honestly, not hidden', () {
+      final result = resultWithMeasuredVert(35); // well above estimatedCurrentVert (23")
+      expect(result.verticalInches, greaterThan(result.assessment.estimatedCurrentVert + 2));
+
+      final summary = JumpFeedback.build(result, trend: null);
+      expect(summary.focusNote, contains('above your onboarding estimate'));
+      expect(summary.focusNote, contains('${result.verticalInches}"'));
+      expect(summary.focusNote, contains('${result.assessment.estimatedCurrentVert}"'));
+    });
+
+    test('measured well below onboarding estimate is named honestly, not spun positive', () {
+      final result = resultWithMeasuredVert(10); // well below estimatedCurrentVert (23")
+      expect(result.verticalInches, lessThan(result.assessment.estimatedCurrentVert - 2));
+
+      final summary = JumpFeedback.build(result, trend: null);
+      expect(summary.focusNote, contains('below your onboarding estimate'));
+    });
+  });
+
+  group('JumpFeedback.build — focusNote (trend from prior jumps)', () {
+    final result = resultWithVert(20);
 
     test('positive delta trend is stated honestly as improvement', () {
       final trend = JumpTrend(
