@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/jump_auto_detector.dart';
 import '../../../core/jump_feedback.dart';
 import '../../../core/jump_result.dart';
 import '../../../core/jump_trend.dart';
@@ -15,12 +16,14 @@ import '../../shared/widgets/primary_button.dart';
 class JumpResultScreen extends StatelessWidget {
   final JumpResult result;
   final JumpTrend? trend;
+  final JumpDetectionDiagnostics diagnostics;
   final VoidCallback onAnalyzeAnother;
 
   const JumpResultScreen({
     super.key,
     required this.result,
     required this.trend,
+    required this.diagnostics,
     required this.onAnalyzeAnother,
   });
 
@@ -46,11 +49,127 @@ class JumpResultScreen extends StatelessWidget {
           _BreakdownCard(feedback: feedback),
           const SizedBox(height: 16),
           const _ScoresCard(),
+          if (diagnostics.sampleCount > 0) ...[
+            const SizedBox(height: 16),
+            _DiagnosticsCard(diagnostics: diagnostics),
+          ],
           const SizedBox(height: 20),
           PrimaryButton(
             label: 'ANALYZE ANOTHER JUMP',
             onPressed: onAnalyzeAnother,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Raw detection data for this clip — while the auto-detector is still
+/// being tuned against real footage, showing exactly what it saw (instead
+/// of only the final number) turns the next bug report into something
+/// diagnosable instead of another guess. Collapsed by default so it doesn't
+/// clutter the normal experience.
+class _DiagnosticsCard extends StatefulWidget {
+  final JumpDetectionDiagnostics diagnostics;
+  const _DiagnosticsCard({required this.diagnostics});
+
+  @override
+  State<_DiagnosticsCard> createState() => _DiagnosticsCardState();
+}
+
+class _DiagnosticsCardState extends State<_DiagnosticsCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.diagnostics;
+    return Container(
+      decoration: BoxDecoration(
+        color: DunkColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DunkColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bug_report_outlined,
+                        color: DunkColors.textTertiary, size: 16),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'DETECTION DETAILS',
+                        style: TextStyle(
+                          color: DunkColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      _expanded ? Icons.expand_less : Icons.expand_more,
+                      color: DunkColors.textTertiary,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${d.sampleCount} samples · energy '
+                    '${d.minEnergy.toStringAsFixed(3)}–${d.maxEnergy.toStringAsFixed(3)} · '
+                    'threshold ${d.threshold.toStringAsFixed(3)}',
+                    style: const TextStyle(
+                      color: DunkColors.textTertiary,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (d.candidates.isEmpty)
+                    const Text(
+                      'No plausible candidate windows found.',
+                      style: TextStyle(color: DunkColors.textTertiary, fontSize: 12),
+                    )
+                  else
+                    for (final c in d.candidates)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          '${c.chosen ? '→ ' : '  '}'
+                          '${c.airborneSeconds.toStringAsFixed(2)}s '
+                          '(${c.takeoff.inMilliseconds}–${c.landing.inMilliseconds}ms) · '
+                          'avg ${c.avgEnergy.toStringAsFixed(3)} · '
+                          'bounds ${c.boundingEnergy.toStringAsFixed(3)} · '
+                          'prom ${c.prominence.toStringAsFixed(3)}'
+                          '${c.chosen ? ' [CHOSEN]' : ''}',
+                          style: TextStyle(
+                            color: c.chosen ? DunkColors.primary : DunkColors.textTertiary,
+                            fontWeight: c.chosen ? FontWeight.w700 : FontWeight.w400,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
         ],
       ),
     );

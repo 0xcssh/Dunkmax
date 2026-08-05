@@ -3,14 +3,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../core/jump_auto_detector.dart';
-import '../../../core/models/jump_measurement.dart';
 import '../../../theme/app_theme.dart';
 import '../motion_extraction.dart';
 
 /// Runs motion-energy analysis on the recorded clip to auto-detect the
 /// jump's takeoff/landing — see core/jump_auto_detector.dart for the
-/// algorithm. Calls [onDetected] with the result, or null if no clear jump
-/// was found (the caller falls back to manual marking).
+/// algorithm. Calls [onDetected] with the measurement (null if no clear
+/// jump was found — the caller falls back to manual marking) AND the full
+/// [JumpDetectionDiagnostics], so the result screen can show exactly what
+/// the detector saw on this real clip instead of tuning being another blind
+/// guess from a bug report.
 ///
 /// This used to run a second, denser pass restricted to a small window
 /// around the coarse result to refine the exact timestamps — reverted: that
@@ -23,7 +25,7 @@ import '../motion_extraction.dart';
 /// animation.
 class ProcessingScreen extends StatefulWidget {
   final File video;
-  final ValueChanged<JumpMeasurement?> onDetected;
+  final void Function(JumpDetectionDiagnostics diagnostics) onDetected;
 
   const ProcessingScreen({
     super.key,
@@ -47,20 +49,20 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
   }
 
   Future<void> _run() async {
-    JumpMeasurement? result;
+    JumpDetectionDiagnostics diagnostics = JumpDetectionDiagnostics.empty;
     try {
       if (mounted) setState(() => _phase = _Phase.extracting);
       final samples = await extractMotionSamples(widget.video);
 
       if (mounted) setState(() => _phase = _Phase.locating);
-      result = JumpAutoDetector.detect(samples);
+      diagnostics = JumpAutoDetector.detectWithDiagnostics(samples);
 
       if (mounted) setState(() => _phase = _Phase.estimating);
     } catch (_) {
-      result = null;
+      diagnostics = JumpDetectionDiagnostics.empty;
     }
     if (!mounted) return;
-    widget.onDetected(result);
+    widget.onDetected(diagnostics);
   }
 
   @override

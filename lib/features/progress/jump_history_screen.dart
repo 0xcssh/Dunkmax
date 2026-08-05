@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/jump_log_entry.dart';
 import '../../theme/app_theme.dart';
+import 'jump_video_screen.dart';
 
 /// Full history of every logged jump, newest first — pushed from Progress's
 /// "View All" on the recent-analyses row.
@@ -31,53 +32,65 @@ class JumpHistoryScreen extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, i) {
                   final entry = sorted[i];
-                  return Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: DunkColors.surface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: DunkColors.stroke),
-                    ),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: SizedBox(
-                            width: 64,
-                            height: 64,
-                            child: entry.thumbnailPath != null
-                                ? Image.file(
-                                    File(entry.thumbnailPath!),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: entry.videoPath == null
+                        ? null
+                        : () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => JumpVideoScreen(
+                                videoPath: entry.videoPath!,
+                                verticalInches: entry.verticalInches,
+                                recordedAt: entry.recordedAt,
+                              ),
+                            )),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: DunkColors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: DunkColors.stroke),
+                      ),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: SizedBox(
+                              width: 64,
+                              height: 64,
+                              child: entry.thumbnailPath != null
+                                  ? Image.file(
+                                      File(entry.thumbnailPath!),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        color: DunkColors.surfaceRaised,
+                                        child: const Icon(Icons.videocam_off_outlined, color: DunkColors.textTertiary),
+                                      ),
+                                    )
+                                  : Container(
                                       color: DunkColors.surfaceRaised,
                                       child: const Icon(Icons.videocam_off_outlined, color: DunkColors.textTertiary),
                                     ),
-                                  )
-                                : Container(
-                                    color: DunkColors.surfaceRaised,
-                                    child: const Icon(Icons.videocam_off_outlined, color: DunkColors.textTertiary),
-                                  ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${entry.verticalInches}"',
-                                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${entry.recordedAt.month}/${entry.recordedAt.day}/${entry.recordedAt.year}',
-                                style: const TextStyle(color: DunkColors.textSecondary, fontSize: 13),
-                              ),
-                            ],
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${entry.verticalInches}"',
+                                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${entry.recordedAt.month}/${entry.recordedAt.day}/${entry.recordedAt.year}',
+                                  style: const TextStyle(color: DunkColors.textSecondary, fontSize: 13),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },

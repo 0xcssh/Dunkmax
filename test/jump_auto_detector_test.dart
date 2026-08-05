@@ -190,4 +190,47 @@ void main() {
       expect(JumpAutoDetector.detect(samples), isNull);
     });
   });
+
+  group('JumpAutoDetector.detectWithDiagnostics', () {
+    test('reports sample stats and every plausible candidate, with the winner flagged', () {
+      final samples = _clip(
+        leadInCount: 5,
+        lowCount: 10,
+        leadOutCount: 5,
+        spacingMs: 50,
+      );
+
+      final diagnostics = JumpAutoDetector.detectWithDiagnostics(samples);
+
+      expect(diagnostics.sampleCount, samples.length);
+      expect(diagnostics.minEnergy, 0.05);
+      expect(diagnostics.maxEnergy, 0.8);
+      expect(diagnostics.candidates, isNotEmpty);
+      expect(diagnostics.result, isNotNull);
+
+      final chosen = diagnostics.candidates.where((c) => c.chosen);
+      expect(chosen, hasLength(1));
+      expect(chosen.first.takeoff, diagnostics.result!.takeoff);
+      expect(chosen.first.landing, diagnostics.result!.landing);
+    });
+
+    test('empty input yields JumpDetectionDiagnostics.empty-shaped output', () {
+      final diagnostics = JumpAutoDetector.detectWithDiagnostics(const []);
+      expect(diagnostics.sampleCount, 0);
+      expect(diagnostics.candidates, isEmpty);
+      expect(diagnostics.result, isNull);
+    });
+
+    test('detect() and detectWithDiagnostics().result always agree', () {
+      final samples = _clip(leadInCount: 5, lowCount: 10, leadOutCount: 5, spacingMs: 50);
+      final viaDetect = JumpAutoDetector.detect(samples);
+      final viaDiagnostics = JumpAutoDetector.detectWithDiagnostics(samples).result;
+      expect(viaDetect, isNotNull);
+      expect(viaDetect!.takeoff, viaDiagnostics!.takeoff);
+      expect(viaDetect.landing, viaDiagnostics.landing);
+
+      expect(JumpAutoDetector.detect(const []), isNull);
+      expect(JumpAutoDetector.detectWithDiagnostics(const []).result, isNull);
+    });
+  });
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
+import '../../core/jump_auto_detector.dart';
 import '../../core/jump_result.dart';
 import '../../core/jump_trend.dart';
 import '../../core/models/jump_log_entry.dart';
@@ -42,6 +43,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   File? _video;
   JumpResult? _result;
   JumpTrend? _trend;
+  JumpDetectionDiagnostics _diagnostics = JumpDetectionDiagnostics.empty;
 
   void _onVideoSelected(File video) {
     setState(() {
@@ -50,7 +52,9 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     });
   }
 
-  void _onAutoDetected(JumpMeasurement? measurement) {
+  void _onDetected(JumpDetectionDiagnostics diagnostics) {
+    setState(() => _diagnostics = diagnostics);
+    final measurement = diagnostics.result;
     if (measurement == null) {
       // Auto-detection couldn't find a clear jump — fall back to manual
       // marking rather than dead-ending the user.
@@ -71,6 +75,16 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     );
     final result = JumpResult(measurement: measurement, assessment: assessment);
     if (measurement.isValid) {
+      String? videoPath;
+      try {
+        final dir = await getApplicationDocumentsDirectory();
+        final ext = _video!.path.contains('.') ? _video!.path.split('.').last : 'mov';
+        final path = '${dir.path}/jump_video_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        final saved = await _video!.copy(path);
+        videoPath = saved.path;
+      } catch (_) {
+        videoPath = null;
+      }
       String? thumbnailPath;
       try {
         final dir = await getApplicationDocumentsDirectory();
@@ -90,6 +104,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
           verticalInches: result.verticalInches,
           recordedAt: DateTime.now(),
           thumbnailPath: thumbnailPath,
+          videoPath: videoPath,
         ),
       );
     }
@@ -106,6 +121,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
         _video = null;
         _result = null;
         _trend = null;
+        _diagnostics = JumpDetectionDiagnostics.empty;
         _step = _Step.source;
       });
 
@@ -124,7 +140,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
       case _Step.source:
         return SourceScreen(onVideoSelected: _onVideoSelected);
       case _Step.processing:
-        return ProcessingScreen(video: _video!, onDetected: _onAutoDetected);
+        return ProcessingScreen(video: _video!, onDetected: _onDetected);
       case _Step.mark:
         return MarkJumpScreen(
           video: _video!,
@@ -136,6 +152,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
         return JumpResultScreen(
           result: _result!,
           trend: _trend,
+          diagnostics: _diagnostics,
           onAnalyzeAnother: _reset,
         );
     }

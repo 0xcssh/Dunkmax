@@ -11,6 +11,7 @@ import '../../../services/jump_log_store.dart';
 import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
 import '../../progress/jump_history_screen.dart';
+import '../../progress/jump_video_screen.dart';
 import 'widgets/jump_trend_chart.dart';
 
 /// PROGRESS tab: real numbers pulled from the persisted session + jump-log
@@ -203,57 +204,68 @@ class _RecentAnalysisThumb extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 110,
-            height: 90,
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: 110,
-                    height: 90,
-                    child: entry.thumbnailPath != null
-                        ? Image.file(
-                            File(entry.thumbnailPath!),
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+          GestureDetector(
+            onTap: entry.videoPath == null
+                ? null
+                : () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => JumpVideoScreen(
+                        videoPath: entry.videoPath!,
+                        verticalInches: entry.verticalInches,
+                        recordedAt: entry.recordedAt,
+                      ),
+                    )),
+            child: SizedBox(
+              width: 110,
+              height: 90,
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 110,
+                      height: 90,
+                      child: entry.thumbnailPath != null
+                          ? Image.file(
+                              File(entry.thumbnailPath!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: DunkColors.surfaceRaised,
+                                child: const Icon(
+                                  Icons.videocam_off_outlined,
+                                  color: DunkColors.textTertiary,
+                                ),
+                              ),
+                            )
+                          : Container(
                               color: DunkColors.surfaceRaised,
                               child: const Icon(
                                 Icons.videocam_off_outlined,
                                 color: DunkColors.textTertiary,
                               ),
                             ),
-                          )
-                        : Container(
-                            color: DunkColors.surfaceRaised,
-                            child: const Icon(
-                              Icons.videocam_off_outlined,
-                              color: DunkColors.textTertiary,
-                            ),
-                          ),
-                  ),
-                ),
-                Positioned(
-                  right: 6,
-                  bottom: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: DunkColors.primary,
-                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      '${entry.verticalInches}"',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                  ),
+                  Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: DunkColors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${entry.verticalInches}"',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 6),
