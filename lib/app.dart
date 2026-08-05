@@ -79,7 +79,7 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
       case _Phase.onboarding:
         return OnboardingFlow(onCompleted: _onOnboardingCompleted);
       case _Phase.paywall:
-        return PaywallScreen(onClose: _enterApp, onContinue: _enterApp);
+        return PaywallScreen(profile: _profile!, onClose: _enterApp, onContinue: _enterApp);
       case _Phase.app:
         return RootShell(
           profile: _profile!,

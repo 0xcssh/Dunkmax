@@ -4,6 +4,7 @@ import '../../../core/jump_auto_detector.dart';
 import '../../../core/jump_feedback.dart';
 import '../../../core/jump_result.dart';
 import '../../../core/jump_trend.dart';
+import '../../../core/models/video_attempt_type.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
@@ -17,6 +18,7 @@ class JumpResultScreen extends StatelessWidget {
   final JumpResult result;
   final JumpTrend? trend;
   final JumpDetectionDiagnostics diagnostics;
+  final VideoAttemptType attemptType;
   final VoidCallback onAnalyzeAnother;
 
   const JumpResultScreen({
@@ -24,6 +26,7 @@ class JumpResultScreen extends StatelessWidget {
     required this.result,
     required this.trend,
     required this.diagnostics,
+    required this.attemptType,
     required this.onAnalyzeAnother,
   });
 
@@ -51,7 +54,7 @@ class JumpResultScreen extends StatelessWidget {
           const _ScoresCard(),
           if (diagnostics.sampleCount > 0) ...[
             const SizedBox(height: 16),
-            _DiagnosticsCard(diagnostics: diagnostics),
+            _DiagnosticsCard(diagnostics: diagnostics, attemptType: attemptType),
           ],
           const SizedBox(height: 20),
           PrimaryButton(
@@ -71,7 +74,8 @@ class JumpResultScreen extends StatelessWidget {
 /// clutter the normal experience.
 class _DiagnosticsCard extends StatefulWidget {
   final JumpDetectionDiagnostics diagnostics;
-  const _DiagnosticsCard({required this.diagnostics});
+  final VideoAttemptType attemptType;
+  const _DiagnosticsCard({required this.diagnostics, required this.attemptType});
 
   @override
   State<_DiagnosticsCard> createState() => _DiagnosticsCardState();
@@ -131,6 +135,15 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    'Clip type: ${widget.attemptType.title}',
+                    style: const TextStyle(
+                      color: DunkColors.textTertiary,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   Text(
                     '${d.sampleCount} samples · energy '
                     '${d.minEnergy.toStringAsFixed(3)}–${d.maxEnergy.toStringAsFixed(3)} · '

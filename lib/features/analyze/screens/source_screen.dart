@@ -3,12 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/models/video_attempt_type.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
 /// Entry point of the Analyze flow: film a jump or import an existing clip.
 class SourceScreen extends StatefulWidget {
-  final ValueChanged<File> onVideoSelected;
+  final void Function(File video, VideoAttemptType attemptType) onVideoSelected;
 
   const SourceScreen({super.key, required this.onVideoSelected});
 
@@ -20,6 +21,7 @@ class _SourceScreenState extends State<SourceScreen> {
   final _picker = ImagePicker();
   bool _busy = false;
   String? _error;
+  VideoAttemptType _attemptType = VideoAttemptType.jumpAttempt;
 
   Future<void> _pick(ImageSource source) async {
     setState(() {
@@ -32,7 +34,7 @@ class _SourceScreenState extends State<SourceScreen> {
         maxDuration: const Duration(seconds: 10),
       );
       if (file != null) {
-        widget.onVideoSelected(File(file.path));
+        widget.onVideoSelected(File(file.path), _attemptType);
       }
     } catch (_) {
       setState(() => _error = "Couldn't access the camera or library.");
@@ -79,6 +81,28 @@ class _SourceScreenState extends State<SourceScreen> {
               'hang time to estimate your vertical — no calibration needed.',
               style: DunkTheme.onboardingSubtitle,
             ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: _AttemptTypeChip(
+                    type: VideoAttemptType.dunkAttempt,
+                    selected: _attemptType == VideoAttemptType.dunkAttempt,
+                    onTap: () =>
+                        setState(() => _attemptType = VideoAttemptType.dunkAttempt),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _AttemptTypeChip(
+                    type: VideoAttemptType.jumpAttempt,
+                    selected: _attemptType == VideoAttemptType.jumpAttempt,
+                    onTap: () =>
+                        setState(() => _attemptType = VideoAttemptType.jumpAttempt),
+                  ),
+                ),
+              ],
+            ),
             const Spacer(),
             Center(
               child: Container(
@@ -120,6 +144,59 @@ class _SourceScreenState extends State<SourceScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AttemptTypeChip extends StatelessWidget {
+  final VideoAttemptType type;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _AttemptTypeChip({
+    required this.type,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? DunkColors.primary.withValues(alpha: 0.12) : DunkColors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? DunkColors.primary : DunkColors.stroke,
+              width: selected ? 1.6 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                type.title.toUpperCase(),
+                style: TextStyle(
+                  color: selected ? DunkColors.primary : Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                type.subtitle,
+                style: const TextStyle(color: DunkColors.textTertiary, fontSize: 11),
+              ),
+            ],
+          ),
         ),
       ),
     );

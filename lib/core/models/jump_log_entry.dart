@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'video_attempt_type.dart';
+
 /// One vertical-jump test result, as measured by the Analyze flow — the
 /// persisted unit of jump history that Progress's trend is computed from.
 class JumpLogEntry {
@@ -13,12 +15,17 @@ class JumpLogEntry {
   // survive); null if the copy failed or this entry predates the
   // video-persistence feature.
   final String? videoPath;
+  // What the athlete said the clip was (dunk vs. bare jump attempt) —
+  // collected for future detector tuning, not yet used to change behavior.
+  // Null for entries that predate this feature.
+  final VideoAttemptType? attemptType;
 
   const JumpLogEntry({
     required this.verticalInches,
     required this.recordedAt,
     this.thumbnailPath,
     this.videoPath,
+    this.attemptType,
   });
 
   Map<String, dynamic> toMap() => {
@@ -26,6 +33,7 @@ class JumpLogEntry {
         'recordedAt': recordedAt.toIso8601String(),
         'thumbnailPath': thumbnailPath,
         'videoPath': videoPath,
+        'attemptType': attemptType?.storageKey,
       };
 
   String toJson() => jsonEncode(toMap());
@@ -38,11 +46,15 @@ class JumpLogEntry {
     if (recordedAt == null) return null;
     final rawThumb = map['thumbnailPath'];
     final rawVideo = map['videoPath'];
+    final rawAttemptType = map['attemptType'];
     return JumpLogEntry(
       verticalInches: verticalInches,
       recordedAt: recordedAt,
       thumbnailPath: rawThumb is String ? rawThumb : null,
       videoPath: rawVideo is String ? rawVideo : null,
+      attemptType: rawAttemptType is String
+          ? VideoAttemptType.fromStorageKey(rawAttemptType)
+          : null,
     );
   }
 

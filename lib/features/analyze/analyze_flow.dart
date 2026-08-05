@@ -10,6 +10,7 @@ import '../../core/jump_trend.dart';
 import '../../core/models/jump_log_entry.dart';
 import '../../core/models/jump_measurement.dart';
 import '../../core/models/onboarding_profile.dart';
+import '../../core/models/video_attempt_type.dart';
 import '../../core/vert_assessment.dart';
 import '../../services/jump_log_store.dart';
 import 'screens/jump_result_screen.dart';
@@ -41,13 +42,15 @@ class AnalyzeFlow extends StatefulWidget {
 class _AnalyzeFlowState extends State<AnalyzeFlow> {
   _Step _step = _Step.source;
   File? _video;
+  VideoAttemptType _attemptType = VideoAttemptType.jumpAttempt;
   JumpResult? _result;
   JumpTrend? _trend;
   JumpDetectionDiagnostics _diagnostics = JumpDetectionDiagnostics.empty;
 
-  void _onVideoSelected(File video) {
+  void _onVideoSelected(File video, VideoAttemptType attemptType) {
     setState(() {
       _video = video;
+      _attemptType = attemptType;
       _step = _Step.processing;
     });
   }
@@ -105,6 +108,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
           recordedAt: DateTime.now(),
           thumbnailPath: thumbnailPath,
           videoPath: videoPath,
+          attemptType: _attemptType,
         ),
       );
     }
@@ -119,6 +123,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
 
   void _reset() => setState(() {
         _video = null;
+        _attemptType = VideoAttemptType.jumpAttempt;
         _result = null;
         _trend = null;
         _diagnostics = JumpDetectionDiagnostics.empty;
@@ -153,6 +158,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
           result: _result!,
           trend: _trend,
           diagnostics: _diagnostics,
+          attemptType: _attemptType,
           onAnalyzeAnother: _reset,
         );
     }
