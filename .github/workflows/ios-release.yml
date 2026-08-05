@@ -52,6 +52,7 @@ jobs:
         # every build silently needed a manual API patch before this.
         run: |
           /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Dunk It uses your camera to film your jump for vertical analysis.'" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Dunk It records video of your jump; iOS camera capture requires microphone access even though we don'\''t use the audio.'" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Dunk It needs access to your photo library to analyze a previously recorded jump.'" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/Runner/Info.plist
 
