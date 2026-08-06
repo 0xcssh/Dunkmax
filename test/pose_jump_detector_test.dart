@@ -256,4 +256,90 @@ void main() {
       );
     });
   });
+
+  group('real device capture', () {
+    /// Verbatim `footY` series reported by the app on a real clip, at the
+    /// 132.6 ms sampling step it used (60 frames over a 7.95 s clip). Only 22
+    /// of the 60 frames contained a person at all — the rest were UI, a
+    /// leaderboard and static screens — and the detector rejected the whole
+    /// clip on a clip-wide missing-frame ratio, falling back to frame motion,
+    /// which reported 8" for a jump independently measured at 28-29".
+    ///
+    /// The jump is tracked cleanly in the frames that do contain it, so the
+    /// window is measurable; this pins that it now is.
+    List<PoseSample> deviceCapture() {
+      const footY = <int, double?>{
+        0: 875, 1: 887, 2: 866, 3: 897, 4: 897, 5: 852, 6: null,
+        7: 788, 8: 820, 9: 821, 10: 906, 11: null, 12: null, 13: null,
+        14: null, 15: null, 16: null, 17: null, 18: null, 19: null,
+        20: null, 21: null, 22: null, 23: null, 24: null, 25: null,
+        26: null, 27: null, 28: null, 29: null, 30: null, 31: null,
+        32: null, 33: null, 34: null, 35: null, 36: null,
+        37: 859, 38: 881, 39: 881, 40: 889, 41: 897, 42: 869, 43: null,
+        44: 799, 45: 797, 46: 829, 47: 900, 48: 898, 49: null, 50: null,
+        51: null, 52: null, 53: null, 54: null, 55: null,
+        // A stray detection on an unrelated on-screen thumbnail — the kind
+        // of outlier a percentile baseline has to survive.
+        56: 1361,
+        57: null, 58: null, 59: null,
+      };
+
+      return [
+        for (var i = 0; i < 60; i++)
+          PoseSample(
+            timestamp: Duration(milliseconds: (i * 132.6).round()),
+            footY: footY[i],
+            // Not reported per-frame by the device; the athlete's apparent
+            // size barely changes across the clip, so a constant is faithful.
+            torsoPixels: footY[i] == null ? null : 100.0,
+          ),
+      ];
+    }
+
+    test('frames with no person outside the jump no longer veto the clip', () {
+      // The old clip-wide ratio rejected this outright as
+      // `tooManyMissing`. Whatever it decides now, it must get far enough to
+      // have placed a baseline and looked at real windows.
+      final diagnostics =
+          PoseJumpDetector.detectWithDiagnostics(deviceCapture());
+
+      expect(diagnostics.rejection, isNot(PoseDetectionRejection.tooManyMissing));
+      expect(diagnostics.groundBaselineY, isNotNull);
+    });
+
+    test('the stray 1361px detection does not drag the ground baseline', () {
+      // One frame found a "person" in an unrelated on-screen thumbnail. A
+      // max-based baseline would sit at 1361 and call the entire clip
+      // airborne; the percentile has to absorb it.
+      final diagnostics =
+          PoseJumpDetector.detectWithDiagnostics(deviceCapture());
+
+      expect(diagnostics.groundBaselineY, closeTo(897, 12));
+    });
+
+    test('this capture holds the same jump twice, so it is refused', () {
+      // The clip is a screen recording in which the source video is played
+      // through twice. Two comparable airborne windows is exactly the case
+      // where guessing which one the athlete meant is not acceptable.
+      final diagnostics =
+          PoseJumpDetector.detectWithDiagnostics(deviceCapture());
+
+      expect(diagnostics.rejection, PoseDetectionRejection.ambiguousWindows);
+      expect(diagnostics.result, isNull);
+    });
+
+    test('one playback of it measures the independently verified jump', () {
+      // Ground truth established frame by frame with ffmpeg: takeoff
+      // 0.558 s, landing ~1.32 s, ~0.77 s of hang, 28-29".
+      final single = deviceCapture()
+          .where((s) => s.timestamp.inMilliseconds <= 2000)
+          .toList();
+
+      final result = PoseJumpDetector.detect(single);
+
+      expect(result, isNotNull);
+      expect(result!.airborneSeconds, closeTo(0.77, 0.08));
+      expect(result.verticalInches, inInclusiveRange(25, 32));
+    });
+  });
 }

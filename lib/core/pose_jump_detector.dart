@@ -49,6 +49,7 @@ enum PoseDetectionRejection {
   none('measured'),
   tooFewSamples('too few sampled frames'),
   tooManyMissing('athlete not found in enough frames'),
+  gappyWindow('athlete lost during the jump itself'),
   noScaleReference('no usable body-scale reference'),
   noAirborneWindow('feet never left the ground baseline'),
   ambiguousWindows('more than one airborne window — ambiguous clip'),
@@ -238,11 +239,17 @@ abstract class PoseJumpDetector {
   /// not enough of a ground cluster to place a baseline.
   static const int minSamples = 6;
 
-  /// Most of the clip's frames that may have no pose before the time series is
-  /// too holed-through to trust. Gaps are bridged (a missing frame does not
-  /// end an airborne run), but a clip where the model loses the athlete a
-  /// third of the time is a clip we should not be timing to the millisecond.
-  static const double maxMissingFraction = 0.35;
+  /// Most of the *flight window's* frames that may have no pose before the
+  /// timing is untrustworthy.
+  ///
+  /// Judged over the window, not the clip. A global ratio was tried first and
+  /// was wrong: on a real clip the athlete appeared in only 22 of 60 frames —
+  /// the other 38 genuinely had no person in them — and the jump itself was
+  /// tracked cleanly throughout. Rejecting on the clip-wide ratio threw away
+  /// a window that, recomputed by hand, gave the correct answer to within an
+  /// inch. What actually degrades the measurement is a gap *between* takeoff
+  /// and landing; a gap before or after is simply footage of something else.
+  static const double maxWindowMissingFraction = 0.4;
 
   /// Percentile of `footY` taken as ground level. High, because y grows
   /// downward. 0.75 sits safely inside the ground cluster even when the
@@ -287,8 +294,9 @@ abstract class PoseJumpDetector {
         detectedCount: detected.length,
       );
     }
-    if (detected.length < minSamples ||
-        (sorted.length - detected.length) / sorted.length > maxMissingFraction) {
+    // Enough detections to place a ground baseline at all. Deliberately not a
+    // clip-wide ratio — see [maxWindowMissingFraction].
+    if (detected.length < minSamples) {
       return PoseJumpDiagnostics._rejected(
         PoseDetectionRejection.tooManyMissing,
         samples: sorted,
@@ -358,6 +366,27 @@ abstract class PoseJumpDetector {
     if (usable.length > 1 && usable[1].length >= best.length * _ambiguityRatio) {
       return PoseJumpDiagnostics._rejected(
         PoseDetectionRejection.ambiguousWindows,
+        samples: sorted,
+        detectedCount: detected.length,
+        torsoPixels: torso,
+        groundBaselineY: baseline,
+        thresholdY: thresholdY,
+        liftThresholdPixels: lift,
+      );
+    }
+
+    // Gaps *inside* the flight are what cost accuracy, so the missing-frame
+    // check happens here, over the window, rather than over the whole clip.
+    final windowStart = detected[best.start - 1].timestamp;
+    final windowEnd = detected[best.end + 1].timestamp;
+    final inWindow = sorted
+        .where((s) => s.timestamp >= windowStart && s.timestamp <= windowEnd)
+        .toList();
+    final missingInWindow = inWindow.where((s) => !s.isDetected).length;
+    if (inWindow.isNotEmpty &&
+        missingInWindow / inWindow.length > maxWindowMissingFraction) {
+      return PoseJumpDiagnostics._rejected(
+        PoseDetectionRejection.gappyWindow,
         samples: sorted,
         detectedCount: detected.length,
         torsoPixels: torso,

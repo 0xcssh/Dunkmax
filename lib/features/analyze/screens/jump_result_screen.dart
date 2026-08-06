@@ -652,7 +652,8 @@ class _ScoresCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Unlocks with pose analysis — coming soon.',
+            'Body tracking times your jump. Scoring how it looked — joint '
+            'angles, arm swing, symmetry — is still to come.',
             style: TextStyle(color: DunkColors.textSecondary, fontSize: 12),
           ),
           const SizedBox(height: 14),

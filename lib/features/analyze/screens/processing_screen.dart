@@ -60,11 +60,13 @@ class JumpAnalysis {
 ///    area, so it is scale-invariant, and an athlete occupying a small part of
 ///    the frame registered 0.013 against UI transitions at 0.30. Sampling at
 ///    96 px instead of 32 px moved that 0.012 → 0.012. See CLAUDE.md.
-/// 2. **Motion energy** (`core/jump_auto_detector.dart`) still runs as a
-///    fallback when pose detection declines — e.g. the athlete is too small in
-///    frame for the model, or the clip is too dark.
-/// 3. If both decline, the caller falls back to **manual marking**, which
-///    always works.
+/// 2. **Motion energy** (`core/jump_auto_detector.dart`) runs only when the
+///    pose pass could not run at all — no frames decoded, the model
+///    unavailable. It is *not* used when pose ran and declined: that decline
+///    is a considered refusal by the better method, and overriding it with
+///    the weaker one is how a jump measured at 28-29" got reported as 8".
+/// 3. Otherwise the caller falls back to **manual marking**, which always
+///    works and is honest about who made the call.
 ///
 /// The checklist below tracks the real stages of that pass as they complete —
 /// it is not a decorative animation, and when the fallback engages it says so
@@ -108,15 +110,28 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       if (mounted) setState(() => _phase = _Phase.locating);
       final pose = PoseJumpDetector.detectWithDiagnostics(poseSamples);
 
+      // A pose pass that *declined* is a considered refusal, not a failure:
+      // it looked at the athlete and found the clip unmeasurable (no clear
+      // window, two comparable jumps, lost mid-flight). Handing that to
+      // frame motion overrides a good judgement with a bad one — on the clip
+      // that motivated this, pose correctly declined and frame motion
+      // confidently answered 8" for a jump measured at 28-29". So motion
+      // energy is now only a safety net for a pose pass that could not run
+      // at all (no frames decoded, the plugin unavailable); when pose ran and
+      // said no, the athlete marks the jump by hand instead.
       var motion = JumpDetectionDiagnostics.empty;
-      if (pose.result == null) {
+      if (pose.result == null && poseSamples.isEmpty) {
         if (mounted) {
           setState(() => _fallbackNote =
-              "Body tracking couldn't lock on (${pose.rejection.label}) — "
-              'trying frame motion instead.');
+              "Body tracking couldn't run on this clip — trying frame "
+              'motion instead.');
         }
         final motionSamples = await extractMotionSamples(widget.video);
         motion = JumpAutoDetector.detectWithDiagnostics(motionSamples);
+      } else if (pose.result == null && mounted) {
+        setState(() => _fallbackNote =
+            "Body tracking couldn't measure this clip "
+            '(${pose.rejection.label}) — mark the jump yourself.');
       }
 
       analysis = JumpAnalysis(pose: pose, motion: motion);
