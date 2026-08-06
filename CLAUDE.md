@@ -140,6 +140,18 @@ differentiator.
   device to test on; manual marking ships a real, reliable measurement now).
   Video capture/import is `image_picker` (`features/analyze/screens/
   source_screen.dart`, camera or gallery, max 10s).
+- **SETTLED (measured, not guessed): whole-frame motion energy cannot
+  isolate a subject that occupies a small part of the frame.** A real clip
+  was traced frame by frame with ffmpeg: takeoff 0.558s, landing ~1.32s →
+  0.77s hang → **28–29"**, which is exactly what the reference app reported
+  and what our detector missed entirely. On that clip the athlete's own
+  motion measured 0.013 while UI transitions in the same footage hit 0.30 —
+  the jump was *quieter than the noise*. Raising the sampling resolution
+  from 32px to 96px changed the athlete's energy from 0.012 to 0.012:
+  frame-difference energy is a ratio of moving area to total area, so it is
+  **scale-invariant** and more pixels buy nothing. There is no threshold
+  tweak that fixes this class of clip — only tracking the body does, i.e.
+  the pose detection already planned below. Stop tuning the heuristic.
 - **Open question: where the flight window really starts and ends.** The
   physics is exact; the error is entirely in the takeoff/landing instants.
   Motion energy during flight tracks the body's vertical speed — max at

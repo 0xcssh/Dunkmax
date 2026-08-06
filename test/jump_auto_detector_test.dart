@@ -234,6 +234,83 @@ void main() {
     });
   });
 
+  group('JumpAutoDetector rejects windows that are not jumps', () {
+    test('a quiet run reaching the end of the clip is never chosen', () {
+      // No landing was ever observed, so there is nothing to time. Before
+      // this guard, a clip that ended on a motionless shot scored the
+      // highest prominence in the whole signal and was reported as a jump.
+      final samples = <MotionSample>[
+        for (var i = 0; i < 4; i++)
+          MotionSample(timestamp: Duration(milliseconds: i * 100), energy: 0.8),
+        for (var i = 4; i < 12; i++)
+          MotionSample(timestamp: Duration(milliseconds: i * 100), energy: 0.02),
+      ];
+
+      expect(JumpAutoDetector.detect(samples), isNull);
+    });
+
+    test('a quiet run starting at the very first sample is never chosen', () {
+      final samples = <MotionSample>[
+        for (var i = 0; i < 8; i++)
+          MotionSample(timestamp: Duration(milliseconds: i * 100), energy: 0.02),
+        for (var i = 8; i < 12; i++)
+          MotionSample(timestamp: Duration(milliseconds: i * 100), energy: 0.8),
+      ];
+
+      expect(JumpAutoDetector.detect(samples), isNull);
+    });
+
+    test('a frozen window with no motion at all is rejected', () {
+      // Bounded by motion on both sides, plausible duration — but the window
+      // itself is a still picture, which no airborne body produces.
+      final samples = <MotionSample>[
+        const MotionSample(timestamp: Duration.zero, energy: 0.9),
+        for (var i = 1; i < 7; i++)
+          MotionSample(timestamp: Duration(milliseconds: i * 100), energy: 0.0),
+        const MotionSample(
+            timestamp: Duration(milliseconds: 700), energy: 0.9),
+      ];
+
+      expect(JumpAutoDetector.detect(samples), isNull);
+    });
+
+    test('real screen-recording signal: no jump is claimed', () {
+      // Verbatim energy profile sampled from a clip that was a screen
+      // recording of a phone playing a jump video, not a filmed jump. The
+      // athlete's motion (~0.013) is weaker than the UI transitions (0.30),
+      // and the clip ends on a motionless leaderboard screen. The detector
+      // used to report that motionless tail as a 23" jump.
+      const profile = <double>[
+        0.011, 0.012, 0.013, 0.014, 0.014, 0.015, 0.014, 0.012, 0.013, 0.012,
+        0.014, 0.015, 0.015, 0.012, 0.009, 0.003, 0.001, 0.001, 0.002, 0.002,
+        0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.038, 0.121,
+        0.028, 0.001, 0.001, 0.159, 0.018, 0.018, 0.000, 0.000, 0.000, 0.000,
+        0.000, 0.001, 0.012, 0.119, 0.048, 0.001, 0.001, 0.078, 0.105, 0.011,
+        0.011, 0.012, 0.013, 0.014, 0.014, 0.015, 0.012, 0.013, 0.012, 0.012,
+        0.014, 0.016, 0.014, 0.011, 0.007, 0.002, 0.001, 0.002, 0.001, 0.002,
+        0.300, 0.184, 0.024, 0.004, 0.002, 0.001, 0.000, 0.000, 0.000,
+      ];
+      final samples = <MotionSample>[
+        for (var i = 0; i < profile.length; i++)
+          MotionSample(
+            timestamp: Duration(milliseconds: ((i + 1) * 99.4).round()),
+            energy: profile[i],
+          ),
+      ];
+
+      final diagnostics = JumpAutoDetector.detectWithDiagnostics(samples);
+
+      // The motionless tail (the last ~0.7s) must not win any more.
+      for (final c in diagnostics.candidates) {
+        expect(
+          c.landing.inMilliseconds,
+          lessThan(7500),
+          reason: 'the still leaderboard screen at the end is not a jump',
+        );
+      }
+    });
+  });
+
   group('JumpAutoDetector alternative estimates', () {
     test('the reported result is always the outer-bound reading', () {
       final samples =

@@ -135,6 +135,13 @@ abstract class JumpAutoDetector {
   /// discards candidates below this before ranking.
   static const double _minAutoDetectSeconds = 0.28;
 
+  /// Least motion, as a fraction of the clip's peak, that a window must
+  /// average to be considered a flight phase at all. Deliberately tiny: this
+  /// is a frozen-frame guard, not an accuracy knob. A real airborne body
+  /// registers well above it; a paused player or a static screen sits at
+  /// essentially zero.
+  static const double _minMotionFraction = 0.01;
+
   static JumpMeasurement? detect(List<MotionSample> samples) =>
       detectWithDiagnostics(samples).result;
 
@@ -198,9 +205,17 @@ abstract class JumpAutoDetector {
     _Run? bestRun;
     double? bestProminence;
     for (final run in runs) {
-      final takeoffIndex = run.start > 0 ? run.start - 1 : run.start;
-      final landingIndex =
-          run.end < sorted.length - 1 ? run.end + 1 : run.end;
+      // A jump has a takeoff drive before it and a landing impact after it.
+      // A quiet run that reaches either end of the clip has neither, so we
+      // never actually observed the event we'd be timing — it's the clip
+      // starting or ending on a still image, not a body in the air. Taking
+      // those was a real bug: on a clip that ended with several motionless
+      // seconds, the tail scored the highest prominence of anything in the
+      // signal and got reported as a jump.
+      if (run.start == 0 || run.end == sorted.length - 1) continue;
+
+      final takeoffIndex = run.start - 1;
+      final landingIndex = run.end + 1;
       final takeoff = sorted[takeoffIndex].timestamp;
       final landing = sorted[landingIndex].timestamp;
       if (landing <= takeoff) continue;
@@ -212,6 +227,12 @@ abstract class JumpAutoDetector {
       final runEnergies =
           sorted.sublist(run.start, run.end + 1).map((s) => s.energy);
       final avgEnergy = runEnergies.reduce((a, b) => a + b) / runEnergies.length;
+
+      // A body travelling through the air still moves pixels. A window with
+      // essentially no motion at all is a frozen picture — a paused clip, a
+      // static frame, duplicate decoded frames — not a flight phase.
+      if (avgEnergy < maxEnergy * _minMotionFraction) continue;
+
       final boundingEnergy =
           (sorted[takeoffIndex].energy + sorted[landingIndex].energy) / 2;
       final prominence = boundingEnergy - avgEnergy;
