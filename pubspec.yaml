@@ -19,6 +19,15 @@ dependencies:
   image: ^4.3.0
   path_provider: ^2.1.0
   share_plus: ^10.0.0
+  # On-device pose detection: tracks the athlete's body landmarks so takeoff
+  # and landing come from where the feet actually are, not from whole-frame
+  # pixel change (which is scale-invariant and so blind to a subject that
+  # occupies a small part of the frame — see CLAUDE.md).
+  google_mlkit_pose_detection: ^0.14.0
+  # Global leaderboard backend. Credentials come from --dart-define at build
+  # time; with none set the app runs fully offline and the global board shows
+  # its locked state, so CI and local runs need no secrets.
+  supabase_flutter: ^2.8.0
 
 dev_dependencies:
   flutter_test:

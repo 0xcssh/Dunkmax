@@ -1,9 +1,19 @@
 import 'package:dunkmax/core/leaderboard.dart';
 import 'package:dunkmax/core/models/jump_log_entry.dart';
+import 'package:dunkmax/core/models/leaderboard_athlete.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 JumpLogEntry _entry(int inches, DateTime at) =>
     JumpLogEntry(verticalInches: inches, recordedAt: at);
+
+LeaderboardAthlete _athlete(String name, int inches, DateTime at) =>
+    LeaderboardAthlete(
+      athleteId: name.toLowerCase(),
+      displayName: name,
+      verticalInches: inches,
+      heightInches: 70,
+      recordedAt: at,
+    );
 
 void main() {
   group('Leaderboard.rank', () {
@@ -72,6 +82,82 @@ void main() {
       ];
       Leaderboard.rank(entries);
       expect(entries.first.verticalInches, 20);
+    });
+  });
+
+  group('Leaderboard.rankAthletes', () {
+    test('empty board returns no rows', () {
+      expect(Leaderboard.rankAthletes(const []), isEmpty);
+    });
+
+    test('orders best vertical first and numbers ranks from 1', () {
+      final ranked = Leaderboard.rankAthletes([
+        _athlete('Chris', 31, DateTime.utc(2026, 8, 2)),
+        _athlete('Ana', 43, DateTime.utc(2026, 8, 1)),
+        _athlete('Mo', 38, DateTime.utc(2026, 8, 3)),
+      ]);
+
+      expect(ranked.map((r) => r.rank), [1, 2, 3]);
+      expect(ranked.map((r) => r.athlete.displayName), ['Ana', 'Mo', 'Chris']);
+    });
+
+    test('does not trust the order rows arrive in', () {
+      // The backend orders too, but a re-order server-side must not change
+      // what the UI paints.
+      final rows = [
+        _athlete('Ana', 20, DateTime.utc(2026, 8, 1)),
+        _athlete('Mo', 44, DateTime.utc(2026, 8, 1)),
+      ];
+      expect(Leaderboard.rankAthletes(rows).first.athlete.displayName, 'Mo');
+    });
+
+    test('ties go to whoever set the number first', () {
+      final early = _athlete('Ana', 40, DateTime.utc(2026, 1, 1));
+      final later = _athlete('Mo', 40, DateTime.utc(2026, 8, 1));
+
+      expect(
+        Leaderboard.rankAthletes([later, early]).map((r) => r.athlete.displayName),
+        ['Ana', 'Mo'],
+      );
+    });
+
+    test('a dead tie falls back to the name, so ordering stays stable', () {
+      final at = DateTime.utc(2026, 8, 1);
+      final ordered = Leaderboard.rankAthletes([
+        _athlete('Zoe', 40, at),
+        _athlete('Ana', 40, at),
+      ]).map((r) => r.athlete.displayName);
+
+      expect(ordered, ['Ana', 'Zoe']);
+    });
+
+    test('limit caps the board, keeping the best rows', () {
+      final ranked = Leaderboard.rankAthletes(
+        [
+          _athlete('Ana', 30, DateTime.utc(2026, 8, 1)),
+          _athlete('Mo', 45, DateTime.utc(2026, 8, 2)),
+          _athlete('Chris', 38, DateTime.utc(2026, 8, 3)),
+        ],
+        limit: 2,
+      );
+
+      expect(ranked.map((r) => r.athlete.displayName), ['Mo', 'Chris']);
+      expect(ranked.map((r) => r.rank), [1, 2]);
+    });
+
+    test('a non-positive limit returns no rows', () {
+      final rows = [_athlete('Ana', 30, DateTime.utc(2026, 8, 1))];
+      expect(Leaderboard.rankAthletes(rows, limit: 0), isEmpty);
+      expect(Leaderboard.rankAthletes(rows, limit: -1), isEmpty);
+    });
+
+    test('does not mutate the caller list', () {
+      final rows = [
+        _athlete('Ana', 20, DateTime.utc(2026, 8, 1)),
+        _athlete('Mo', 44, DateTime.utc(2026, 8, 2)),
+      ];
+      Leaderboard.rankAthletes(rows);
+      expect(rows.first.displayName, 'Ana');
     });
   });
 }

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
-import '../../core/jump_auto_detector.dart';
 import '../../core/jump_result.dart';
 import '../../core/jump_trend.dart';
 import '../../core/models/jump_log_entry.dart';
@@ -20,11 +19,19 @@ import 'screens/source_screen.dart';
 
 enum _Step { source, mark, processing, result }
 
-/// Drives the Analyze tab: pick/record a jump clip → mark takeoff/landing →
-/// a brief "processing" beat → the result dashboard. The headline number
-/// (EST. VERT) comes from the pure, tested flight-time core; the four
-/// Bounce/Power/Control/Form scores need pose detection (not built yet — see
-/// CLAUDE.md), so the result screen shows them locked rather than fabricated.
+/// Drives the Analyze tab: pick/record a jump clip → find takeoff/landing →
+/// the result dashboard. The headline number (EST. VERT) comes from the pure,
+/// tested flight-time core.
+///
+/// Finding the airborne window is a three-tier cascade (see
+/// [ProcessingScreen]): pose tracking first, whole-frame motion energy as a
+/// fallback, and manual marking when neither can answer. Every tier reports
+/// which one it was, so the result screen never presents a fallback reading as
+/// if it came from body tracking.
+///
+/// The four Bounce/Power/Control/Form scores still need a *second* pose pass
+/// (joint angles, arm swing, symmetry — not built; see CLAUDE.md), so the
+/// result screen shows them locked rather than fabricated.
 class AnalyzeFlow extends StatefulWidget {
   final OnboardingProfile profile;
   final JumpLogStore jumpLogStore;
@@ -54,7 +61,8 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   VideoAttemptType _attemptType = VideoAttemptType.jumpAttempt;
   JumpResult? _result;
   JumpTrend? _trend;
-  JumpDetectionDiagnostics _diagnostics = JumpDetectionDiagnostics.empty;
+  JumpAnalysis _analysis = JumpAnalysis.empty;
+  JumpDetectionMethod _method = JumpDetectionMethod.manual;
 
   void _onVideoSelected(File video, VideoAttemptType attemptType) {
     setState(() {
@@ -64,22 +72,25 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     });
   }
 
-  void _onDetected(JumpDetectionDiagnostics diagnostics) {
-    setState(() => _diagnostics = diagnostics);
-    final measurement = diagnostics.result;
+  void _onDetected(JumpAnalysis analysis) {
+    setState(() => _analysis = analysis);
+    final measurement = analysis.measurement;
     if (measurement == null) {
-      // Auto-detection couldn't find a clear jump — fall back to manual
-      // marking rather than dead-ending the user.
+      // Neither pose tracking nor motion energy found a clear jump — fall
+      // back to manual marking rather than dead-ending the user.
       setState(() => _step = _Step.mark);
       return;
     }
-    _finishWithMeasurement(measurement);
+    _finishWithMeasurement(measurement, analysis.method!);
   }
 
   void _onMarked(JumpMeasurement measurement) =>
-      _finishWithMeasurement(measurement);
+      _finishWithMeasurement(measurement, JumpDetectionMethod.manual);
 
-  Future<void> _finishWithMeasurement(JumpMeasurement measurement) async {
+  Future<void> _finishWithMeasurement(
+    JumpMeasurement measurement,
+    JumpDetectionMethod method,
+  ) async {
     final assessment = VertAssessment(
       heightInches: widget.profile.heightInches,
       ageYears: widget.profile.ageYears,
@@ -126,6 +137,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     setState(() {
       _result = result;
       _trend = trend;
+      _method = method;
       _step = _Step.result;
     });
   }
@@ -135,7 +147,8 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
         _attemptType = VideoAttemptType.jumpAttempt;
         _result = null;
         _trend = null;
-        _diagnostics = JumpDetectionDiagnostics.empty;
+        _analysis = JumpAnalysis.empty;
+        _method = JumpDetectionMethod.manual;
         _step = _Step.source;
       });
 
@@ -166,7 +179,8 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
         return JumpResultScreen(
           result: _result!,
           trend: _trend,
-          diagnostics: _diagnostics,
+          analysis: _analysis,
+          method: _method,
           attemptType: _attemptType,
           onAnalyzeAnother: widget.onFirstResult ?? _reset,
           ctaLabel: widget.onFirstResult != null ? 'CONTINUE' : 'ANALYZE ANOTHER JUMP',

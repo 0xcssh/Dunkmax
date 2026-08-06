@@ -3,29 +3,75 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../core/jump_auto_detector.dart';
+import '../../../core/models/jump_measurement.dart';
+import '../../../core/pose_jump_detector.dart';
 import '../../../theme/app_theme.dart';
 import '../motion_extraction.dart';
+import '../pose_extraction.dart';
 
-/// Runs motion-energy analysis on the recorded clip to auto-detect the
-/// jump's takeoff/landing — see core/jump_auto_detector.dart for the
-/// algorithm. Calls [onDetected] with the measurement (null if no clear
-/// jump was found — the caller falls back to manual marking) AND the full
-/// [JumpDetectionDiagnostics], so the result screen can show exactly what
-/// the detector saw on this real clip instead of tuning being another blind
-/// guess from a bug report.
+/// Which of the three ways of finding takeoff/landing produced the number the
+/// athlete is being shown. Surfaced on the result screen so the reading is
+/// never presented as more (or less) authoritative than it is.
+enum JumpDetectionMethod {
+  pose('Body tracking'),
+  motion('Frame motion'),
+  manual('Your own marks');
+
+  final String label;
+  const JumpDetectionMethod(this.label);
+}
+
+/// Everything the processing pass produced: the pose pass always, the
+/// motion-energy pass only when the pose pass declined to answer.
+class JumpAnalysis {
+  final PoseJumpDiagnostics pose;
+  final JumpDetectionDiagnostics motion;
+
+  const JumpAnalysis({required this.pose, required this.motion});
+
+  static const empty = JumpAnalysis(
+    pose: PoseJumpDiagnostics.empty,
+    motion: JumpDetectionDiagnostics.empty,
+  );
+
+  /// Pose first, motion energy second, null when neither could answer (the
+  /// caller then falls back to manual marking).
+  JumpMeasurement? get measurement => pose.result ?? motion.result;
+
+  JumpDetectionMethod? get method {
+    if (pose.result != null) return JumpDetectionMethod.pose;
+    if (motion.result != null) return JumpDetectionMethod.motion;
+    return null;
+  }
+
+  bool get hasAnyData => pose.sampleCount > 0 || motion.sampleCount > 0;
+}
+
+/// Finds the jump's takeoff/landing in the recorded clip, then hands the whole
+/// [JumpAnalysis] to [onDetected] so the result screen can say exactly what
+/// was measured and how.
 ///
-/// This used to run a second, denser pass restricted to a small window
-/// around the coarse result to refine the exact timestamps — reverted: that
-/// refine pass re-derived its own relative energy threshold from just that
-/// narrow window, which turned out to be an unreliable, non-representative
-/// sample (confirmed by a real clip going from a ~20" reading to a bogus
-/// ~50" reading after the refine step was added). A single full-clip pass
-/// is coarser but far more predictable. The UI below reflects the real
-/// stages of that single pass as they complete — it is not a decorative
-/// animation.
+/// The pipeline is pose first, motion energy second:
+///
+/// 1. **Pose tracking** (`pose_extraction.dart` → `core/pose_jump_detector.dart`)
+///    follows the athlete's feet and times the crossings of a ground baseline.
+///    This is the primary method because whole-frame motion energy was
+///    *measured* to fail on a real clip: it is a ratio of moving area to total
+///    area, so it is scale-invariant, and an athlete occupying a small part of
+///    the frame registered 0.013 against UI transitions at 0.30. Sampling at
+///    96 px instead of 32 px moved that 0.012 → 0.012. See CLAUDE.md.
+/// 2. **Motion energy** (`core/jump_auto_detector.dart`) still runs as a
+///    fallback when pose detection declines — e.g. the athlete is too small in
+///    frame for the model, or the clip is too dark.
+/// 3. If both decline, the caller falls back to **manual marking**, which
+///    always works.
+///
+/// The checklist below tracks the real stages of that pass as they complete —
+/// it is not a decorative animation, and when the fallback engages it says so
+/// rather than quietly pretending the first method worked.
 class ProcessingScreen extends StatefulWidget {
   final File video;
-  final void Function(JumpDetectionDiagnostics diagnostics) onDetected;
+  final void Function(JumpAnalysis analysis) onDetected;
 
   const ProcessingScreen({
     super.key,
@@ -37,10 +83,15 @@ class ProcessingScreen extends StatefulWidget {
   State<ProcessingScreen> createState() => _ProcessingScreenState();
 }
 
-enum _Phase { extracting, locating, estimating }
+enum _Phase { tracking, locating, estimating }
 
 class _ProcessingScreenState extends State<ProcessingScreen> {
-  _Phase _phase = _Phase.extracting;
+  _Phase _phase = _Phase.tracking;
+
+  /// Set only when the pose pass declined and the motion-energy fallback is
+  /// actually running, so the athlete is never told something untrue about
+  /// what the app is doing.
+  String? _fallbackNote;
 
   @override
   void initState() {
@@ -49,20 +100,32 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
   }
 
   Future<void> _run() async {
-    JumpDetectionDiagnostics diagnostics = JumpDetectionDiagnostics.empty;
+    var analysis = JumpAnalysis.empty;
     try {
-      if (mounted) setState(() => _phase = _Phase.extracting);
-      final samples = await extractMotionSamples(widget.video);
+      if (mounted) setState(() => _phase = _Phase.tracking);
+      final poseSamples = await extractPoseSamples(widget.video);
 
       if (mounted) setState(() => _phase = _Phase.locating);
-      diagnostics = JumpAutoDetector.detectWithDiagnostics(samples);
+      final pose = PoseJumpDetector.detectWithDiagnostics(poseSamples);
 
+      var motion = JumpDetectionDiagnostics.empty;
+      if (pose.result == null) {
+        if (mounted) {
+          setState(() => _fallbackNote =
+              "Body tracking couldn't lock on (${pose.rejection.label}) — "
+              'trying frame motion instead.');
+        }
+        final motionSamples = await extractMotionSamples(widget.video);
+        motion = JumpAutoDetector.detectWithDiagnostics(motionSamples);
+      }
+
+      analysis = JumpAnalysis(pose: pose, motion: motion);
       if (mounted) setState(() => _phase = _Phase.estimating);
     } catch (_) {
-      diagnostics = JumpDetectionDiagnostics.empty;
+      analysis = JumpAnalysis.empty;
     }
     if (!mounted) return;
-    widget.onDetected(diagnostics);
+    widget.onDetected(analysis);
   }
 
   @override
@@ -156,8 +219,16 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _StepRow(label: 'Extracting frames', stepPhase: _Phase.extracting, currentPhase: _phase),
-                    _StepRow(label: 'Locating your jump', stepPhase: _Phase.locating, currentPhase: _phase),
+                    _StepRow(
+                      label: 'Tracking your body through the clip',
+                      stepPhase: _Phase.tracking,
+                      currentPhase: _phase,
+                    ),
+                    _StepRow(
+                      label: 'Finding your takeoff and landing',
+                      stepPhase: _Phase.locating,
+                      currentPhase: _phase,
+                    ),
                     _StepRow(
                       label: 'Estimating your vertical',
                       stepPhase: _Phase.estimating,
@@ -167,6 +238,27 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                   ],
                 ),
               ),
+              if (_fallbackNote != null) ...[
+                const SizedBox(height: 14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline,
+                        color: DunkColors.textTertiary, size: 14),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _fallbackNote!,
+                        style: const TextStyle(
+                          color: DunkColors.textTertiary,
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

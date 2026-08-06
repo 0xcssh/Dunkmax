@@ -5,7 +5,9 @@ import 'features/analyze/analyze_flow.dart';
 import 'features/home/root_shell.dart';
 import 'features/onboarding/onboarding_flow.dart';
 import 'features/paywall/paywall_screen.dart';
+import 'services/athlete_profile_store.dart';
 import 'services/jump_log_store.dart';
+import 'services/leaderboard_service.dart';
 import 'services/onboarding_store.dart';
 import 'services/workout_session_store.dart';
 import 'theme/app_theme.dart';
@@ -21,12 +23,16 @@ class DunkMaxApp extends StatefulWidget {
   final OnboardingStore store;
   final WorkoutSessionStore sessionStore;
   final JumpLogStore jumpLogStore;
+  final AthleteProfileStore athleteProfileStore;
+  final LeaderboardService leaderboardService;
 
   const DunkMaxApp({
     super.key,
     required this.store,
     required this.sessionStore,
     required this.jumpLogStore,
+    required this.athleteProfileStore,
+    required this.leaderboardService,
   });
 
   @override
@@ -111,6 +117,8 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
           profile: _profile!,
           sessionStore: widget.sessionStore,
           jumpLogStore: widget.jumpLogStore,
+          athleteProfileStore: widget.athleteProfileStore,
+          leaderboardService: widget.leaderboardService,
           onRestartOnboarding: _restartOnboarding,
         );
     }

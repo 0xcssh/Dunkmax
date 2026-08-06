@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/onboarding_profile.dart';
 import '../../core/program_catalog.dart';
+import '../../services/athlete_profile_store.dart';
 import '../../services/jump_log_store.dart';
+import '../../services/leaderboard_service.dart';
 import '../../services/workout_session_store.dart';
 import '../../theme/app_theme.dart';
 import '../analyze/analyze_flow.dart';
+import '../feed/display_name_dialog.dart';
 import '../feed/feed_tab.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/progress_tab.dart';
@@ -17,6 +20,8 @@ class RootShell extends StatefulWidget {
   final OnboardingProfile profile;
   final WorkoutSessionStore sessionStore;
   final JumpLogStore jumpLogStore;
+  final AthleteProfileStore athleteProfileStore;
+  final LeaderboardService leaderboardService;
   final VoidCallback onRestartOnboarding;
 
   const RootShell({
@@ -24,6 +29,8 @@ class RootShell extends StatefulWidget {
     required this.profile,
     required this.sessionStore,
     required this.jumpLogStore,
+    required this.athleteProfileStore,
+    required this.leaderboardService,
     required this.onRestartOnboarding,
   });
 
@@ -34,6 +41,15 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   // Default to Train — that's the tab with real content and the app's core job.
   int _index = 2;
+
+  /// Mirrored in state so changing it (here or from the Feed) rebuilds the
+  /// Feed tab, which reloads the global board with the new name.
+  late String _displayName = widget.athleteProfileStore.displayName;
+
+  void _syncDisplayName() {
+    final stored = widget.athleteProfileStore.displayName;
+    if (stored != _displayName) setState(() => _displayName = stored);
+  }
 
   static const _tabs = [
     (Icons.home_rounded, 'HOME'),
@@ -58,7 +74,14 @@ class _RootShellState extends State<RootShell> {
       ),
       AnalyzeFlow(profile: widget.profile, jumpLogStore: widget.jumpLogStore),
       TrainTab(program: program, sessionStore: widget.sessionStore),
-      FeedTab(jumpLogStore: widget.jumpLogStore),
+      FeedTab(
+        jumpLogStore: widget.jumpLogStore,
+        athleteProfileStore: widget.athleteProfileStore,
+        leaderboardService: widget.leaderboardService,
+        heightInches: widget.profile.heightInches,
+        displayName: _displayName,
+        onDisplayNameChanged: _syncDisplayName,
+      ),
       ProgressTab(
         program: program,
         sessionStore: widget.sessionStore,
@@ -113,33 +136,24 @@ class _RootShellState extends State<RootShell> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Material(
-                  color: DunkColors.surfaceRaised,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      _confirmRestartOnboarding(context);
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Row(
-                        children: [
-                          Icon(Icons.refresh, color: DunkColors.textSecondary, size: 20),
-                          SizedBox(width: 12),
-                          Text(
-                            'Retake onboarding',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                _SettingsRow(
+                  icon: Icons.badge_outlined,
+                  label: 'Leaderboard name',
+                  // Honest about the consent gate: no name, nothing published.
+                  value: _displayName.isEmpty ? 'Not set' : _displayName,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _editDisplayName(context);
+                  },
+                ),
+                const SizedBox(height: 10),
+                _SettingsRow(
+                  icon: Icons.refresh,
+                  label: 'Retake onboarding',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _confirmRestartOnboarding(context);
+                  },
                 ),
               ],
             ),
@@ -147,6 +161,18 @@ class _RootShellState extends State<RootShell> {
         );
       },
     );
+  }
+
+  /// Lets the athlete choose (or change) the name shown on the global board.
+  Future<void> _editDisplayName(BuildContext context) async {
+    final chosen = await showDisplayNameDialog(
+      context,
+      initialName: _displayName,
+    );
+    if (chosen == null) return;
+    await widget.athleteProfileStore.setDisplayName(chosen);
+    if (!mounted) return;
+    _syncDisplayName();
   }
 
   Future<void> _confirmRestartOnboarding(BuildContext context) async {
@@ -172,6 +198,74 @@ class _RootShellState extends State<RootShell> {
       ),
     );
     if (confirmed == true) widget.onRestartOnboarding();
+  }
+}
+
+/// One row of the settings sheet: icon · label · optional current value.
+class _SettingsRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? value;
+  final VoidCallback onTap;
+
+  const _SettingsRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: DunkColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, color: DunkColors.textSecondary, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              if (value != null) ...[
+                const SizedBox(width: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(
+                    value!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      color: DunkColors.textTertiary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right,
+                color: DunkColors.textTertiary,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

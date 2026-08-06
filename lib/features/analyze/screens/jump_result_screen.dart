@@ -6,19 +6,25 @@ import '../../../core/jump_feedback.dart';
 import '../../../core/jump_result.dart';
 import '../../../core/jump_trend.dart';
 import '../../../core/models/video_attempt_type.dart';
+import '../../../core/pose_jump_detector.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
+import 'processing_screen.dart';
 
 /// The Analyze payoff: the measured vertical plus where it puts the athlete
 /// relative to their dunk goal. The four form scores (Bounce/Power/Control/
-/// Form) need pose detection — not built yet (see CLAUDE.md) — so they're
-/// shown locked rather than faked; no fabricated numbers. Same rule for the
+/// Form) need a second pose pass over joint angles, arm swing and symmetry —
+/// pose tracking now times the jump, but nothing scores the *form* yet (see
+/// CLAUDE.md) — so they're shown locked rather than faked. Same rule for the
 /// written breakdown below: it's built entirely from real measured numbers
 /// (see core/jump_feedback.dart) — no claims about form we can't observe.
 class JumpResultScreen extends StatelessWidget {
   final JumpResult result;
   final JumpTrend? trend;
-  final JumpDetectionDiagnostics diagnostics;
+  final JumpAnalysis analysis;
+
+  /// Which tier of the detection cascade produced [result].
+  final JumpDetectionMethod method;
   final VideoAttemptType attemptType;
   final VoidCallback onAnalyzeAnother;
   final String ctaLabel;
@@ -27,7 +33,8 @@ class JumpResultScreen extends StatelessWidget {
     super.key,
     required this.result,
     required this.trend,
-    required this.diagnostics,
+    required this.analysis,
+    required this.method,
     required this.attemptType,
     required this.onAnalyzeAnother,
     this.ctaLabel = 'ANALYZE ANOTHER JUMP',
@@ -55,9 +62,13 @@ class JumpResultScreen extends StatelessWidget {
           _BreakdownCard(feedback: feedback),
           const SizedBox(height: 16),
           const _ScoresCard(),
-          if (diagnostics.sampleCount > 0) ...[
+          if (analysis.hasAnyData) ...[
             const SizedBox(height: 16),
-            _DiagnosticsCard(diagnostics: diagnostics, attemptType: attemptType),
+            _DiagnosticsCard(
+              analysis: analysis,
+              method: method,
+              attemptType: attemptType,
+            ),
           ],
           const SizedBox(height: 20),
           PrimaryButton(
@@ -70,15 +81,25 @@ class JumpResultScreen extends StatelessWidget {
   }
 }
 
-/// Raw detection data for this clip — while the auto-detector is still
-/// being tuned against real footage, showing exactly what it saw (instead
-/// of only the final number) turns the next bug report into something
-/// diagnosable instead of another guess. Collapsed by default so it doesn't
-/// clutter the normal experience.
+/// Raw detection data for this clip, and — stated plainly, not implied —
+/// which of the three methods produced the number above it: body tracking,
+/// the frame-motion fallback, or the athlete's own manual marks.
+///
+/// While detection is still being validated against real footage, showing
+/// exactly what each pass saw (instead of only the final number) turns the
+/// next bug report into something diagnosable instead of another guess. Both
+/// passes are shown when both ran, so a pose pass that *declined* is as
+/// visible as one that won. Collapsed by default so it doesn't clutter the
+/// normal experience.
 class _DiagnosticsCard extends StatefulWidget {
-  final JumpDetectionDiagnostics diagnostics;
+  final JumpAnalysis analysis;
+  final JumpDetectionMethod method;
   final VideoAttemptType attemptType;
-  const _DiagnosticsCard({required this.diagnostics, required this.attemptType});
+  const _DiagnosticsCard({
+    required this.analysis,
+    required this.method,
+    required this.attemptType,
+  });
 
   @override
   State<_DiagnosticsCard> createState() => _DiagnosticsCardState();
@@ -89,7 +110,8 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final d = widget.diagnostics;
+    final d = widget.analysis.motion;
+    final p = widget.analysis.pose;
     return Container(
       decoration: BoxDecoration(
         color: DunkColors.surface,
@@ -111,15 +133,28 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
                     const Icon(Icons.bug_report_outlined,
                         color: DunkColors.textTertiary, size: 16),
                     const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'DETECTION DETAILS',
-                        style: TextStyle(
-                          color: DunkColors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'DETECTION DETAILS',
+                            style: TextStyle(
+                              color: DunkColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Measured by ${widget.method.label.toLowerCase()}',
+                            style: const TextStyle(
+                              color: DunkColors.textTertiary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Icon(
@@ -148,46 +183,26 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${d.sampleCount} samples · energy '
-                    '${d.minEnergy.toStringAsFixed(3)}–${d.maxEnergy.toStringAsFixed(3)} · '
-                    'threshold ${d.threshold.toStringAsFixed(3)}',
+                    'Reported number from: ${widget.method.label}',
                     style: const TextStyle(
-                      color: DunkColors.textTertiary,
+                      color: DunkColors.primary,
                       fontSize: 12,
+                      fontWeight: FontWeight.w700,
                       fontFamily: 'monospace',
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  if (d.candidates.isEmpty)
-                    const Text(
-                      'No plausible candidate windows found.',
-                      style: TextStyle(color: DunkColors.textTertiary, fontSize: 12),
-                    )
-                  else
-                    for (final c in d.candidates)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Text(
-                          '${c.chosen ? '→ ' : '  '}'
-                          '${c.airborneSeconds.toStringAsFixed(2)}s '
-                          '(${c.takeoff.inMilliseconds}–${c.landing.inMilliseconds}ms) · '
-                          'avg ${c.avgEnergy.toStringAsFixed(3)} · '
-                          'bounds ${c.boundingEnergy.toStringAsFixed(3)} · '
-                          'prom ${c.prominence.toStringAsFixed(3)}'
-                          '${c.chosen ? ' [CHOSEN]' : ''}',
-                          style: TextStyle(
-                            color: c.chosen ? DunkColors.primary : DunkColors.textTertiary,
-                            fontWeight: c.chosen ? FontWeight.w700 : FontWeight.w400,
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ),
-                  if (d.estimates.outerBoundSeconds != null) ...[
+                  const SizedBox(height: 12),
+                  _PoseSection(
+                    pose: p,
+                    isReported: widget.method == JumpDetectionMethod.pose,
+                  ),
+                  if (d.sampleCount > 0) ...[
                     const SizedBox(height: 12),
-                    const Text(
-                      'HOW THE WINDOW IS MEASURED',
-                      style: TextStyle(
+                    Text(
+                      widget.method == JumpDetectionMethod.motion
+                          ? 'FRAME MOTION (fallback — used)'
+                          : 'FRAME MOTION (fallback)',
+                      style: const TextStyle(
                         color: DunkColors.textSecondary,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
@@ -195,18 +210,10 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    _EstimateLine(
-                      label: 'outer bound',
-                      seconds: d.estimates.outerBoundSeconds,
-                      isReported: true,
-                    ),
-                    _EstimateLine(
-                      label: 'threshold cross',
-                      seconds: d.estimates.crossingSeconds,
-                    ),
-                    _EstimateLine(
-                      label: 'apex symmetry',
-                      seconds: d.estimates.apexSymmetrySeconds,
+                    _MotionSection(
+                      d: d,
+                      isReported:
+                          widget.method == JumpDetectionMethod.motion,
                     ),
                   ],
                 ],
@@ -214,6 +221,177 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// The pose pass: what the body tracker saw. Shown whether it won or was
+/// overruled by the fallback, because a pose pass that *declined* is exactly
+/// the case that needs diagnosing from a real device.
+class _PoseSection extends StatelessWidget {
+  final PoseJumpDiagnostics pose;
+  final bool isReported;
+
+  const _PoseSection({required this.pose, required this.isReported});
+
+  @override
+  Widget build(BuildContext context) {
+    const mono = TextStyle(
+      color: DunkColors.textTertiary,
+      fontSize: 11,
+      fontFamily: 'monospace',
+    );
+
+    final lines = <String>[
+      '${pose.sampleCount} frames · athlete found in ${pose.detectedCount} '
+          '(${pose.missingCount} missed)',
+    ];
+    if (pose.detectedCount > 0) {
+      lines.add(
+        'torso ${pose.torsoPixels.toStringAsFixed(1)}px · '
+        'ground y ${pose.groundBaselineY.toStringAsFixed(1)} · '
+        'lift threshold ${pose.liftThresholdPixels.toStringAsFixed(1)}px',
+      );
+    }
+    if (pose.peakLiftPixels > 0) {
+      lines.add('peak foot lift ${pose.peakLiftPixels.toStringAsFixed(1)}px');
+    }
+    if (pose.crossingTakeoff != null && pose.crossingLanding != null) {
+      lines.add(
+        'window ${pose.crossingTakeoff!.inMilliseconds}–'
+        '${pose.crossingLanding!.inMilliseconds}ms',
+      );
+    }
+    if (pose.rawCrossingSeconds != null) {
+      lines.add(
+        'raw crossings ${pose.rawCrossingSeconds!.toStringAsFixed(3)}s',
+      );
+    }
+    if (pose.correctedSeconds != null) {
+      lines.add(
+        'parabola-corrected ${pose.correctedSeconds!.toStringAsFixed(3)}s → '
+        '${FlightTime.heightInches(pose.correctedSeconds!).toStringAsFixed(1)}"',
+      );
+    }
+    lines.add('outcome: ${pose.rejection.label}');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isReported ? 'BODY TRACKING (used)' : 'BODY TRACKING',
+          style: TextStyle(
+            color: isReported ? DunkColors.primary : DunkColors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        for (final line in lines)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(line, style: mono),
+          ),
+        if (pose.samples.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          const Text(
+            'foot y per frame (— = no pose)',
+            style: TextStyle(color: DunkColors.textTertiary, fontSize: 11),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            [
+              for (final s in pose.samples)
+                '${s.timestamp.inMilliseconds}:'
+                    '${s.footY == null ? '—' : s.footY!.round()}',
+            ].join('  '),
+            style: mono,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// The legacy motion-energy pass, unchanged — only rendered when it actually
+/// ran (i.e. body tracking declined).
+class _MotionSection extends StatelessWidget {
+  final JumpDetectionDiagnostics d;
+
+  /// True only when this pass is the one that produced the headline number.
+  final bool isReported;
+
+  const _MotionSection({required this.d, required this.isReported});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${d.sampleCount} samples · energy '
+          '${d.minEnergy.toStringAsFixed(3)}–${d.maxEnergy.toStringAsFixed(3)} · '
+          'threshold ${d.threshold.toStringAsFixed(3)}',
+          style: const TextStyle(
+            color: DunkColors.textTertiary,
+            fontSize: 12,
+            fontFamily: 'monospace',
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (d.candidates.isEmpty)
+          const Text(
+            'No plausible candidate windows found.',
+            style: TextStyle(color: DunkColors.textTertiary, fontSize: 12),
+          )
+        else
+          for (final c in d.candidates)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '${c.chosen ? '→ ' : '  '}'
+                '${c.airborneSeconds.toStringAsFixed(2)}s '
+                '(${c.takeoff.inMilliseconds}–${c.landing.inMilliseconds}ms) · '
+                'avg ${c.avgEnergy.toStringAsFixed(3)} · '
+                'bounds ${c.boundingEnergy.toStringAsFixed(3)} · '
+                'prom ${c.prominence.toStringAsFixed(3)}'
+                '${c.chosen ? ' [CHOSEN]' : ''}',
+                style: TextStyle(
+                  color: c.chosen ? DunkColors.primary : DunkColors.textTertiary,
+                  fontWeight: c.chosen ? FontWeight.w700 : FontWeight.w400,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+        if (d.estimates.outerBoundSeconds != null) ...[
+          const SizedBox(height: 12),
+          const Text(
+            'HOW THE WINDOW IS MEASURED',
+            style: TextStyle(
+              color: DunkColors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _EstimateLine(
+            label: 'outer bound',
+            seconds: d.estimates.outerBoundSeconds,
+            isReported: isReported,
+          ),
+          _EstimateLine(
+            label: 'threshold cross',
+            seconds: d.estimates.crossingSeconds,
+          ),
+          _EstimateLine(
+            label: 'apex symmetry',
+            seconds: d.estimates.apexSymmetrySeconds,
+          ),
+        ],
+      ],
     );
   }
 }
