@@ -85,11 +85,20 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
       case _Phase.onboarding:
         return OnboardingFlow(onCompleted: _onOnboardingCompleted);
       case _Phase.freeAnalysis:
-        return AnalyzeFlow(
-          profile: _profile!,
-          jumpLogStore: widget.jumpLogStore,
-          onSkip: _goToPaywall,
-          onFirstResult: _goToPaywall,
+        // AnalyzeFlow's screens (Source/Processing/JumpResult/MarkJump) have
+        // no Scaffold of their own -- they're built to live inside
+        // RootShell's Scaffold when used as the Analyze tab. Used here as a
+        // standalone pre-paywall step, they need their own Material
+        // ancestor or text rendering misbehaves (this was the intermittent
+        // "yellow underline" report -- same screen, different context).
+        return Scaffold(
+          backgroundColor: DunkColors.background,
+          body: AnalyzeFlow(
+            profile: _profile!,
+            jumpLogStore: widget.jumpLogStore,
+            onSkip: _goToPaywall,
+            onFirstResult: _goToPaywall,
+          ),
         );
       case _Phase.paywall:
         return PaywallScreen(
