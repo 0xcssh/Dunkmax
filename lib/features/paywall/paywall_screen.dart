@@ -17,8 +17,9 @@ enum _Plan { yearly, weekly }
 /// reference app's — this is a brand-new, unpublished app with zero real
 /// ratings, and shipping a fabricated "4.8 · 675+ ratings" would be exactly
 /// the kind of fake social proof this app's own conventions refuse to show
-/// elsewhere (see the onboarding social-proof screen's placeholder-marking
-/// discipline). No badge is better than a fake one.
+/// elsewhere (the onboarding sell flow sells the measurement method for the
+/// same reason — see features/onboarding/screens/how_it_works_screen.dart).
+/// No badge is better than a fake one.
 class PaywallScreen extends StatefulWidget {
   final OnboardingProfile profile;
   final VoidCallback onContinue;

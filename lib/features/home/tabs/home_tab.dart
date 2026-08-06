@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/jump_trend.dart';
 import '../../../core/models/onboarding_profile.dart';
 import '../../../core/models/training_program.dart';
+import '../../../core/training_schedule.dart';
 import '../../../core/workout_streak.dart';
 import '../../../services/jump_log_store.dart';
 import '../../../services/workout_session_store.dart';
@@ -42,12 +43,15 @@ class HomeTab extends StatelessWidget {
     final currentSessionNumber =
         (completedForProgram + 1).clamp(1, program.totalSessions);
     final isProgramComplete = completedForProgram >= program.totalSessions;
-    final today = program.dayFor(currentSessionNumber);
+    // Progressed, not the authored base — otherwise Home would advertise
+    // week 1's set counts while the Train tab hands out week 4's.
+    final schedule = TrainingSchedule(program);
+    final today = schedule.prescriptionForSession(currentSessionNumber);
     final streak = WorkoutStreak.currentStreak(
       sessionStore.sessions.map((s) => s.completedAt).toList(),
     );
     final trend = JumpTrendCalculator.compute(jumpLogStore.entries);
-    final weekNumber = ((currentSessionNumber - 1) ~/ program.sessionsPerWeek) + 1;
+    final weekNumber = schedule.weekOfSession(currentSessionNumber);
     final completedDaySet = sessionStore.sessions
         .map((s) => _dateOnly(s.completedAt))
         .toSet();

@@ -22,3 +22,9 @@ pubspec.lock
 .vscode/
 *.iml
 .DS_Store
+
+# Local Claude Code state
+.claude/
+
+# Competitor reference screenshots kept locally as design input only
+reference-screenshots/

@@ -8,6 +8,14 @@ import '../../shared/widgets/primary_button.dart';
 class WarmupScreen extends StatelessWidget {
   final String focus;
   final String warmUp;
+
+  /// "WEEK 2 · DAY 2 OF 3" — where this session sits in the program.
+  final String weekLabel;
+
+  /// True on a deload week, so the athlete knows the lighter prescription
+  /// below is deliberate.
+  final bool isDeload;
+
   final VoidCallback onStart;
   final VoidCallback onCancel;
 
@@ -15,6 +23,8 @@ class WarmupScreen extends StatelessWidget {
     super.key,
     required this.focus,
     required this.warmUp,
+    required this.weekLabel,
+    required this.isDeload,
     required this.onStart,
     required this.onCancel,
   });
@@ -52,7 +62,7 @@ class WarmupScreen extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 children: [
                   Text(
-                    focus.toUpperCase(),
+                    weekLabel,
                     style: const TextStyle(
                       color: DunkColors.primary,
                       fontWeight: FontWeight.w700,
@@ -62,6 +72,39 @@ class WarmupScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text('${focus.toUpperCase()} DAY', style: DunkTheme.onboardingTitle),
+                  if (isDeload) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: DunkColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: DunkColors.primary.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.trending_down,
+                              size: 15, color: DunkColors.primary),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'DELOAD WEEK — fewer sets on purpose. This is '
+                              'when adaptation happens.',
+                              style: TextStyle(
+                                color: DunkColors.primary,
+                                fontSize: 12,
+                                height: 1.3,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(16),

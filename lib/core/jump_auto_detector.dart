@@ -38,6 +38,21 @@ class JumpDetectionDiagnostics {
   final List<CandidateWindow> candidates;
   final JumpMeasurement? result;
 
+  /// Alternative airborne-time estimates for the chosen window, computed but
+  /// deliberately NOT used for the reported vertical (see
+  /// [JumpAutoDetector.detectWithDiagnostics]).
+  ///
+  /// The reported number has been consistently lower than a reference app on
+  /// the same clip, and the cause is which instants we call "takeoff" and
+  /// "landing" — a question of where the flight phase really starts and ends
+  /// in the motion-energy signal, not of the physics (`h = g·t²/8` is exact).
+  /// Three defensible answers exist and they disagree by enough to move the
+  /// result by several inches, so rather than guess a fourth time, all three
+  /// are surfaced side by side on a real clip. Once a real measurement with a
+  /// known reference value is in hand, the right one can be promoted to
+  /// [result] with evidence instead of intuition.
+  final JumpEstimates estimates;
+
   const JumpDetectionDiagnostics({
     required this.sampleCount,
     required this.minEnergy,
@@ -45,6 +60,7 @@ class JumpDetectionDiagnostics {
     required this.threshold,
     required this.candidates,
     required this.result,
+    this.estimates = JumpEstimates.none,
   });
 
   static const empty = JumpDetectionDiagnostics(
@@ -55,6 +71,40 @@ class JumpDetectionDiagnostics {
     candidates: [],
     result: null,
   );
+}
+
+/// The three ways of reading takeoff/landing out of the motion-energy signal,
+/// all in seconds of airborne time. Null when no window was found.
+///
+/// Physically, frame-to-frame motion energy during flight tracks the body's
+/// vertical speed: maximal at takeoff, ~zero at the apex, maximal again at
+/// landing. So the signal traces a V, and how wide you call that V decides
+/// the answer:
+///
+/// - [outerBoundSeconds] — the sample just outside the quiet run on each
+///   side. An upper bound: it includes up to one whole sample step of ground
+///   phase at each end. This is what currently feeds the reported number.
+/// - [crossingSeconds] — the interpolated instant the energy actually crosses
+///   the threshold, between samples. Removes the sample-step quantisation
+///   (which at ~100 ms per sample is worth several inches on its own) but is
+///   only as good as the threshold level itself.
+/// - [apexSymmetrySeconds] — twice the time from the apex (the V's minimum)
+///   to the landing impact. Uses the fact that flight is symmetric about the
+///   apex, so it needs only the landing side — the sharpest, least ambiguous
+///   event in the whole signal — and never has to decide where the takeoff
+///   drive ends and flight begins.
+class JumpEstimates {
+  final double? outerBoundSeconds;
+  final double? crossingSeconds;
+  final double? apexSymmetrySeconds;
+
+  const JumpEstimates({
+    this.outerBoundSeconds,
+    this.crossingSeconds,
+    this.apexSymmetrySeconds,
+  });
+
+  static const none = JumpEstimates();
 }
 
 /// Finds the airborne window in a jump clip from a motion-energy time
@@ -145,6 +195,7 @@ abstract class JumpAutoDetector {
     // sample, if it runs to the end) as landing.
     final diagCandidates = <CandidateWindow>[];
     _Run? best;
+    _Run? bestRun;
     double? bestProminence;
     for (final run in runs) {
       final takeoffIndex = run.start > 0 ? run.start - 1 : run.start;
@@ -176,16 +227,19 @@ abstract class JumpAutoDetector {
 
       if (best == null || prominence > bestProminence!) {
         best = _Run(takeoffIndex, landingIndex);
+        bestRun = run;
         bestProminence = prominence;
       }
     }
 
     JumpMeasurement? result;
     var finalCandidates = diagCandidates;
+    var estimates = JumpEstimates.none;
     if (best != null) {
       final takeoff = sorted[best.start].timestamp;
       final landing = sorted[best.end].timestamp;
       result = JumpMeasurement(takeoff: takeoff, landing: landing);
+      estimates = _estimate(sorted, best, bestRun!, threshold);
       finalCandidates = [
         for (final c in diagCandidates)
           c.takeoff == takeoff && c.landing == landing
@@ -208,7 +262,63 @@ abstract class JumpAutoDetector {
       threshold: threshold,
       candidates: finalCandidates,
       result: result,
+      estimates: estimates,
     );
+  }
+
+  /// Computes the three competing readings of the chosen window described on
+  /// [JumpEstimates]. Pure arithmetic over the already-selected window — it
+  /// never changes which window was picked, only how that window is measured.
+  static JumpEstimates _estimate(
+    List<MotionSample> sorted,
+    _Run bounds,
+    _Run run,
+    double threshold,
+  ) {
+    double seconds(Duration a, Duration b) =>
+        (b - a).inMicroseconds / Duration.microsecondsPerSecond;
+
+    final outerTakeoff = sorted[bounds.start].timestamp;
+    final outerLanding = sorted[bounds.end].timestamp;
+
+    // Interpolated threshold crossings. On the takeoff side the high sample
+    // precedes the quiet run; on the landing side it follows it.
+    final crossTakeoff = run.start > 0
+        ? _crossing(sorted[run.start - 1], sorted[run.start], threshold)
+        : outerTakeoff;
+    final crossLanding = run.end < sorted.length - 1
+        ? _crossing(sorted[run.end + 1], sorted[run.end], threshold)
+        : outerLanding;
+
+    // Apex = quietest instant of the flight, i.e. the bottom of the V.
+    var apexIndex = run.start;
+    for (var i = run.start; i <= run.end; i++) {
+      if (sorted[i].energy < sorted[apexIndex].energy) apexIndex = i;
+    }
+    final apex = sorted[apexIndex].timestamp;
+
+    final apexToLanding = seconds(apex, crossLanding);
+
+    return JumpEstimates(
+      outerBoundSeconds: seconds(outerTakeoff, outerLanding),
+      crossingSeconds: seconds(crossTakeoff, crossLanding),
+      apexSymmetrySeconds: apexToLanding > 0 ? apexToLanding * 2 : null,
+    );
+  }
+
+  /// Instant between [high] (energy above [threshold]) and [low] (energy at
+  /// or below it) where the signal crosses the threshold, by linear
+  /// interpolation. Either sample may be the earlier one in time.
+  static Duration _crossing(
+    MotionSample high,
+    MotionSample low,
+    double threshold,
+  ) {
+    final span = high.energy - low.energy;
+    if (span <= 0) return high.timestamp;
+    final fraction = ((high.energy - threshold) / span).clamp(0.0, 1.0);
+    final deltaUs = (low.timestamp - high.timestamp).inMicroseconds;
+    return high.timestamp + Duration(microseconds: (deltaUs * fraction).round());
   }
 }
 

@@ -102,9 +102,11 @@ lib/
   features/
     onboarding/          Welcome hook + 10-question quiz + sell screens
     paywall/             Presentation-only paywall (IAP is a follow-up)
-    home/                5-tab shell (Home, Analyze, Train, Feed, Progress);
-                         Train + Analyze + Progress are functional, Feed is
-                         a placeholder
+    home/                5-tab shell (Home, Analyze, Train, Feed, Progress) —
+                         all five functional
+    feed/                Leaderboards: the athlete's OWN jumps ranked
+                         (core/leaderboard.dart); the community board is
+                         honestly locked (no backend, no accounts)
     analyze/             Source (record/pick video) → mark takeoff/landing →
                          processing beat → result dashboard (flight-time vert);
                          a valid result is persisted to JumpLogStore
@@ -138,6 +140,22 @@ differentiator.
   device to test on; manual marking ships a real, reliable measurement now).
   Video capture/import is `image_picker` (`features/analyze/screens/
   source_screen.dart`, camera or gallery, max 10s).
+- **Open question: where the flight window really starts and ends.** The
+  physics is exact; the error is entirely in the takeoff/landing instants.
+  Motion energy during flight tracks the body's vertical speed — max at
+  takeoff, ~zero at the apex, max again at landing — so the signal traces a
+  **V**, and how wide you call that V moves the answer by several inches.
+  Three defensible readings exist (`core/jump_auto_detector.dart`,
+  `JumpEstimates`): the **outer bound** (samples just outside the quiet run —
+  what currently feeds the reported number), the **interpolated threshold
+  crossing** (kills sample-step quantisation, worth several inches on its
+  own, but inherits whatever bias the threshold has), and **apex symmetry**
+  (twice apex→landing, using only the sharp landing impact and the fact that
+  flight is symmetric about the apex). All three are computed and shown in
+  the result screen's DETECTION DETAILS card, in seconds *and* inches.
+  **Do not blind-tune this again** — an earlier blind two-pass "refinement"
+  turned a 20" reading into a bogus 50" and had to be reverted. Pick the
+  winner from a real clip whose true vertical is known, then promote it.
 - **The 4 scores + coaching (Bounce/Power/Control/Form) = pose detection,
   NOT built.** Shown as a locked "coming soon" card on the result screen
   (`features/analyze/screens/jump_result_screen.dart`) rather than faked —
@@ -180,8 +198,9 @@ adaptation (see `program_catalog.dart`).
 Welcome → **quiz (progress bar, 10 Q):** dunk goal (multi) · experience ·
 position · days/week · training location · hops level · height (wheel) ·
 weight (slider) · age (wheel) · commitment → **sell screens:** gap analysis
-("Here's the gap") → jump-potential projection → social proof → building
-loader → plan reveal → **paywall** → app shell.
+("Here's the gap") → jump-potential projection → how it works (the
+measurement method — replaced the old placeholder social-proof screen) →
+building loader → plan reveal → **free analysis** → **paywall** → app shell.
 
 ## What's built vs TODO
 
@@ -208,14 +227,31 @@ TODO (rough priority):
       marking), pose-based Bounce/Power/Control/Form scores + coaching,
       potential projection on the result screen, share, camera/library
       Info.plist permissions (see above).
-- [x] **Train v2** — 3-day rotation per program + warm-up/set/reps/lbs
-      logging, persisted. Still TODO: only 3 days are authored per program
-      (repeats indefinitely rather than progressing week-to-week/deload
-      weeks), no rest-day concept, no per-set edit/undo after logging.
+- [x] **Train v2.5** — `core/training_schedule.dart` (pure, 30 tests) wraps
+      the authored 3-day rotation with real periodisation: **rest days**
+      (the i-th of n weekly sessions lands on weekday `1 + (i*7)~/n`, so
+      3/wk = Mon/Wed/Fri), **progressive overload** (+1 set per build week,
+      each completed block opens higher, capped at +3 / 8 sets absolute —
+      *sets only*: the catalog's rep labels are free-form strings like
+      "8 reps/leg" and "30 sec", so progressing them would mean guessing
+      units), and **deload** every 4th week, except a program's final week
+      is never a deload (that's the re-test week). Train shows
+      `WEEK 2 · DAY 2 OF 3`, a 7-day week strip, a DELOAD pill, and a rest-
+      day state whose CTA is a muted TRAIN ANYWAY — recovery is recommended,
+      not enforced. Home reads the same progressed prescription so the two
+      tabs can't disagree. Still TODO: no per-set edit/undo after logging;
+      the rest-day trigger is "already trained today", not a start-date-
+      anchored calendar.
 - [x] **Progress v2** — workouts X/total, day streak, current vertical +
       trend, all real/persisted. Still TODO: no vertical-trend chart (just
       the latest number + delta), no workout history list/detail view.
-- [ ] **Feed** (social) and **Coach** (AI chat).
+- [x] **Feed v1** — Leaderboards over the athlete's own logged jumps
+      (medal ranks, thumbnails, tap to replay). The community board the
+      reference app has needs accounts + a server + video hosting +
+      moderation; none of that exists, so it ships visibly locked instead of
+      seeded with invented athletes. Real community leaderboards are the
+      follow-up, and they are a backend project, not a UI one.
+- [ ] **Coach** (AI chat).
 - [ ] **iOS signing** → IPA on device (see above).
 - [ ] **IAP via RevenueCat** (real paywall + 3-day trial; same account
       pattern as PodRadar). Two products for the trial/no-trial cascade.
@@ -227,12 +263,14 @@ TODO (rough priority):
 
 - Commit style: imperative subject + short "why" paragraph.
 - Code, comments, commits in **English**; the user reports in **French**.
-- **No fabricated social proof.** The onboarding social-proof screen ships
-  with clearly-marked PLACEHOLDER rating + testimonials
-  (`features/onboarding/screens/social_proof_screen.dart`). Before App Store
-  submission they MUST be replaced with real testimonials and a real (or
-  removed) rating — a fake "4.8 · N App Store ratings" on a new app is
-  misleading and violates App Store Review guidelines.
+- **No fabricated social proof.** A new app has no reviews and no community,
+  so nothing in the UI may imply otherwise. The onboarding sell flow used to
+  hold a placeholder rating + invented testimonials; that screen is gone,
+  replaced by `features/onboarding/screens/how_it_works_screen.dart`, which
+  sells the measurement method (all claims true today). The paywall ships
+  with no rating badge, and the Feed's community board is honestly locked
+  rather than filled with made-up athletes. When real reviews exist they get
+  *added*; they never come back as placeholders.
 - **Localization is the plan** — avoid hardcoding user-facing copy long-term;
   English literals are placeholders until the ARB catalog lands.
 - Icons: Material/Cupertino icons only, no emoji in UI. Design must never

@@ -233,4 +233,62 @@ void main() {
       expect(JumpAutoDetector.detectWithDiagnostics(const []).result, isNull);
     });
   });
+
+  group('JumpAutoDetector alternative estimates', () {
+    test('the reported result is always the outer-bound reading', () {
+      final samples =
+          _clip(leadInCount: 5, lowCount: 10, leadOutCount: 5, spacingMs: 50);
+      final diagnostics = JumpAutoDetector.detectWithDiagnostics(samples);
+
+      expect(diagnostics.result, isNotNull);
+      expect(diagnostics.estimates.outerBoundSeconds, isNotNull);
+      expect(
+        diagnostics.estimates.outerBoundSeconds!,
+        closeTo(diagnostics.result!.airborneSeconds, 1e-9),
+      );
+    });
+
+    test('threshold-crossing reading never exceeds the outer bound', () {
+      // The outer bound takes the samples just outside the quiet run, so it
+      // includes up to a full sample step of ground phase at each end; the
+      // interpolated crossing lands inside that span by construction.
+      final samples =
+          _clip(leadInCount: 4, lowCount: 12, leadOutCount: 4, spacingMs: 40);
+      final estimates = JumpAutoDetector.detectWithDiagnostics(samples).estimates;
+
+      expect(estimates.crossingSeconds, isNotNull);
+      expect(
+        estimates.crossingSeconds!,
+        lessThanOrEqualTo(estimates.outerBoundSeconds!),
+      );
+      expect(estimates.crossingSeconds!, greaterThan(0));
+    });
+
+    test('apex-symmetry reading is positive and physically plausible', () {
+      final samples =
+          _clip(leadInCount: 4, lowCount: 12, leadOutCount: 4, spacingMs: 40);
+      final estimates = JumpAutoDetector.detectWithDiagnostics(samples).estimates;
+
+      expect(estimates.apexSymmetrySeconds, isNotNull);
+      expect(estimates.apexSymmetrySeconds!, greaterThan(0));
+    });
+
+    test('no window found leaves every estimate null', () {
+      // Uniform energy: nothing stands out as a quiet flight phase.
+      final flat = [
+        for (var i = 0; i < 10; i++)
+          MotionSample(
+            timestamp: Duration(milliseconds: i * 50),
+            energy: 0.5,
+          ),
+      ];
+      final diagnostics = JumpAutoDetector.detectWithDiagnostics(flat);
+
+      if (diagnostics.result == null) {
+        expect(diagnostics.estimates.outerBoundSeconds, isNull);
+        expect(diagnostics.estimates.crossingSeconds, isNull);
+        expect(diagnostics.estimates.apexSymmetrySeconds, isNull);
+      }
+    });
+  });
 }

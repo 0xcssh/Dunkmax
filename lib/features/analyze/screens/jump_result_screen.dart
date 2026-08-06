@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/flight_time.dart';
 import '../../../core/jump_auto_detector.dart';
 import '../../../core/jump_feedback.dart';
 import '../../../core/jump_result.dart';
@@ -182,10 +183,73 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
                           ),
                         ),
                       ),
+                  if (d.estimates.outerBoundSeconds != null) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'HOW THE WINDOW IS MEASURED',
+                      style: TextStyle(
+                        color: DunkColors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _EstimateLine(
+                      label: 'outer bound',
+                      seconds: d.estimates.outerBoundSeconds,
+                      isReported: true,
+                    ),
+                    _EstimateLine(
+                      label: 'threshold cross',
+                      seconds: d.estimates.crossingSeconds,
+                    ),
+                    _EstimateLine(
+                      label: 'apex symmetry',
+                      seconds: d.estimates.apexSymmetrySeconds,
+                    ),
+                  ],
                 ],
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// One candidate reading of the airborne window, shown as both the raw hang
+/// time and the vertical it would produce — so the three can be compared
+/// directly against a known reference measurement of the same clip.
+class _EstimateLine extends StatelessWidget {
+  final String label;
+  final double? seconds;
+  final bool isReported;
+
+  const _EstimateLine({
+    required this.label,
+    required this.seconds,
+    this.isReported = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final value = seconds;
+    final text = value == null
+        ? '$label: —'
+        : '$label: ${value.toStringAsFixed(3)}s → '
+            '${FlightTime.heightInches(value).toStringAsFixed(1)}"'
+            '${isReported ? '  [REPORTED]' : ''}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: isReported ? DunkColors.primary : DunkColors.textTertiary,
+          fontWeight: isReported ? FontWeight.w700 : FontWeight.w400,
+          fontSize: 11,
+          fontFamily: 'monospace',
+        ),
       ),
     );
   }

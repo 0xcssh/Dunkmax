@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/training_program.dart';
 import '../../core/models/workout_session.dart';
+import '../../core/training_schedule.dart';
 import '../../services/workout_session_store.dart';
 import 'screens/log_exercise_screen.dart';
 import 'screens/session_complete_screen.dart';
@@ -12,16 +13,19 @@ enum _Step { warmup, exercise, complete }
 /// Drives one training session: warm-up → per-exercise set logging (one
 /// screen per exercise) → a summary, then persists a [WorkoutSession] and
 /// pops back to the TRAIN tab.
+///
+/// The day trained is resolved here, from [TrainingSchedule], so the session
+/// always runs the **progressed** prescription for the week [sessionNumber]
+/// falls in (week 3's Power Day carries more sets than week 1's) rather than
+/// the raw authored base — no caller can accidentally pass the wrong one.
 class SessionFlow extends StatefulWidget {
   final TrainingProgram program;
-  final ProgramDay day;
   final int sessionNumber;
   final WorkoutSessionStore sessionStore;
 
   const SessionFlow({
     super.key,
     required this.program,
-    required this.day,
     required this.sessionNumber,
     required this.sessionStore,
   });
@@ -35,12 +39,20 @@ class _SessionFlowState extends State<SessionFlow> {
   int _exerciseIndex = 0;
   final List<LoggedExercise> _logged = [];
 
+  late final TrainingSchedule _schedule = TrainingSchedule(widget.program);
+
+  /// Resolved once so the prescription can't shift mid-session.
+  late final ProgramDay _day =
+      _schedule.prescriptionForSession(widget.sessionNumber);
+
+  int get _week => _schedule.weekOfSession(widget.sessionNumber);
+
   void _startExercises() => setState(() => _step = _Step.exercise);
 
   void _onExerciseLogged(LoggedExercise logged) {
     setState(() {
       _logged.add(logged);
-      if (_exerciseIndex + 1 < widget.day.exercises.length) {
+      if (_exerciseIndex + 1 < _day.exercises.length) {
         _exerciseIndex++;
       } else {
         _step = _Step.complete;
@@ -64,8 +76,12 @@ class _SessionFlowState extends State<SessionFlow> {
     return Scaffold(
       body: switch (_step) {
         _Step.warmup => WarmupScreen(
-            focus: widget.day.focus,
-            warmUp: widget.day.warmUp,
+            focus: _day.focus,
+            warmUp: _day.warmUp,
+            weekLabel: 'WEEK $_week · DAY '
+                '${_schedule.dayInWeekOfSession(widget.sessionNumber)} OF '
+                '${_schedule.sessionsPerWeek}',
+            isDeload: _schedule.isDeloadWeek(_week),
             onStart: _startExercises,
             onCancel: () => Navigator.of(context).pop(false),
           ),
@@ -76,9 +92,9 @@ class _SessionFlowState extends State<SessionFlow> {
             // carried over to exercise N+1, showing every set as already
             // "DONE" the moment the new exercise loaded.
             key: ValueKey(_exerciseIndex),
-            exercise: widget.day.exercises[_exerciseIndex],
+            exercise: _day.exercises[_exerciseIndex],
             exerciseIndex: _exerciseIndex,
-            totalExercises: widget.day.exercises.length,
+            totalExercises: _day.exercises.length,
             onLogged: _onExerciseLogged,
           ),
         _Step.complete => SessionCompleteScreen(

@@ -6,8 +6,8 @@ import '../../services/jump_log_store.dart';
 import '../../services/workout_session_store.dart';
 import '../../theme/app_theme.dart';
 import '../analyze/analyze_flow.dart';
+import '../feed/feed_tab.dart';
 import 'tabs/home_tab.dart';
-import 'tabs/placeholder_tab.dart';
 import 'tabs/progress_tab.dart';
 import 'tabs/train_tab.dart';
 
@@ -58,11 +58,7 @@ class _RootShellState extends State<RootShell> {
       ),
       AnalyzeFlow(profile: widget.profile, jumpLogStore: widget.jumpLogStore),
       TrainTab(program: program, sessionStore: widget.sessionStore),
-      const PlaceholderTab(
-        title: 'Feed',
-        icon: Icons.groups_outlined,
-        message: 'See what other athletes are hitting. Coming soon.',
-      ),
+      FeedTab(jumpLogStore: widget.jumpLogStore),
       ProgressTab(
         program: program,
         sessionStore: widget.sessionStore,

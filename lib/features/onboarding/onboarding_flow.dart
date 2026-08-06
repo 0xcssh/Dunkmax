@@ -17,10 +17,10 @@ import 'screens/gap_screen.dart';
 import 'screens/goal_screen.dart';
 import 'screens/height_screen.dart';
 import 'screens/hops_screen.dart';
+import 'screens/how_it_works_screen.dart';
 import 'screens/plan_reveal_screen.dart';
 import 'screens/position_screen.dart';
 import 'screens/potential_screen.dart';
-import 'screens/social_proof_screen.dart';
 import 'screens/training_location_screen.dart';
 import 'screens/weight_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -39,13 +39,13 @@ enum _Step {
   commitment,
   gap,
   potential,
-  social,
+  howItWorks,
   building,
   planReveal,
 }
 
 /// Drives the full onboarding sequence: a 10-question quiz (with progress bar)
-/// followed by the sell screens (gap → potential → social proof → plan
+/// followed by the sell screens (gap → potential → how it works → plan
 /// reveal), then hands the completed [OnboardingProfile] to [onCompleted].
 class OnboardingFlow extends StatefulWidget {
   final ValueChanged<OnboardingProfile> onCompleted;
@@ -219,11 +219,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         return PotentialScreen(
           profile: _draftProfile,
           onBack: () => _go(_Step.gap),
-          onContinue: () => _go(_Step.social),
+          onContinue: () => _go(_Step.howItWorks),
         );
 
-      case _Step.social:
-        return SocialProofScreen(
+      case _Step.howItWorks:
+        return HowItWorksScreen(
           onBack: () => _go(_Step.potential),
           onContinue: () => _go(_Step.building),
         );
@@ -237,7 +237,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       case _Step.planReveal:
         return PlanRevealScreen(
           profile: _draftProfile,
-          onBack: () => _go(_Step.social),
+          onBack: () => _go(_Step.howItWorks),
           onContinue: () => widget.onCompleted(_draftProfile),
         );
     }
