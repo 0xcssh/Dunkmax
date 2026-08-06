@@ -246,10 +246,13 @@ void main() {
       expect(d.result, isNull);
     });
 
-    test('refuses a clip with two comparable airborne windows', () {
-      // Two back-to-back jumps: which one did the athlete mean?
-      final first = _jumpClip(leadInMs: 600, flightMs: 600, leadOutMs: 200);
-      final second = _jumpClip(leadInMs: 200, flightMs: 600, leadOutMs: 600);
+    test('measures the best of several jumps instead of refusing', () {
+      // Two jumps in one clip. Refusing here used to push the athlete into
+      // marking a clip by hand that the detector had understood perfectly
+      // well; "analyse my jump" means the one worth looking at, so the
+      // higher jump wins.
+      final first = _jumpClip(leadInMs: 600, flightMs: 500, leadOutMs: 200);
+      final second = _jumpClip(leadInMs: 200, flightMs: 700, leadOutMs: 600);
       final offsetMs = first.last.timestamp.inMilliseconds + 40;
       final combined = [
         ...first,
@@ -262,8 +265,10 @@ void main() {
       ];
 
       final d = PoseJumpDetector.detectWithDiagnostics(combined);
-      expect(d.rejection, PoseDetectionRejection.ambiguousWindows);
-      expect(d.result, isNull);
+      expect(d.rejection, PoseDetectionRejection.none);
+      expect(d.airborneWindowsSeen, 2);
+      // The 700 ms jump, not the 500 ms one.
+      expect(d.result!.airborneSeconds, closeTo(0.700, 0.06));
     });
 
     test('ignores a flight that runs off the end of the clip', () {
@@ -348,15 +353,16 @@ void main() {
       expect(diagnostics.groundBaselineY, closeTo(897, 12));
     });
 
-    test('this capture holds the same jump twice, so it is refused', () {
+    test('the same jump played twice is measured, not refused', () {
       // The clip is a screen recording in which the source video is played
-      // through twice. Two comparable airborne windows is exactly the case
-      // where guessing which one the athlete meant is not acceptable.
+      // through twice. Both playbacks are the same jump, so picking the
+      // higher one is right and asking the athlete to disambiguate was not.
       final diagnostics =
           PoseJumpDetector.detectWithDiagnostics(deviceCapture());
 
-      expect(diagnostics.rejection, PoseDetectionRejection.ambiguousWindows);
-      expect(diagnostics.result, isNull);
+      expect(diagnostics.rejection, PoseDetectionRejection.none);
+      expect(diagnostics.airborneWindowsSeen, greaterThan(1));
+      expect(diagnostics.result!.verticalInches, inInclusiveRange(20, 34));
     });
 
     test('one playback of it measures the independently verified jump', () {

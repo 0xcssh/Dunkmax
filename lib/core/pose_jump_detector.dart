@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'ballistic_fit.dart';
 import 'flight_time.dart';
 import 'models/jump_measurement.dart';
 
@@ -52,7 +53,6 @@ enum PoseDetectionRejection {
   gappyWindow('athlete lost during the jump itself'),
   noScaleReference('no usable body-scale reference'),
   noAirborneWindow('feet never left the ground baseline'),
-  ambiguousWindows('more than one airborne window — ambiguous clip'),
   liftTooSmall('foot lift too small to time reliably'),
   implausibleDuration('airborne time outside the plausible range');
 
@@ -100,6 +100,22 @@ class PoseJumpDiagnostics {
   final double? rawCrossingSeconds;
   final double? correctedSeconds;
 
+  /// Airborne time from the least-squares parabola fit — the preferred
+  /// figure, and null when the window was too short to fit.
+  final double? fittedSeconds;
+
+  /// Root-mean-square residual of that fit, in pixels: how convincingly
+  /// the tracked feet actually followed a ballistic arc.
+  final double? fitResidualPixels;
+
+  /// Scene scale gravity itself implies, in pixels per metre. A free
+  /// by-product of the fit's curvature, and an independent sanity check.
+  final double? pixelsPerMetre;
+
+  /// How many separate airborne windows the clip contained. More than one
+  /// is not an error — the highest is the one measured.
+  final int airborneWindowsSeen;
+
   /// Every sample, sorted by time, exactly as the detector read them.
   final List<PoseSample> samples;
 
@@ -118,6 +134,10 @@ class PoseJumpDiagnostics {
     required this.crossingLanding,
     required this.rawCrossingSeconds,
     required this.correctedSeconds,
+    this.fittedSeconds,
+    this.fitResidualPixels,
+    this.pixelsPerMetre,
+    this.airborneWindowsSeen = 0,
     required this.samples,
     required this.rejection,
     required this.result,
@@ -270,11 +290,6 @@ abstract class PoseJumpDetector {
   /// At 2.5 the correction is at most ×1.29.
   static const double _minPeakToThresholdRatio = 2.5;
 
-  /// If a second airborne window is at least this fraction of the winner's
-  /// length, the clip has two comparable candidates and we refuse to guess
-  /// which one the athlete meant.
-  static const double _ambiguityRatio = 0.6;
-
   static JumpMeasurement? detect(List<PoseSample> samples) =>
       detectWithDiagnostics(samples).result;
 
@@ -361,19 +376,24 @@ abstract class PoseJumpDetector {
       );
     }
 
-    usable.sort((a, b) => b.length.compareTo(a.length));
-    final best = usable.first;
-    if (usable.length > 1 && usable[1].length >= best.length * _ambiguityRatio) {
-      return PoseJumpDiagnostics._rejected(
-        PoseDetectionRejection.ambiguousWindows,
-        samples: sorted,
-        detectedCount: detected.length,
-        torsoPixels: torso,
-        groundBaselineY: baseline,
-        thresholdY: thresholdY,
-        liftThresholdPixels: lift,
-      );
+    // Several airborne windows means the clip holds several jumps — a warm-up
+    // hop, a second attempt, a clip played through twice. This used to be a
+    // refusal, which pushed the athlete into marking the jump by hand on a
+    // clip the detector had actually understood perfectly well. "Analyse my
+    // jump" means the jump worth looking at, so take the highest one and say
+    // in the diagnostics how many were seen.
+    double peakLiftOf(_Run r) {
+      var peak = 0.0;
+      for (var i = r.start; i <= r.end; i++) {
+        final l = baseline - detected[i].footY!;
+        if (l > peak) peak = l;
+      }
+      return peak;
     }
+
+    usable.sort((a, b) => peakLiftOf(b).compareTo(peakLiftOf(a)));
+    final best = usable.first;
+    final windowsSeen = usable.length;
 
     // Gaps *inside* the flight are what cost accuracy, so the missing-frame
     // check happens here, over the window, rather than over the whole clip.
@@ -434,8 +454,32 @@ abstract class PoseJumpDetector {
       );
     }
 
-    // T = T_crossing / √(1 − L/H). See the class doc: exact for a parabola.
-    final corrected = rawSeconds / math.sqrt(1 - lift / peakLift);
+    // Preferred: fit the parabola gravity forces the feet to follow across
+    // every airborne sample, and solve for where it meets the ground. That
+    // makes takeoff and landing *calculated* rather than *detected*, so no
+    // sample has to sit near either end of the flight and the threshold's
+    // position stops mattering at all. See core/ballistic_fit.dart for why
+    // this beats hunting for the boundary frames.
+    //
+    // The threshold-crossing figure below stays as the fallback for a window
+    // too short to fit (a parabola needs 4 points to leave any residual to
+    // judge it by), and both are reported side by side in diagnostics.
+    final fit = BallisticFit.fit([
+      for (var i = best.start; i <= best.end; i++)
+        (
+          seconds: detected[i].timestamp.inMicroseconds /
+              Duration.microsecondsPerSecond,
+          y: detected[i].footY!,
+        ),
+    ]);
+    final fitted = fit?.airborneSeconds(baseline);
+
+    // T = T_crossing / √(1 − L/H): exact for a parabola, and what the
+    // crossing figure needs to undo the bias of a threshold sitting above
+    // the ground.
+    final crossingCorrected = rawSeconds / math.sqrt(1 - lift / peakLift);
+    final corrected =
+        (fitted != null && FlightTime.isPlausible(fitted)) ? fitted : crossingCorrected;
 
     if (rawSeconds <= 0 || !FlightTime.isPlausible(corrected)) {
       return PoseJumpDiagnostics._rejected(
@@ -480,6 +524,10 @@ abstract class PoseJumpDetector {
       crossingLanding: landing,
       rawCrossingSeconds: rawSeconds,
       correctedSeconds: corrected,
+      fittedSeconds: fitted,
+      fitResidualPixels: fit?.rmsResidualPixels,
+      pixelsPerMetre: fit != null && fit.a > 0 ? fit.pixelsPerMetre : null,
+      airborneWindowsSeen: windowsSeen,
       samples: sorted,
       rejection: PoseDetectionRejection.none,
       result: result,
