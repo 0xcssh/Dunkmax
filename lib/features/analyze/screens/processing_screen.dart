@@ -75,10 +75,21 @@ class ProcessingScreen extends StatefulWidget {
   final File video;
   final void Function(JumpAnalysis analysis) onDetected;
 
+  /// The slice of the clip the athlete trimmed to. Both samplers are held to
+  /// it, which is the whole point of the trim step: their frame budget is
+  /// fixed, so a narrower range puts more samples inside the flight — and it
+  /// removes the multi-jump case before the detectors have to refuse it.
+  /// These are on the original clip's timeline, and so are the takeoff and
+  /// landing that come back.
+  final Duration rangeStart;
+  final Duration rangeEnd;
+
   const ProcessingScreen({
     super.key,
     required this.video,
     required this.onDetected,
+    required this.rangeStart,
+    required this.rangeEnd,
   });
 
   @override
@@ -105,7 +116,11 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
     var analysis = JumpAnalysis.empty;
     try {
       if (mounted) setState(() => _phase = _Phase.tracking);
-      final poseSamples = await extractPoseSamples(widget.video);
+      final poseSamples = await extractPoseSamples(
+        widget.video,
+        rangeStart: widget.rangeStart,
+        rangeEnd: widget.rangeEnd,
+      );
 
       if (mounted) setState(() => _phase = _Phase.locating);
       final pose = PoseJumpDetector.detectWithDiagnostics(poseSamples);
@@ -126,7 +141,11 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
               "Body tracking couldn't run on this clip — trying frame "
               'motion instead.');
         }
-        final motionSamples = await extractMotionSamples(widget.video);
+        final motionSamples = await extractMotionSamples(
+          widget.video,
+          rangeStart: widget.rangeStart,
+          rangeEnd: widget.rangeEnd,
+        );
         motion = JumpAutoDetector.detectWithDiagnostics(motionSamples);
       } else if (pose.result == null && mounted) {
         setState(() => _fallbackNote =

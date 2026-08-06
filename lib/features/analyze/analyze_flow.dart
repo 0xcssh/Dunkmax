@@ -10,18 +10,26 @@ import '../../core/models/jump_log_entry.dart';
 import '../../core/models/jump_measurement.dart';
 import '../../core/models/onboarding_profile.dart';
 import '../../core/models/video_attempt_type.dart';
+import '../../core/trim_range.dart';
 import '../../core/vert_assessment.dart';
 import '../../services/jump_log_store.dart';
 import 'screens/jump_result_screen.dart';
 import 'screens/mark_jump_screen.dart';
 import 'screens/processing_screen.dart';
 import 'screens/source_screen.dart';
+import 'screens/trim_screen.dart';
 
-enum _Step { source, mark, processing, result }
+enum _Step { source, trim, mark, processing, result }
 
-/// Drives the Analyze tab: pick/record a jump clip → find takeoff/landing →
-/// the result dashboard. The headline number (EST. VERT) comes from the pure,
-/// tested flight-time core.
+/// Drives the Analyze tab: pick/record a jump clip → trim it to the one jump →
+/// find takeoff/landing → the result dashboard. The headline number (EST.
+/// VERT) comes from the pure, tested flight-time core.
+///
+/// The trim step is load-bearing, not decoration: both frame samplers spend a
+/// fixed budget across whatever range they are handed, so the [TrimRange]
+/// chosen there is passed all the way into [ProcessingScreen] and buys
+/// temporal resolution inside the flight. Nothing is re-encoded — the original
+/// file is still what is saved to the jump log.
 ///
 /// Finding the airborne window is a three-tier cascade (see
 /// [ProcessingScreen]): pose tracking first, whole-frame motion energy as a
@@ -58,6 +66,7 @@ class AnalyzeFlow extends StatefulWidget {
 class _AnalyzeFlowState extends State<AnalyzeFlow> {
   _Step _step = _Step.source;
   File? _video;
+  TrimRange? _trim;
   VideoAttemptType _attemptType = VideoAttemptType.jumpAttempt;
   JumpResult? _result;
   JumpTrend? _trend;
@@ -67,7 +76,15 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   void _onVideoSelected(File video, VideoAttemptType attemptType) {
     setState(() {
       _video = video;
+      _trim = null;
       _attemptType = attemptType;
+      _step = _Step.trim;
+    });
+  }
+
+  void _onTrimmed(TrimRange range) {
+    setState(() {
+      _trim = range;
       _step = _Step.processing;
     });
   }
@@ -144,6 +161,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
 
   void _reset() => setState(() {
         _video = null;
+        _trim = null;
         _attemptType = VideoAttemptType.jumpAttempt;
         _result = null;
         _trend = null;
@@ -166,14 +184,27 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     switch (_step) {
       case _Step.source:
         return SourceScreen(onVideoSelected: _onVideoSelected, onSkip: widget.onSkip);
+      case _Step.trim:
+        return TrimScreen(
+          video: _video!,
+          onConfirmed: _onTrimmed,
+          onCancel: _reset,
+        );
       case _Step.processing:
-        return ProcessingScreen(video: _video!, onDetected: _onDetected);
+        return ProcessingScreen(
+          video: _video!,
+          rangeStart: _trim!.start,
+          rangeEnd: _trim!.end,
+          onDetected: _onDetected,
+        );
       case _Step.mark:
         return MarkJumpScreen(
           video: _video!,
           onMarked: _onMarked,
           onCancel: _reset,
           isFallback: true,
+          rangeStart: _trim?.start,
+          rangeEnd: _trim?.end,
         );
       case _Step.result:
         return JumpResultScreen(

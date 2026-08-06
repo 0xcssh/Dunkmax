@@ -16,12 +16,20 @@ class MarkJumpScreen extends StatefulWidget {
   final VoidCallback onCancel;
   final bool isFallback;
 
+  /// The slice the athlete trimmed to, when there is one. The scrubber is
+  /// bounded to it so the manual fallback works on the same window the
+  /// automatic pass was given. Marks stay on the original clip's timeline.
+  final Duration? rangeStart;
+  final Duration? rangeEnd;
+
   const MarkJumpScreen({
     super.key,
     required this.video,
     required this.onMarked,
     required this.onCancel,
     this.isFallback = false,
+    this.rangeStart,
+    this.rangeEnd,
   });
 
   @override
@@ -41,6 +49,8 @@ class _MarkJumpScreenState extends State<MarkJumpScreen> {
     _controller = VideoPlayerController.file(widget.video);
     _controller.initialize().then((_) {
       if (!mounted) return;
+      final start = widget.rangeStart;
+      if (start != null && start > Duration.zero) _controller.seekTo(start);
       setState(() => _ready = true);
     }).catchError((_) {
       if (!mounted) return;
@@ -92,9 +102,20 @@ class _MarkJumpScreenState extends State<MarkJumpScreen> {
     final measurement = _measurement;
     final duration = _controller.value.duration;
     final position = _controller.value.position;
-    final maxMs = duration.inMilliseconds > 0
-        ? duration.inMilliseconds.toDouble()
-        : 1.0;
+    final durationMs =
+        duration.inMilliseconds > 0 ? duration.inMilliseconds.toDouble() : 1.0;
+    // Bound the scrubber to the trimmed slice when there is one, so the
+    // manual fallback covers the same window the automatic pass was handed.
+    var minMs = (widget.rangeStart?.inMilliseconds.toDouble() ?? 0.0)
+        .clamp(0.0, durationMs)
+        .toDouble();
+    var maxMs = (widget.rangeEnd?.inMilliseconds.toDouble() ?? durationMs)
+        .clamp(0.0, durationMs)
+        .toDouble();
+    if (maxMs <= minMs) {
+      minMs = 0;
+      maxMs = durationMs;
+    }
 
     return SafeArea(
       child: Column(
@@ -160,9 +181,10 @@ class _MarkJumpScreenState extends State<MarkJumpScreen> {
                 Slider(
                   activeColor: DunkColors.primary,
                   inactiveColor: DunkColors.stroke,
-                  min: 0,
+                  min: minMs,
                   max: maxMs,
-                  value: position.inMilliseconds.toDouble().clamp(0, maxMs).toDouble(),
+                  value:
+                      position.inMilliseconds.toDouble().clamp(minMs, maxMs).toDouble(),
                   onChanged: (v) =>
                       _controller.seekTo(Duration(milliseconds: v.round())),
                 ),

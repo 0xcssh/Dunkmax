@@ -92,6 +92,8 @@ lib/
     vert_assessment.dart  Height+age+hops → reach, vert-to-dunk, gap, projection
     workout_streak.dart   Consecutive-day streak from completion timestamps
     jump_trend.dart       Latest vertical + delta-from-first-test, from jump log
+    trim_range.dart       Analyze's trim selection: handle clamping (0.6 s
+                          minimum span), clip<->fraction mapping, 0:00.0 format
   services/
     onboarding_store.dart shared_preferences wrapper (persist profile + flag)
     workout_session_store.dart  Persists completed WorkoutSessions (one JSON
@@ -107,9 +109,15 @@ lib/
     feed/                Leaderboards: the athlete's OWN jumps ranked
                          (core/leaderboard.dart); the community board is
                          honestly locked (no backend, no accounts)
-    analyze/             Source (record/pick video) → mark takeoff/landing →
+    analyze/             Source (record/pick video) → trim to one jump →
                          processing beat → result dashboard (flight-time vert);
-                         a valid result is persisted to JumpLogStore
+                         manual mark takeoff/landing is the last-resort
+                         fallback; a valid result is persisted to JumpLogStore.
+                         The trim range (core/trim_range.dart, pure + tested)
+                         is a *range selection*, never a re-encode: it is
+                         passed into both frame samplers, which spend a fixed
+                         frame budget, so a narrower range = more samples
+                         inside the flight (and no multi-jump case)
     train/               SessionFlow: warm-up → per-exercise set/reps/lbs
                          logging (one screen per exercise) → summary, then
                          persists a WorkoutSession via WorkoutSessionStore

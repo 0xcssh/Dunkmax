@@ -54,14 +54,30 @@ const _minLikelihood = 0.5;
 /// where the needed landmarks were low-confidence) come back as a sample with
 /// null measurements, never as a zero: "not found" must not read as "at the
 /// very top of the frame".
-Future<List<PoseSample>> extractPoseSamples(File video) async {
+///
+/// [rangeStart]/[rangeEnd] restrict the *coarse* pass to the slice the athlete
+/// trimmed to (see `core/trim_range.dart`), which is what makes trimming worth
+/// doing: the frame budget is fixed, so a narrower range spends more of it
+/// inside the flight. The dense second pass then runs unchanged within that
+/// slice. Timestamps stay on the **original clip's** timeline throughout —
+/// they are later used to pull a thumbnail out of the original file, so
+/// rebasing them to zero would silently grab the wrong frame.
+Future<List<PoseSample>> extractPoseSamples(
+  File video, {
+  Duration? rangeStart,
+  Duration? rangeEnd,
+}) async {
   final duration = await _videoDuration(video);
   if (duration <= Duration.zero) return const [];
   final totalMs = duration.inMilliseconds;
 
-  // Pass 1: spread across the whole clip, to place the ground baseline and
-  // find roughly where the jump is.
-  final coarse = await _sampleRange(video, fromMs: 0, toMs: totalMs);
+  final fromMs = (rangeStart?.inMilliseconds ?? 0).clamp(0, totalMs);
+  final toMs = (rangeEnd?.inMilliseconds ?? totalMs).clamp(fromMs, totalMs);
+  if (toMs <= fromMs) return const [];
+
+  // Pass 1: spread across the selected range, to place the ground baseline
+  // and find roughly where the jump is.
+  final coarse = await _sampleRange(video, fromMs: fromMs, toMs: toMs);
   final located = PoseJumpDetector.detectWithDiagnostics(coarse).result;
   if (located == null) return coarse;
 
@@ -77,8 +93,8 @@ Future<List<PoseSample>> extractPoseSamples(File video) async {
   final padMs = _refinePaddingMs;
   final dense = await _sampleRange(
     video,
-    fromMs: (located.takeoff.inMilliseconds - padMs).clamp(0, totalMs),
-    toMs: (located.landing.inMilliseconds + padMs).clamp(0, totalMs),
+    fromMs: (located.takeoff.inMilliseconds - padMs).clamp(fromMs, toMs),
+    toMs: (located.landing.inMilliseconds + padMs).clamp(fromMs, toMs),
     maxFrames: _refineFrames,
     minStepMs: _refineMinStepMs,
   );
