@@ -23,6 +23,16 @@ const _maxFrames = 60;
 /// for duplicates.
 const _minStepMs = 30;
 
+/// Second-pass budget, spent entirely inside the located jump. Fitting the
+/// flight parabola is only as good as the number of airborne samples it has
+/// to work with, and this is where they come from.
+const _refineFrames = 40;
+const _refineMinStepMs = 15;
+
+/// How far either side of the coarse window the dense pass reaches, so the
+/// refined series still contains ground frames on both sides of the flight.
+const _refinePaddingMs = 200;
+
 /// Frame width handed to ML Kit. The pose model needs enough pixels to resolve
 /// ankles on a full-body subject; 640 px is comfortably enough while keeping
 /// the decode cheap. (Unlike the motion-energy path, resolution genuinely
@@ -47,11 +57,56 @@ const _minLikelihood = 0.5;
 Future<List<PoseSample>> extractPoseSamples(File video) async {
   final duration = await _videoDuration(video);
   if (duration <= Duration.zero) return const [];
-
   final totalMs = duration.inMilliseconds;
-  var frameCount = _maxFrames;
-  if (totalMs ~/ _minStepMs < frameCount) {
-    frameCount = totalMs ~/ _minStepMs;
+
+  // Pass 1: spread across the whole clip, to place the ground baseline and
+  // find roughly where the jump is.
+  final coarse = await _sampleRange(video, fromMs: 0, toMs: totalMs);
+  final located = PoseJumpDetector.detectWithDiagnostics(coarse).result;
+  if (located == null) return coarse;
+
+  // Pass 2: spend the remaining budget inside the jump. Fitting the flight
+  // parabola needs several airborne points to pin its curvature, and a pass
+  // spread over the whole clip leaves only a handful — on a real capture it
+  // left four, 132 ms apart, and the fit came out 6" long.
+  //
+  // The two passes are then merged and handed to the detector *together*, so
+  // the baseline is still drawn from the clip-wide standing frames. That is
+  // the difference from an earlier two-pass attempt that re-derived its
+  // threshold from the narrow window alone and turned a 20" reading into 50".
+  final padMs = _refinePaddingMs;
+  final dense = await _sampleRange(
+    video,
+    fromMs: (located.takeoff.inMilliseconds - padMs).clamp(0, totalMs),
+    toMs: (located.landing.inMilliseconds + padMs).clamp(0, totalMs),
+    maxFrames: _refineFrames,
+    minStepMs: _refineMinStepMs,
+  );
+
+  final byTime = <int, PoseSample>{
+    for (final s in coarse) s.timestamp.inMilliseconds: s,
+    for (final s in dense) s.timestamp.inMilliseconds: s,
+  };
+  final merged = byTime.values.toList()
+    ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  return merged;
+}
+
+/// Samples [maxFrames] evenly spaced frames between [fromMs] and [toMs] and
+/// reduces each to a [PoseSample].
+Future<List<PoseSample>> _sampleRange(
+  File video, {
+  required int fromMs,
+  required int toMs,
+  int maxFrames = _maxFrames,
+  int minStepMs = _minStepMs,
+}) async {
+  final totalMs = toMs - fromMs;
+  if (totalMs <= 0) return const [];
+
+  var frameCount = maxFrames;
+  if (totalMs ~/ minStepMs < frameCount) {
+    frameCount = totalMs ~/ minStepMs;
   }
   if (frameCount < 2) return const [];
   final stepMs = totalMs / frameCount;
@@ -75,12 +130,13 @@ Future<List<PoseSample>> extractPoseSamples(File video) async {
   final samples = <PoseSample>[];
   try {
     for (var i = 0; i < frameCount; i++) {
-      final timeMs = (i * stepMs).round().clamp(0, totalMs - 1);
+      final timeMs =
+          (fromMs + i * stepMs).round().clamp(fromMs, fromMs + totalMs - 1);
       String? framePath;
       try {
         framePath = await VideoThumbnail.thumbnailFile(
           video: video.path,
-          thumbnailPath: '${workDir.path}/frame_$i.jpg',
+          thumbnailPath: '${workDir.path}/frame_${fromMs}_$i.jpg',
           imageFormat: ImageFormat.JPEG,
           maxWidth: _frameWidth,
           quality: 85,

@@ -290,6 +290,16 @@ abstract class PoseJumpDetector {
   /// At 2.5 the correction is at most ×1.29.
   static const double _minPeakToThresholdRatio = 2.5;
 
+  /// Airborne samples the parabola fit needs before its curvature is worth
+  /// believing. Four is the algebraic minimum; six is where the answer stops
+  /// swinging on one noisy landmark.
+  static const int _minFitSamples = 6;
+
+  /// Largest fit residual, as a fraction of the peak lift, still consistent
+  /// with feet genuinely following a ballistic arc. Above it the tracking is
+  /// too ragged for the fit to beat the crossings.
+  static const double _maxFitResidualFraction = 0.12;
+
   static JumpMeasurement? detect(List<PoseSample> samples) =>
       detectWithDiagnostics(samples).result;
 
@@ -472,7 +482,19 @@ abstract class PoseJumpDetector {
           y: detected[i].footY!,
         ),
     ]);
-    final fitted = fit?.airborneSeconds(baseline);
+    // Only trust the fit when it is actually determined. On a real capture
+    // the flight held just four samples 132 ms apart, the curvature was
+    // barely constrained, and the fit came out 0.845 s against a hand-measured
+    // 0.77 s — 34" for a 29" jump. Few points, or points that do not lie on a
+    // parabola, mean the crossings are the better answer. The extraction pass
+    // now spends a second, dense sampling pass inside the located jump
+    // precisely so that this gate is normally satisfied.
+    final fitUsable = fit != null &&
+        fit.a > 0 &&
+        fit.sampleCount >= _minFitSamples &&
+        peakLift > 0 &&
+        fit.rmsResidualPixels <= peakLift * _maxFitResidualFraction;
+    final fitted = fitUsable ? fit.airborneSeconds(baseline) : null;
 
     // T = T_crossing / √(1 − L/H): exact for a parabola, and what the
     // crossing figure needs to undo the bias of a threshold sitting above
@@ -526,7 +548,8 @@ abstract class PoseJumpDetector {
       correctedSeconds: corrected,
       fittedSeconds: fitted,
       fitResidualPixels: fit?.rmsResidualPixels,
-      pixelsPerMetre: fit != null && fit.a > 0 ? fit.pixelsPerMetre : null,
+      pixelsPerMetre:
+          fit != null && fit.a > 0 ? fit.pixelsPerMetre : null,
       airborneWindowsSeen: windowsSeen,
       samples: sorted,
       rejection: PoseDetectionRejection.none,
