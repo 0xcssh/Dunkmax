@@ -161,13 +161,44 @@ void main() {
       expect(d.correctedSeconds, closeTo(0.770, 0.05));
     });
 
-    test('rejects a clip where the athlete is rarely detected', () {
+    test('rejects a clip where the athlete is lost during the flight', () {
+      // Dropping every other frame holes the flight itself, which is what
+      // actually costs the timing its accuracy.
+      //
+      // This used to assert `tooManyMissing` — a clip-wide ratio — but that
+      // rule was wrong in the field: a real capture had no person in 38 of
+      // 60 frames simply because those frames showed something else, while
+      // tracking the jump perfectly, and got thrown away. The judgement now
+      // happens over the window, so the reason changed even though the
+      // verdict on this clip did not.
       final d = PoseJumpDetector.detectWithDiagnostics(
         _jumpClip(dropDetection: (i) => i % 2 == 0),
       );
 
-      expect(d.rejection, PoseDetectionRejection.tooManyMissing);
+      expect(d.rejection, PoseDetectionRejection.gappyWindow);
       expect(d.result, isNull);
+    });
+
+    test('gaps outside the flight do not reject a cleanly tracked jump', () {
+      // The field case, in miniature: a long clip in which the athlete is
+      // absent from most frames, but present continuously across the jump
+      // and for a good stretch of ground on either side of it. Roughly 70%
+      // of the clip has no pose — twice what the old clip-wide rule allowed.
+      final clip = _jumpClip(leadInMs: 3000, leadOutMs: 3000);
+      final holed = [
+        for (final s in clip)
+          (s.timestamp.inMilliseconds >= 2400 &&
+                  s.timestamp.inMilliseconds <= 4400)
+              ? s
+              : PoseSample(
+                  timestamp: s.timestamp, footY: null, torsoPixels: null),
+      ];
+
+      final d = PoseJumpDetector.detectWithDiagnostics(holed);
+
+      expect(d.missingCount / d.sampleCount, greaterThan(0.5));
+      expect(d.rejection, PoseDetectionRejection.none);
+      expect(d.correctedSeconds, closeTo(0.770, 0.06));
     });
 
     test('rejects a clip with too few sampled frames', () {
