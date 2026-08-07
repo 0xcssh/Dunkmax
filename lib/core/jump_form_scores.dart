@@ -155,8 +155,14 @@ abstract class JumpFormScoring {
   static const double riseTorsoPerSecondForZeroScore = 1.5;
   static const double riseTorsoPerSecondForFullScore = 4.5;
 
-  /// Slice before takeoff searched for the countermovement.
-  static const double _dipSearchSeconds = 1.2;
+  /// Slice before takeoff searched for the countermovement on a jump from
+  /// standing, where the dip is a deliberate, fairly slow squat.
+  static const double _standingDipSearchSeconds = 0.8;
+
+  /// How far *before* the plant the search starts on an approach jump. The
+  /// hips are already dropping as the foot comes down, so the low point sits
+  /// slightly after the plant, but the descent begins just before it.
+  static const double _approachDipLeadSeconds = 0.25;
 
   // ---------------------------------------------------------------------
   // Control — left/right symmetry and torso lean
@@ -283,10 +289,17 @@ abstract class JumpFormScoring {
         groundBaselineY - torsoPixels * PoseJumpDetector.liftTorsoFraction;
 
     final takeoffType = _takeoffType(tracked, thresholdY, takeoffSeconds);
+    final plantSeconds =
+        _approachPlantSeconds(tracked, thresholdY, takeoffSeconds);
 
     return JumpFormScores(
       bounce: _bounce(tracked, thresholdY, takeoffSeconds),
-      power: _power(tracked, torsoPixels, takeoffSeconds),
+      power: _power(
+        tracked,
+        torsoPixels,
+        takeoffSeconds,
+        approachPlantSeconds: plantSeconds,
+      ),
       control: _control(
         tracked,
         torsoPixels,
@@ -300,6 +313,47 @@ abstract class JumpFormScoring {
   }
 
   // ------------------------------------------------------------------ Bounce
+
+  /// Instant the athlete's feet came down for the final plant, i.e. the end of
+  /// the approach step. Null when the jump started from standing, which is
+  /// also the signal that this is not an approach jump at all — [_power] needs
+  /// to know that as much as [_bounce] does.
+  static double? _approachPlantSeconds(
+    List<PoseSample> tracked,
+    double thresholdY,
+    double takeoffSeconds,
+  ) {
+    final before = tracked
+        .where((s) =>
+            _seconds(s.timestamp) <= takeoffSeconds &&
+            _seconds(s.timestamp) >= takeoffSeconds - _contactSearchSeconds)
+        .toList();
+    if (before.length < 2) return null;
+
+    int? lastGrounded;
+    for (var i = before.length - 1; i >= 0; i--) {
+      if (before[i].footY! >= thresholdY) {
+        lastGrounded = i;
+        break;
+      }
+    }
+    if (lastGrounded == null) return null;
+
+    int? lastAirborne;
+    for (var i = lastGrounded - 1; i >= 0; i--) {
+      if (before[i].footY! < thresholdY) {
+        lastAirborne = i;
+        break;
+      }
+    }
+    if (lastAirborne == null) return null;
+
+    return _crossingSeconds(
+      before[lastAirborne],
+      before[lastAirborne + 1],
+      thresholdY,
+    );
+  }
 
   static FormScore _bounce(
     List<PoseSample> tracked,
@@ -380,14 +434,23 @@ abstract class JumpFormScoring {
   static FormScore _power(
     List<PoseSample> tracked,
     double torsoPixels,
-    double takeoffSeconds,
-  ) {
+    double takeoffSeconds, {
+    double? approachPlantSeconds,
+  }) {
+    // Where to look for the dip. Searching a fixed second-plus before takeoff
+    // was wrong on an approach jump: the run-up bobs the hips every stride, so
+    // the "lowest hip" landed on some random stride and the drive rate came
+    // out at 1.1 torso/s -- physically impossible next to a 28" jump, whose
+    // takeoff velocity is around 7 torso/s. On an approach jump the only dip
+    // that means anything is the one in the plant, so the search starts there.
+    final windowStart = approachPlantSeconds != null
+        ? approachPlantSeconds - _approachDipLeadSeconds
+        : takeoffSeconds - _standingDipSearchSeconds;
+
     final hips = <({double t, double y})>[];
     for (final s in tracked) {
       final t = _seconds(s.timestamp);
-      if (t > takeoffSeconds || t < takeoffSeconds - _dipSearchSeconds) {
-        continue;
-      }
+      if (t > takeoffSeconds || t < windowStart) continue;
       final y = _midY(s.leftHip, s.rightHip);
       if (y != null) hips.add((t: t, y: y));
     }
@@ -403,7 +466,11 @@ abstract class JumpFormScoring {
     for (var i = 1; i < hips.length; i++) {
       if (hips[i].y > hips[lowIndex].y) lowIndex = i;
     }
-    if (lowIndex < 2) {
+    // A standing jump needs a couple of samples above the low point to prove
+    // the athlete actually descended into it. An approach jump's window starts
+    // at the plant, where the hips are already near their lowest, so demanding
+    // a visible descent there would reject the normal case.
+    if (approachPlantSeconds == null && lowIndex < 2) {
       return const FormScore.unavailable(
         'Power',
         'the dip before takeoff starts before this clip does',
@@ -416,11 +483,18 @@ abstract class JumpFormScoring {
       );
     }
 
-    // Standing reference: the median hip height before the athlete dipped.
-    // A median rather than a single frame so one snapped landmark cannot set
-    // the depth on its own.
-    final standingY = _median([for (var i = 0; i < lowIndex; i++) hips[i].y]);
-    final depth = (hips[lowIndex].y - standingY) / torsoPixels;
+    // Depth against a standing reference: the median hip height before the
+    // athlete dipped, a median rather than a single frame so one snapped
+    // landmark cannot set the depth on its own.
+    //
+    // On an approach jump the window can open at the low point itself, leaving
+    // nothing above it to average; depth is unused in that branch, so it is
+    // simply zero rather than a median of an empty list.
+    final depth = lowIndex == 0
+        ? 0.0
+        : (hips[lowIndex].y -
+                _median([for (var i = 0; i < lowIndex; i++) hips[i].y])) /
+            torsoPixels;
 
     final last = hips.last;
     final riseSeconds = last.t - hips[lowIndex].t;
@@ -432,17 +506,33 @@ abstract class JumpFormScoring {
     }
     final riseRate = (hips[lowIndex].y - last.y) / torsoPixels / riseSeconds;
 
+    final riseScore = _ramp(
+      riseRate,
+      zeroAt: riseTorsoPerSecondForZeroScore,
+      fullAt: riseTorsoPerSecondForFullScore,
+    );
+
+    // On an approach jump the dip is *supposed* to be shallow: the athlete is
+    // converting run-up speed through a stiff, fast plant, not squatting. The
+    // countermovement depth band describes a standing jump, and applying it
+    // here scored correct technique at zero. So depth only counts when the
+    // athlete jumped from standing; on an approach, how fast the hips drive is
+    // the whole measurement.
+    if (approachPlantSeconds != null) {
+      return FormScore.measured(
+        'Power',
+        riseScore,
+        'driving up at ${riseRate.toStringAsFixed(1)}× torso/s '
+        'off the plant',
+      );
+    }
+
     final depthScore = _plateau(
       depth,
       zeroLow: dipZeroLow,
       fullLow: dipFullLow,
       fullHigh: dipFullHigh,
       zeroHigh: dipZeroHigh,
-    );
-    final riseScore = _ramp(
-      riseRate,
-      zeroAt: riseTorsoPerSecondForZeroScore,
-      fullAt: riseTorsoPerSecondForFullScore,
     );
 
     return FormScore.measured(

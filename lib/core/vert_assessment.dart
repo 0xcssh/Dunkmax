@@ -20,6 +20,13 @@ class VertAssessment {
   static const int dunkReachTarget = rimHeight + dunkClearance; // 126
 
   /// Standing reach ≈ 1.33 × height (fingertips overhead, flat-footed).
+  ///
+  /// A population average, and the weakest link in everything below: arm
+  /// length varies by several inches between people of the same height, and
+  /// every "X inches to dunk" claim is this number plus a measurement. On a
+  /// real clip the athlete's fingertips were about 20 inches below the rim at
+  /// the apex of a jump this estimate said should have cleared it — so when
+  /// the athlete's actual reach is known, it must win.
   static int standingReachInches(int heightInches) =>
       (heightInches * 1.33).round();
 
@@ -27,13 +34,25 @@ class VertAssessment {
   final int ageYears;
   final HopsLevel hops;
 
+  /// The athlete's real standing reach, if they have measured it (fingertips
+  /// overhead, flat-footed, against a wall). Null means fall back to the
+  /// height estimate — and say so wherever the result is shown.
+  final int? measuredStandingReach;
+
   VertAssessment({
     required this.heightInches,
     required this.ageYears,
     required this.hops,
+    this.measuredStandingReach,
   });
 
-  int get standingReach => standingReachInches(heightInches);
+  /// True when [standingReach] is the athlete's own measurement rather than
+  /// an estimate derived from their height.
+  bool get reachIsMeasured =>
+      measuredStandingReach != null && measuredStandingReach! > 0;
+
+  int get standingReach =>
+      reachIsMeasured ? measuredStandingReach! : standingReachInches(heightInches);
 
   /// Inches of vertical leap needed to get a hand over the rim to dunk.
   int get requiredVert => math.max(0, dunkReachTarget - standingReach);

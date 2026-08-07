@@ -22,6 +22,7 @@ class GapScreen extends StatelessWidget {
         heightInches: profile.heightInches,
         ageYears: profile.ageYears,
         hops: profile.hopsLevel,
+        measuredStandingReach: profile.standingReachInches,
       );
 
   String get _heightLabel =>
@@ -50,8 +51,11 @@ class GapScreen extends StatelessWidget {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
-                    const Text('BASED ON YOUR HEIGHT + HOPS',
-                        style: TextStyle(
+                    Text(
+                        a.reachIsMeasured
+                            ? 'BASED ON YOUR REACH + HOPS'
+                            : 'BASED ON YOUR HEIGHT + HOPS',
+                        style: const TextStyle(
                             color: DunkColors.primary,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1,
@@ -66,9 +70,18 @@ class GapScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     _GapMeter(assessment: a),
+                    if (!a.reachIsMeasured) ...[
+                      const SizedBox(height: 12),
+                      _EstimatedReachNote(assessment: a),
+                    ],
                     const SizedBox(height: 20),
                     _SummaryGrid(rows: [
                       ('Height', _heightLabel),
+                      (
+                        'Standing reach',
+                        '${a.standingReach}"'
+                            '${a.reachIsMeasured ? '' : ' (est.)'}'
+                      ),
                       ('Est. today', '${a.estimatedCurrentVert}"'),
                       ('Dunk target', '${a.requiredVert}"'),
                       ('Weight', '${profile.weightLbs} lbs'),
@@ -85,6 +98,38 @@ class GapScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Quiet caveat, shown only while the reach is still an estimate: the dunk
+/// target above is height-derived, not measured. Stated plainly rather than
+/// dressed up as a warning — the number is a reasonable starting point, it
+/// just isn't theirs yet.
+class _EstimatedReachNote extends StatelessWidget {
+  final VertAssessment assessment;
+  const _EstimatedReachNote({required this.assessment});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.straighten, color: DunkColors.textTertiary, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Based on an estimated ${assessment.standingReach}" standing reach '
+            'from your height. Measure your real reach — in Settings any time — '
+            'for an exact target.',
+            style: const TextStyle(
+              color: DunkColors.textTertiary,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

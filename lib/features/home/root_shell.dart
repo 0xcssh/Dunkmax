@@ -10,6 +10,7 @@ import '../../theme/app_theme.dart';
 import '../analyze/analyze_flow.dart';
 import '../feed/display_name_dialog.dart';
 import '../feed/feed_tab.dart';
+import 'standing_reach_dialog.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/progress_tab.dart';
 import 'tabs/train_tab.dart';
@@ -24,6 +25,10 @@ class RootShell extends StatefulWidget {
   final LeaderboardService leaderboardService;
   final VoidCallback onRestartOnboarding;
 
+  /// Persists an edit to a single onboarding answer (currently standing reach)
+  /// and pushes the updated profile back down through this widget.
+  final ValueChanged<OnboardingProfile> onProfileChanged;
+
   const RootShell({
     super.key,
     required this.profile,
@@ -32,6 +37,7 @@ class RootShell extends StatefulWidget {
     required this.athleteProfileStore,
     required this.leaderboardService,
     required this.onRestartOnboarding,
+    required this.onProfileChanged,
   });
 
   @override
@@ -101,6 +107,7 @@ class _RootShellState extends State<RootShell> {
   }
 
   Future<void> _openSettings(BuildContext context) async {
+    final reach = widget.profile.standingReachInches;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: DunkColors.surface,
@@ -148,6 +155,18 @@ class _RootShellState extends State<RootShell> {
                 ),
                 const SizedBox(height: 10),
                 _SettingsRow(
+                  icon: Icons.straighten,
+                  label: 'Standing reach',
+                  // Honest about which number the dunk target rests on: until
+                  // it's measured, everything downstream uses an estimate.
+                  value: reach == null ? 'Not set' : '$reach"',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _editStandingReach(context);
+                  },
+                ),
+                const SizedBox(height: 10),
+                _SettingsRow(
                   icon: Icons.refresh,
                   label: 'Retake onboarding',
                   onTap: () {
@@ -173,6 +192,20 @@ class _RootShellState extends State<RootShell> {
     await widget.athleteProfileStore.setDisplayName(chosen);
     if (!mounted) return;
     _syncDisplayName();
+  }
+
+  /// Sets or corrects the standing reach — the one number every "inches to
+  /// dunk" claim in the app is built on.
+  Future<void> _editStandingReach(BuildContext context) async {
+    final chosen = await showStandingReachDialog(
+      context,
+      heightInches: widget.profile.heightInches,
+      currentReachInches: widget.profile.standingReachInches,
+    );
+    if (chosen == null) return;
+    widget.onProfileChanged(
+      widget.profile.copyWith(standingReachInches: chosen),
+    );
   }
 
   Future<void> _confirmRestartOnboarding(BuildContext context) async {

@@ -600,6 +600,22 @@ class _VertCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           ),
+          // The measured vertical is real; the target it's compared against is
+          // only as good as the standing reach behind it. Say which one this
+          // is, quietly, and only while it's still an estimate.
+          if (!result.assessment.reachIsMeasured) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Target assumes an estimated ${result.assessment.standingReach}" '
+              'standing reach. Set your real reach in Settings for an exact one.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                height: 1.3,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),

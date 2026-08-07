@@ -102,6 +102,15 @@ JumpFormScores _score(List<PoseSample> samples, {double scale = 1.0}) {
   );
 }
 
+/// Pulls a hip point most of the way toward the athlete's standing hip height,
+/// leaving only a token countermovement. Used to build an approach jump whose
+/// dip is as shallow as a real running plant's.
+PosePoint? _flattenDip(PosePoint? point) {
+  if (point == null) return null;
+  const standingHipY = 400.0;
+  return PosePoint(point.x, standingHipY + (point.y - standingHipY) * 0.1);
+}
+
 void main() {
   group('a clean tracked jump', () {
     test('produces all four scores, each with the measurement behind it', () {
@@ -123,9 +132,11 @@ void main() {
       expect(_score(_clip()).bounce.value, closeTo(82, 2));
     });
 
-    test('power averages a 0.30-torso dip with a 4.0 torso/s drive', () {
-      // dip 0.30 → 60 on the plateau; drive 40 px in 0.1 s = 4.0 torso/s → 83.
-      expect(_score(_clip()).power.value, closeTo(72, 2));
+    test('power on an approach jump scores the drive, not the dip', () {
+      // Drive of 40 px in 0.1 s = 4.0 torso/s, which is 83 % of the way from
+      // the 1.5 zero point to the 4.5 full-credit point. The dip is
+      // deliberately ignored here — see the approach-jump group below.
+      expect(_score(_clip()).power.value, closeTo(83, 2));
     });
 
     test('a perfectly symmetric athlete scores full marks for control', () {
@@ -281,6 +292,74 @@ void main() {
       for (final score in _score(_clip()).all) {
         expect(score.value!, greaterThanOrEqualTo(0));
         expect(score.value!, lessThanOrEqualTo(100));
+      }
+    });
+  });
+
+  group('approach jumps are not judged as standing jumps', () {
+    // The field case this group exists for: a running two-foot jump measured
+    // at 27" scored Power 0, because the athlete's hips barely dipped. On an
+    // approach jump they are not supposed to — the athlete converts run-up
+    // speed through a stiff, fast plant instead of squatting. The reported
+    // drive rate was also physically impossible (1.1 torso/s next to a jump
+    // whose takeoff velocity is around 7), because the dip was being searched
+    // for across more than a second of run-up and kept landing on a stride.
+
+    /// The same clip, but with the countermovement flattened to almost
+    /// nothing — a plant, not a squat.
+    List<PoseSample> shallowDipClip() {
+      final base = _clip();
+      return [
+        for (final s in base)
+          PoseSample(
+            timestamp: s.timestamp,
+            footY: s.footY,
+            torsoPixels: s.torsoPixels,
+            leftAnkle: s.leftAnkle,
+            rightAnkle: s.rightAnkle,
+            leftKnee: s.leftKnee,
+            rightKnee: s.rightKnee,
+            // Squash the hip travel toward its own mean so the dip nearly
+            // vanishes while the drive stays intact in shape.
+            leftHip: _flattenDip(s.leftHip),
+            rightHip: _flattenDip(s.rightHip),
+            leftShoulder: s.leftShoulder,
+            rightShoulder: s.rightShoulder,
+            leftWrist: s.leftWrist,
+            rightWrist: s.rightWrist,
+          ),
+      ];
+    }
+
+    test('a shallow dip no longer drags the score to zero', () {
+      final scores = _score(shallowDipClip());
+
+      expect(scores.power.value, isNotNull);
+      expect(
+        scores.power.value!,
+        greaterThan(0),
+        reason: 'a shallow plant is correct technique on an approach jump',
+      );
+    });
+
+    test('the detail line reports the drive off the plant', () {
+      final detail = _score(_clip()).power.detail!;
+
+      expect(detail, contains('torso/s'));
+      expect(detail, contains('plant'));
+      // The dip is not part of the judgement here, so it is not quoted as if
+      // it were.
+      expect(detail, isNot(contains('dip')));
+    });
+
+    test('a jump from standing is still judged on its countermovement', () {
+      // No approach step at all: the athlete is on the floor throughout the
+      // lead-in, so there is no plant and the dip is the whole story.
+      final standing = _clip(approachStartMs: 0, approachEndMs: 0);
+      final detail = _score(standing).power.detail;
+
+      if (detail != null) {
+        expect(detail, contains('dip'));
       }
     });
   });

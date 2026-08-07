@@ -21,6 +21,7 @@ import 'screens/how_it_works_screen.dart';
 import 'screens/plan_reveal_screen.dart';
 import 'screens/position_screen.dart';
 import 'screens/potential_screen.dart';
+import 'screens/standing_reach_screen.dart';
 import 'screens/training_location_screen.dart';
 import 'screens/weight_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -34,6 +35,7 @@ enum _Step {
   location,
   hops,
   height,
+  standingReach,
   weight,
   age,
   commitment,
@@ -44,7 +46,7 @@ enum _Step {
   planReveal,
 }
 
-/// Drives the full onboarding sequence: a 10-question quiz (with progress bar)
+/// Drives the full onboarding sequence: an 11-question quiz (with progress bar)
 /// followed by the sell screens (gap → potential → how it works → plan
 /// reveal), then hands the completed [OnboardingProfile] to [onCompleted].
 class OnboardingFlow extends StatefulWidget {
@@ -66,11 +68,17 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   TrainingLocation? _location;
   HopsLevel? _hops;
   int _heightInches = 70; // 5'10"
+
+  /// Null until the athlete supplies a real measurement — the reach question
+  /// is skippable, and null is what tells VertAssessment to fall back to the
+  /// height estimate (and the sell screens to say so).
+  int? _standingReachInches;
+
   int _weightLbs = 180;
   int _ageYears = 25;
   CommitmentLevel? _commitment;
 
-  static const _totalQuizSteps = 10;
+  static const _totalQuizSteps = 11;
 
   void _go(_Step step) => setState(() => _step = step);
 
@@ -82,6 +90,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         trainingLocation: _location ?? TrainingLocation.both,
         hopsLevel: _hops ?? HopsLevel.touchRim,
         heightInches: _heightInches,
+        standingReachInches: _standingReachInches,
         weightLbs: _weightLbs,
         ageYears: _ageYears,
         commitment: _commitment ?? CommitmentLevel.very,
@@ -175,22 +184,39 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           heightInches: _heightInches,
           onChanged: (v) => _heightInches = v,
           onBack: () => _go(_Step.hops),
+          onContinue: () => _go(_Step.standingReach),
+        );
+
+      case _Step.standingReach:
+        return StandingReachScreen(
+          step: 8,
+          totalSteps: _totalQuizSteps,
+          heightInches: _heightInches,
+          standingReachInches: _standingReachInches,
+          onChanged: (v) => _standingReachInches = v,
+          onSkip: () {
+            // Explicitly clear it: the screen pre-fills the wheel with the
+            // height estimate, and an unmeasured reach must stay unmeasured.
+            _standingReachInches = null;
+            _go(_Step.weight);
+          },
+          onBack: () => _go(_Step.height),
           onContinue: () => _go(_Step.weight),
         );
 
       case _Step.weight:
         return WeightScreen(
-          step: 8,
+          step: 9,
           totalSteps: _totalQuizSteps,
           weightLbs: _weightLbs,
           onChanged: (v) => setState(() => _weightLbs = v),
-          onBack: () => _go(_Step.height),
+          onBack: () => _go(_Step.standingReach),
           onContinue: () => _go(_Step.age),
         );
 
       case _Step.age:
         return AgeScreen(
-          step: 9,
+          step: 10,
           totalSteps: _totalQuizSteps,
           ageYears: _ageYears,
           onChanged: (v) => _ageYears = v,
@@ -200,7 +226,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
       case _Step.commitment:
         return CommitmentScreen(
-          step: 10,
+          step: 11,
           totalSteps: _totalQuizSteps,
           selected: _commitment,
           onSelect: (v) => setState(() => _commitment = v),

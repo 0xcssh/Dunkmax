@@ -72,4 +72,64 @@ void main() {
       expect(young.maxGainInches, greaterThan(older.maxGainInches));
     });
   });
+
+  group('a measured standing reach beats the height estimate', () {
+    // The height estimate is a population average and the app's whole
+    // "inches to dunk" promise sits on top of it. On a real clip it claimed
+    // the athlete was 2" from dunking while frame-by-frame measurement put
+    // their fingertips ~20" below the rim at the apex.
+    test('the athlete\'s own measurement is used when given', () {
+      final measured = VertAssessment(
+        heightInches: 73,
+        ageYears: 22,
+        hops: HopsLevel.touchRim,
+        measuredStandingReach: 92,
+      );
+
+      expect(measured.reachIsMeasured, isTrue);
+      expect(measured.standingReach, 92);
+    });
+
+    test('falls back to the estimate, and admits it, when not given', () {
+      final estimated = VertAssessment(
+        heightInches: 73,
+        ageYears: 22,
+        hops: HopsLevel.touchRim,
+      );
+
+      expect(estimated.reachIsMeasured, isFalse);
+      expect(estimated.standingReach, VertAssessment.standingReachInches(73));
+    });
+
+    test('a shorter real reach raises the vert needed to dunk', () {
+      const height = 73;
+      final estimated = VertAssessment(
+        heightInches: height,
+        ageYears: 22,
+        hops: HopsLevel.touchRim,
+      );
+      // Five inches less reach is five inches more jump to clear the rim.
+      final shortArms = VertAssessment(
+        heightInches: height,
+        ageYears: 22,
+        hops: HopsLevel.touchRim,
+        measuredStandingReach: estimated.standingReach - 5,
+      );
+
+      expect(shortArms.requiredVert, estimated.requiredVert + 5);
+      expect(shortArms.gapInches, greaterThan(estimated.gapInches));
+    });
+
+    test('a zero or absent measurement is treated as unmeasured', () {
+      final zero = VertAssessment(
+        heightInches: 73,
+        ageYears: 22,
+        hops: HopsLevel.touchRim,
+        measuredStandingReach: 0,
+      );
+
+      expect(zero.reachIsMeasured, isFalse);
+      expect(zero.standingReach, VertAssessment.standingReachInches(73));
+    });
+  });
 }

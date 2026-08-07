@@ -26,8 +26,15 @@ class OnboardingStore {
   }
 
   Future<void> complete(OnboardingProfile profile) async {
-    await _prefs.setString(_profileKey, profile.toJson());
+    await saveProfile(profile);
     await _prefs.setBool(_completedKey, true);
+  }
+
+  /// Overwrites the stored profile without touching the completed flag — used
+  /// when the athlete edits a single answer later (e.g. their standing reach
+  /// from Settings) rather than retaking the whole quiz.
+  Future<void> saveProfile(OnboardingProfile profile) async {
+    await _prefs.setString(_profileKey, profile.toJson());
   }
 
   Future<void> reset() async {

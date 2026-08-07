@@ -114,6 +114,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
       heightInches: widget.profile.heightInches,
       ageYears: widget.profile.ageYears,
       hops: widget.profile.hopsLevel,
+      measuredStandingReach: widget.profile.standingReachInches,
     );
     final result = JumpResult(measurement: measurement, assessment: assessment);
     if (measurement.isValid) {

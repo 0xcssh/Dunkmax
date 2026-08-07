@@ -63,6 +63,15 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
     });
   }
 
+  /// Persists an edit to a single onboarding answer (e.g. standing reach, set
+  /// from the Settings sheet) and rebuilds everything reading the profile, so
+  /// the dunk target on Home, Analyze and Progress can't disagree.
+  Future<void> _onProfileChanged(OnboardingProfile profile) async {
+    await widget.store.saveProfile(profile);
+    if (!mounted) return;
+    setState(() => _profile = profile);
+  }
+
   void _goToPaywall() => setState(() => _phase = _Phase.paywall);
 
   void _enterApp() => setState(() => _phase = _Phase.app);
@@ -120,6 +129,7 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
           athleteProfileStore: widget.athleteProfileStore,
           leaderboardService: widget.leaderboardService,
           onRestartOnboarding: _restartOnboarding,
+          onProfileChanged: _onProfileChanged,
         );
     }
   }

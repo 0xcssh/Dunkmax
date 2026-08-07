@@ -25,6 +25,14 @@ class OnboardingProfile {
   final int ageYears;
   final CommitmentLevel commitment;
 
+  /// Fingertip height with one arm overhead, flat-footed, in inches — the
+  /// athlete's own measurement. Null when they haven't measured it, in which
+  /// case VertAssessment falls back to estimating it from their height. That
+  /// estimate is a population average and can be several inches out, which is
+  /// enough to move "inches to dunk" from believable to nonsense, so anything
+  /// showing a dunk gap should say which one it used.
+  final int? standingReachInches;
+
   const OnboardingProfile({
     required this.goals,
     required this.experience,
@@ -36,6 +44,7 @@ class OnboardingProfile {
     this.weightLbs = 175,
     this.ageYears = 25,
     this.commitment = CommitmentLevel.very,
+    this.standingReachInches,
   });
 
   OnboardingProfile copyWith({
@@ -48,6 +57,7 @@ class OnboardingProfile {
     int? heightInches,
     int? weightLbs,
     int? ageYears,
+    int? standingReachInches,
     CommitmentLevel? commitment,
   }) {
     return OnboardingProfile(
@@ -61,6 +71,7 @@ class OnboardingProfile {
       weightLbs: weightLbs ?? this.weightLbs,
       ageYears: ageYears ?? this.ageYears,
       commitment: commitment ?? this.commitment,
+      standingReachInches: standingReachInches ?? this.standingReachInches,
     );
   }
 
@@ -75,6 +86,8 @@ class OnboardingProfile {
         'weightLbs': weightLbs,
         'ageYears': ageYears,
         'commitment': commitment.storageKey,
+        if (standingReachInches != null)
+          'standingReachInches': standingReachInches,
       };
 
   String toJson() => jsonEncode(toMap());
@@ -109,6 +122,9 @@ class OnboardingProfile {
       commitment:
           CommitmentLevel.fromStorageKey(map['commitment'] as String? ?? '') ??
               CommitmentLevel.very,
+      standingReachInches: map['standingReachInches'] is int
+          ? map['standingReachInches'] as int
+          : null,
     );
   }
 
