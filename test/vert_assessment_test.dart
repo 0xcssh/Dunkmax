@@ -117,7 +117,16 @@ void main() {
       );
 
       expect(shortArms.requiredVert, estimated.requiredVert + 5);
-      expect(shortArms.gapInches, greaterThan(estimated.gapInches));
+      // The *gap* is unchanged, and that is correct: "touch the rim" is
+      // defined relative to the rim, so a shorter reach means both a bigger
+      // jump to dunk and a bigger jump to graze the rim. Shorter arms move
+      // the whole scale, not the distance between those two points. What the
+      // athlete's real reach changes is the absolute target they train
+      // toward — and, once a real jump is measured against it, whether they
+      // are actually near it.
+      expect(shortArms.gapInches, estimated.gapInches);
+      expect(shortArms.estimatedCurrentVert,
+          estimated.estimatedCurrentVert + 5);
     });
 
     test('a zero or absent measurement is treated as unmeasured', () {

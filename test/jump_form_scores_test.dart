@@ -102,13 +102,21 @@ JumpFormScores _score(List<PoseSample> samples, {double scale = 1.0}) {
   );
 }
 
-/// Pulls a hip point most of the way toward the athlete's standing hip height,
-/// leaving only a token countermovement. Used to build an approach jump whose
-/// dip is as shallow as a real running plant's.
+/// Reshapes a hip point into the profile of a *running* jump: the dip below
+/// standing height is squashed to almost nothing, while the extension above it
+/// is left intact.
+///
+/// Scaling the whole trajectory would have been wrong — it flattens the drive
+/// along with the dip, which is not what an approach jump looks like. The
+/// athlete barely sinks and then extends hard, which is exactly the case the
+/// old scoring punished.
 PosePoint? _flattenDip(PosePoint? point) {
   if (point == null) return null;
   const standingHipY = 400.0;
-  return PosePoint(point.x, standingHipY + (point.y - standingHipY) * 0.1);
+  final offset = point.y - standingHipY;
+  // y grows downward: positive offset is the dip, negative is the extension.
+  final reshaped = offset > 0 ? offset * 0.1 : offset * 1.3;
+  return PosePoint(point.x, standingHipY + reshaped);
 }
 
 void main() {
