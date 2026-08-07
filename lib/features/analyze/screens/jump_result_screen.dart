@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/flight_time.dart';
 import '../../../core/jump_auto_detector.dart';
 import '../../../core/jump_feedback.dart';
+import '../../../core/jump_form_scores.dart';
 import '../../../core/jump_result.dart';
 import '../../../core/jump_trend.dart';
 import '../../../core/models/video_attempt_type.dart';
@@ -13,11 +14,13 @@ import 'processing_screen.dart';
 
 /// The Analyze payoff: the measured vertical plus where it puts the athlete
 /// relative to their dunk goal. The four form scores (Bounce/Power/Control/
-/// Form) need a second pose pass over joint angles, arm swing and symmetry —
-/// pose tracking now times the jump, but nothing scores the *form* yet (see
-/// CLAUDE.md) — so they're shown locked rather than faked. Same rule for the
-/// written breakdown below: it's built entirely from real measured numbers
-/// (see core/jump_feedback.dart) — no claims about form we can't observe.
+/// Form) come from `core/jump_form_scores.dart`, which reads the same tracked
+/// landmarks that timed the jump — ground contact, hip drop and drive, left/
+/// right symmetry, arm swing. Any one of them that could not be measured on
+/// this clip renders as unavailable with the reason, never as a zero or a
+/// filler number. Same rule for the written breakdown below: it's built
+/// entirely from real measured numbers (see core/jump_feedback.dart) — no
+/// claims about form we can't observe.
 class JumpResultScreen extends StatelessWidget {
   final JumpResult result;
   final JumpTrend? trend;
@@ -61,7 +64,7 @@ class JumpResultScreen extends StatelessWidget {
           const SizedBox(height: 16),
           _BreakdownCard(feedback: feedback),
           const SizedBox(height: 16),
-          const _ScoresCard(),
+          _ScoresCard(scores: analysis.scores),
           if (analysis.hasAnyData) ...[
             const SizedBox(height: 16),
             _DiagnosticsCard(
@@ -613,18 +616,32 @@ class _VertCard extends StatelessWidget {
   }
 }
 
+/// Bounce / Power / Control / Form, each read off the tracked landmarks of
+/// this clip.
+///
+/// Every tile is either a measured number with the observation behind it, or
+/// an explicit "not measured here" with the reason — there is no filler. The
+/// whole card falls back to the unavailable state when body tracking never
+/// located the jump (the number above then came from the athlete's own marks
+/// or the motion fallback, and there are no landmarks to score).
+///
+/// Deliberately absent: any "top N % for your height" comparison. That needs
+/// a real user base to compare against, and the app does not have one.
 class _ScoresCard extends StatelessWidget {
-  const _ScoresCard();
+  final JumpFormScores? scores;
 
-  static const _scores = [
-    ('Bounce', Icons.bolt),
-    ('Power', Icons.fitness_center),
-    ('Control', Icons.center_focus_strong),
-    ('Form', Icons.accessibility_new),
-  ];
+  const _ScoresCard({required this.scores});
+
+  static const _icons = <String, IconData>{
+    'Bounce': Icons.bolt,
+    'Power': Icons.fitness_center,
+    'Control': Icons.center_focus_strong,
+    'Form': Icons.accessibility_new,
+  };
 
   @override
   Widget build(BuildContext context) {
+    final s = scores;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -635,11 +652,15 @@ class _ScoresCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.lock_outline, color: DunkColors.textTertiary, size: 16),
-              SizedBox(width: 6),
-              Text(
+              Icon(
+                s == null ? Icons.lock_outline : Icons.insights,
+                color: s == null ? DunkColors.textTertiary : DunkColors.primary,
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              const Text(
                 'FORM SCORES',
                 style: TextStyle(
                   color: Colors.white,
@@ -651,44 +672,241 @@ class _ScoresCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Body tracking times your jump. Scoring how it looked — joint '
-            'angles, arm swing, symmetry — is still to come.',
-            style: TextStyle(color: DunkColors.textSecondary, fontSize: 12),
+          Text(
+            s == null
+                ? 'Scoring your form needs body tracking, and it could not '
+                    'follow you through this clip.'
+                : 'Scored from your body in this clip — nothing is filled in '
+                    'where it could not be measured.',
+            style: const TextStyle(
+              color: DunkColors.textSecondary,
+              fontSize: 12,
+              height: 1.35,
+            ),
           ),
+          if (s?.takeoffType != null) ...[
+            const SizedBox(height: 12),
+            _TakeoffPill(type: s!.takeoffType!),
+          ],
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              for (final (label, icon) in _scores)
-                SizedBox(
-                  width: 130,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: DunkColors.surfaceRaised,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(icon, color: DunkColors.textTertiary, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            color: DunkColors.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
+          _ScoreGrid(scores: s),
+          const SizedBox(height: 12),
+          const Text(
+            'Scores rate your technique against coaching guidelines, not '
+            'against other athletes.',
+            style: TextStyle(
+              color: DunkColors.textTertiary,
+              fontSize: 11,
+              height: 1.3,
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The 2×2 grid. Rows are height-matched so a two-line reason on one tile
+/// doesn't leave its neighbour looking clipped.
+class _ScoreGrid extends StatelessWidget {
+  final JumpFormScores? scores;
+
+  const _ScoreGrid({required this.scores});
+
+  @override
+  Widget build(BuildContext context) {
+    final tiles = <Widget>[
+      for (final label in _ScoresCard._icons.keys)
+        _ScoreTile(
+          label: label,
+          icon: _ScoresCard._icons[label]!,
+          score: _scoreFor(label),
+        ),
+    ];
+
+    return Column(
+      children: [
+        for (var row = 0; row < 2; row++) ...[
+          if (row > 0) const SizedBox(height: 12),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: tiles[row * 2]),
+                const SizedBox(width: 12),
+                Expanded(child: tiles[row * 2 + 1]),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  FormScore? _scoreFor(String label) {
+    final s = scores;
+    if (s == null) return null;
+    return s.all.firstWhere((score) => score.label == label);
+  }
+}
+
+class _ScoreTile extends StatelessWidget {
+  final String label;
+  final IconData icon;
+
+  /// Null when body tracking never ran on this clip at all; otherwise the
+  /// score object, which may itself be unavailable with a reason.
+  final FormScore? score;
+
+  const _ScoreTile({
+    required this.label,
+    required this.icon,
+    required this.score,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final value = score?.value;
+    final measured = value != null;
+    final reason = score?.unavailableReason ?? 'body tracking did not run';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: DunkColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: measured ? DunkColors.primary : DunkColors.textTertiary,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: measured ? Colors.white : DunkColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (value != null) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '$value',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(width: 3),
+                const Text(
+                  '/100',
+                  style: TextStyle(
+                    color: DunkColors.textTertiary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: value / 100,
+                minHeight: 5,
+                backgroundColor: DunkColors.stroke,
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(DunkColors.primary),
+              ),
+            ),
+            if (score?.detail != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                score!.detail!,
+                style: const TextStyle(
+                  color: DunkColors.textTertiary,
+                  fontSize: 11,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ] else ...[
+            const Text(
+              'Not measured',
+              style: TextStyle(
+                color: DunkColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _capitalize(reason),
+              style: const TextStyle(
+                color: DunkColors.textTertiary,
+                fontSize: 11,
+                height: 1.3,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _capitalize(String value) =>
+      value.isEmpty ? value : value[0].toUpperCase() + value.substring(1);
+}
+
+/// One-foot vs two-foot, shown only when the two ankles left the ground
+/// clearly together or clearly apart.
+class _TakeoffPill extends StatelessWidget {
+  final TakeoffType type;
+
+  const _TakeoffPill({required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: DunkColors.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: DunkColors.primary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.directions_run, color: DunkColors.primary, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              type.label.toUpperCase(),
+              style: const TextStyle(
+                color: DunkColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

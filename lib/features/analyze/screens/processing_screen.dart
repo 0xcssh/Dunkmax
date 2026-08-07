@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../core/jump_auto_detector.dart';
+import '../../../core/jump_form_scores.dart';
 import '../../../core/models/jump_measurement.dart';
 import '../../../core/pose_jump_detector.dart';
 import '../../../theme/app_theme.dart';
@@ -27,7 +28,16 @@ class JumpAnalysis {
   final PoseJumpDiagnostics pose;
   final JumpDetectionDiagnostics motion;
 
-  const JumpAnalysis({required this.pose, required this.motion});
+  /// The four form scores, from the same landmark series that timed the jump.
+  /// Null when the pose pass produced no airborne window — there is then no
+  /// jump to score, and the result screen says so rather than inventing one.
+  final JumpFormScores? scores;
+
+  const JumpAnalysis({
+    required this.pose,
+    required this.motion,
+    this.scores,
+  });
 
   static const empty = JumpAnalysis(
     pose: PoseJumpDiagnostics.empty,
@@ -153,7 +163,16 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
             '(${pose.rejection.label}) — mark the jump yourself.');
       }
 
-      analysis = JumpAnalysis(pose: pose, motion: motion);
+      // The form scores read the *same* landmark series, so they cost no
+      // extra decoding or inference — only arithmetic. They are computed only
+      // when body tracking actually located the jump: scoring a window the
+      // motion-energy fallback found would mean scoring frames nothing was
+      // tracked in.
+      analysis = JumpAnalysis(
+        pose: pose,
+        motion: motion,
+        scores: JumpFormScoring.fromDiagnostics(pose),
+      );
       if (mounted) setState(() => _phase = _Phase.estimating);
     } catch (_) {
       analysis = JumpAnalysis.empty;

@@ -4,6 +4,22 @@ import 'ballistic_fit.dart';
 import 'flight_time.dart';
 import 'models/jump_measurement.dart';
 
+/// One tracked body landmark, in image pixels.
+///
+/// Same coordinate convention as [PoseSample]: x grows to the right, y grows
+/// *downward* from a top-left origin. A landmark the model was not confident
+/// about is represented by a null [PosePoint], never by a zeroed one.
+class PosePoint {
+  final double x;
+  final double y;
+
+  const PosePoint(this.x, this.y);
+
+  @override
+  String toString() =>
+      'PosePoint(${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)})';
+}
+
 /// One sampled instant of a jump clip, as seen by an on-device pose model.
 ///
 /// Image coordinates: y grows *downward* (the top-left origin every image
@@ -33,10 +49,40 @@ class PoseSample {
   /// how far they are from the camera.
   final double? torsoPixels;
 
+  /// Individual landmarks, for the *form* scores rather than the timing (see
+  /// `core/jump_form_scores.dart`). Each is null whenever the pose model was
+  /// not confident about that specific landmark in this frame — the same rule
+  /// as [footY] and [torsoPixels], and for the same reason: a guessed joint
+  /// position is fabricated data, and a zeroed one would read as "pinned to
+  /// the top-left corner of the frame".
+  ///
+  /// [footY] and [torsoPixels] above stay the detector's only inputs; these
+  /// are additive and nothing in the timing rule reads them.
+  final PosePoint? leftAnkle;
+  final PosePoint? rightAnkle;
+  final PosePoint? leftKnee;
+  final PosePoint? rightKnee;
+  final PosePoint? leftHip;
+  final PosePoint? rightHip;
+  final PosePoint? leftShoulder;
+  final PosePoint? rightShoulder;
+  final PosePoint? leftWrist;
+  final PosePoint? rightWrist;
+
   const PoseSample({
     required this.timestamp,
     this.footY,
     this.torsoPixels,
+    this.leftAnkle,
+    this.rightAnkle,
+    this.leftKnee,
+    this.rightKnee,
+    this.leftHip,
+    this.rightHip,
+    this.leftShoulder,
+    this.rightShoulder,
+    this.leftWrist,
+    this.rightWrist,
   });
 
   /// True when the pose model actually found the athlete in this frame.

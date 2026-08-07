@@ -205,6 +205,11 @@ Future<List<PoseSample>> _sampleRange(
 /// - `torsoPixels`: shoulder-midpoint to hip-midpoint. Rigid through a jump,
 ///   unlike anything that includes the legs (which tuck mid-flight), so it
 ///   tracks only how far the athlete is from the camera.
+/// - the individual ankle/knee/hip/shoulder/wrist landmarks, which the form
+///   scores (`core/jump_form_scores.dart`) need and the timing does not. Each
+///   goes through the same [_minLikelihood] gate independently, so a frame can
+///   carry a confident hip and no wrist at all — and the score that needed the
+///   wrist is then honestly absent rather than defaulted.
 ///
 /// If more than one person was found, the largest (nearest) is taken as the
 /// athlete.
@@ -229,7 +234,26 @@ PoseSample _toSample(Duration timestamp, List<Pose> poses) {
     timestamp: timestamp,
     footY: footY,
     torsoPixels: bestTorso,
+    leftAnkle: _point(best, PoseLandmarkType.leftAnkle),
+    rightAnkle: _point(best, PoseLandmarkType.rightAnkle),
+    leftKnee: _point(best, PoseLandmarkType.leftKnee),
+    rightKnee: _point(best, PoseLandmarkType.rightKnee),
+    leftHip: _point(best, PoseLandmarkType.leftHip),
+    rightHip: _point(best, PoseLandmarkType.rightHip),
+    leftShoulder: _point(best, PoseLandmarkType.leftShoulder),
+    rightShoulder: _point(best, PoseLandmarkType.rightShoulder),
+    leftWrist: _point(best, PoseLandmarkType.leftWrist),
+    rightWrist: _point(best, PoseLandmarkType.rightWrist),
   );
+}
+
+/// One landmark as a [PosePoint], or null when the model was not confident
+/// enough about it. Never a zeroed point — see [PoseSample].
+PosePoint? _point(Pose pose, PoseLandmarkType type) {
+  final landmark = pose.landmarks[type];
+  if (landmark == null) return null;
+  if (landmark.likelihood < _minLikelihood) return null;
+  return PosePoint(landmark.x, landmark.y);
 }
 
 double? _torsoPixels(Pose pose) {

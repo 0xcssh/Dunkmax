@@ -37,9 +37,11 @@ enum _Step { source, trim, mark, processing, result }
 /// which one it was, so the result screen never presents a fallback reading as
 /// if it came from body tracking.
 ///
-/// The four Bounce/Power/Control/Form scores still need a *second* pose pass
-/// (joint angles, arm swing, symmetry — not built; see CLAUDE.md), so the
-/// result screen shows them locked rather than fabricated.
+/// The four Bounce/Power/Control/Form scores are computed in the same pass,
+/// from the same landmark series (`core/jump_form_scores.dart`), and travel to
+/// the result screen inside [JumpAnalysis] alongside the diagnostics. Any of
+/// them the clip could not support is carried as unavailable-with-a-reason
+/// rather than filled in.
 class AnalyzeFlow extends StatefulWidget {
   final OnboardingProfile profile;
   final JumpLogStore jumpLogStore;
