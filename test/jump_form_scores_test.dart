@@ -110,6 +110,18 @@ JumpFormScores _score(List<PoseSample> samples, {double scale = 1.0}) {
 /// along with the dip, which is not what an approach jump looks like. The
 /// athlete barely sinks and then extends hard, which is exactly the case the
 /// old scoring punished.
+/// Rewrites the drive so the hips hold near their low point and then snap up
+/// in the final 50 ms, keeping the same start and end heights. The mean rate
+/// across the drive is roughly halved; the peak is not.
+PosePoint? _lateDrive(Duration timestamp, PosePoint? point) {
+  if (point == null) return null;
+  final t = timestamp.inMilliseconds;
+  if (t < 600 || t > _takeoffMs) return point;
+  // 600 ms: 430 (low)  →  700 ms: 390 (takeoff), but held flat until 650 ms.
+  final y = t < 650 ? 430.0 : 430.0 - 40.0 * (t - 650) / 50.0;
+  return PosePoint(point.x, y);
+}
+
 PosePoint? _flattenDip(PosePoint? point) {
   if (point == null) return null;
   const standingHipY = 400.0;
@@ -141,10 +153,43 @@ void main() {
     });
 
     test('power on an approach jump scores the drive, not the dip', () {
-      // Drive of 40 px in 0.1 s = 4.0 torso/s, which is 83 % of the way from
-      // the 1.5 zero point to the 4.5 full-credit point. The dip is
-      // deliberately ignored here — see the approach-jump group below.
-      expect(_score(_clip()).power.value, closeTo(83, 2));
+      // The hips drive at a constant 4.0 torso/s in this clip (40 px in
+      // 0.1 s), so peak and average coincide: 83 % of the way from the 1.5
+      // zero point to the 4.5 full-credit point. The dip is deliberately
+      // ignored here — see the approach-jump group below.
+      expect(_score(_clip()).power.value, closeTo(83, 3));
+    });
+
+    test('the drive is scored at its peak, not averaged across itself', () {
+      // A real drive accelerates from rest to takeoff, so its mean is about
+      // half its peak — and the band is written as a velocity. Measuring the
+      // mean scored a genuine 28" jump at 9/100. Here the hips loiter, then
+      // snap upward: the mean over the whole drive is far below the burst,
+      // and the score must follow the burst.
+      final base = _clip();
+      final loitering = [
+        for (final s in base)
+          PoseSample(
+            timestamp: s.timestamp,
+            footY: s.footY,
+            torsoPixels: s.torsoPixels,
+            leftAnkle: s.leftAnkle,
+            rightAnkle: s.rightAnkle,
+            leftKnee: s.leftKnee,
+            rightKnee: s.rightKnee,
+            leftHip: _lateDrive(s.timestamp, s.leftHip),
+            rightHip: _lateDrive(s.timestamp, s.rightHip),
+            leftShoulder: s.leftShoulder,
+            rightShoulder: s.rightShoulder,
+            leftWrist: s.leftWrist,
+            rightWrist: s.rightWrist,
+          ),
+      ];
+
+      final score = _score(loitering).power.value!;
+      // Mean across the drive here is ~2 torso/s (score ~17); the burst is
+      // ~4 torso/s. Anything near the mean means the peak is being missed.
+      expect(score, greaterThan(50));
     });
 
     test('a perfectly symmetric athlete scores full marks for control', () {

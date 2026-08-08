@@ -141,9 +141,11 @@ abstract class JumpFormScoring {
   // athlete — a quarter to a half squat. Credit falls to zero below 0.15 and
   // above 1.05 torso lengths.
   //
-  // Rise rate is how fast the hips travel from that low point to takeoff, in
-  // torso lengths per second. 4.5 and above scores 100, 1.5 and below scores
-  // 0. For the same athlete 4.5 torso/s is about 2.4 m/s of hip velocity.
+  // Rise rate is the *fastest* the hips travel upward during the drive, in
+  // torso lengths per second — a velocity, not an average across the drive.
+  // 4.5 and above scores 100, 1.5 and below scores 0. For the same athlete
+  // 4.5 torso/s is about 2.4 m/s of hip velocity, which sits sensibly under
+  // the ~3.7 m/s takeoff velocity a 28" jump requires.
   //
   // Both are informed coaching bands, not norms. The two halves are averaged
   // equally: depth without speed is a squat, speed without depth is a hop.
@@ -154,6 +156,11 @@ abstract class JumpFormScoring {
   static const double dipZeroHigh = 1.05;
   static const double riseTorsoPerSecondForZeroScore = 1.5;
   static const double riseTorsoPerSecondForFullScore = 4.5;
+
+  /// Shortest interval a rise rate may be measured over. Consecutive frames
+  /// can be 15 ms apart in the dense sampling pass, where a pixel or two of
+  /// landmark jitter becomes an enormous apparent velocity.
+  static const double _riseBaselineSeconds = 0.04;
 
   /// Slice before takeoff searched for the countermovement on a jump from
   /// standing, where the dip is a deliberate, fairly slow squat.
@@ -496,15 +503,38 @@ abstract class JumpFormScoring {
                 _median([for (var i = 0; i < lowIndex; i++) hips[i].y])) /
             torsoPixels;
 
-    final last = hips.last;
-    final riseSeconds = last.t - hips[lowIndex].t;
-    if (riseSeconds <= 0) {
+    // Fastest the hips travel upward during the drive, not the average across
+    // it.
+    //
+    // The band below is written as a *velocity* — its own comment calls 4.5
+    // torso/s "about 2.4 m/s of hip velocity" — but this measured the mean
+    // from the low point to takeoff. A body accelerating from rest to takeoff
+    // averages about half its final speed, so the code was reporting roughly
+    // half of what the band was written to judge, and a real 28" jump scored
+    // 9/100. That is a definition mismatch, not an athlete being slow.
+    //
+    // Rates are taken over pairs at least [_riseBaselineSeconds] apart so one
+    // jittery landmark across a 15 ms gap cannot invent a spike.
+    var riseRate = 0.0;
+    var measuredAny = false;
+    for (var i = lowIndex; i < hips.length; i++) {
+      for (var j = i + 1; j < hips.length; j++) {
+        final dt = hips[j].t - hips[i].t;
+        if (dt < _riseBaselineSeconds) continue;
+        final rate = (hips[i].y - hips[j].y) / torsoPixels / dt;
+        if (!measuredAny || rate > riseRate) {
+          riseRate = rate;
+          measuredAny = true;
+        }
+        break;
+      }
+    }
+    if (!measuredAny) {
       return const FormScore.unavailable(
         'Power',
         'the drive out of the dip is not in this clip',
       );
     }
-    final riseRate = (hips[lowIndex].y - last.y) / torsoPixels / riseSeconds;
 
     final riseScore = _ramp(
       riseRate,
