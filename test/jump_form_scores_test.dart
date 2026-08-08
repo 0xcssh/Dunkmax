@@ -102,14 +102,6 @@ JumpFormScores _score(List<PoseSample> samples, {double scale = 1.0}) {
   );
 }
 
-/// Reshapes a hip point into the profile of a *running* jump: the dip below
-/// standing height is squashed to almost nothing, while the extension above it
-/// is left intact.
-///
-/// Scaling the whole trajectory would have been wrong — it flattens the drive
-/// along with the dip, which is not what an approach jump looks like. The
-/// athlete barely sinks and then extends hard, which is exactly the case the
-/// old scoring punished.
 /// Rewrites the drive so the hips hold near their low point and then snap up
 /// in the final 50 ms, keeping the same start and end heights. The mean rate
 /// across the drive is roughly halved; the peak is not.
@@ -122,13 +114,18 @@ PosePoint? _lateDrive(Duration timestamp, PosePoint? point) {
   return PosePoint(point.x, y);
 }
 
-PosePoint? _flattenDip(PosePoint? point) {
+PosePoint? _shallowDip(Duration timestamp, PosePoint? point) {
   if (point == null) return null;
-  const standingHipY = 400.0;
-  final offset = point.y - standingHipY;
-  // y grows downward: positive offset is the dip, negative is the extension.
-  final reshaped = offset > 0 ? offset * 0.1 : offset * 1.3;
-  return PosePoint(point.x, standingHipY + reshaped);
+  final t = timestamp.inMilliseconds;
+  if (t < 500 || t > _takeoffMs) return point;
+  // Lift the whole plant-through-takeoff segment by a constant. The dip
+  // becomes shallow relative to the athlete's standing hip height while the
+  // hips still travel exactly as far, and as fast, out of it.
+  //
+  // Squashing the segment instead would have been wrong: a smaller dip
+  // mechanically means a shorter drive, so the score would fall for a reason
+  // that has nothing to do with the depth term this test is about.
+  return PosePoint(point.x, point.y - 27);
 }
 
 void main() {
@@ -358,8 +355,8 @@ void main() {
     // whose takeoff velocity is around 7), because the dip was being searched
     // for across more than a second of run-up and kept landing on a stride.
 
-    /// The same clip, but with the countermovement flattened to almost
-    /// nothing — a plant, not a squat.
+    /// The same clip with a shallow countermovement — a plant, not a squat —
+    /// but the same hip travel out of it.
     List<PoseSample> shallowDipClip() {
       final base = _clip();
       return [
@@ -374,8 +371,8 @@ void main() {
             rightKnee: s.rightKnee,
             // Squash the hip travel toward its own mean so the dip nearly
             // vanishes while the drive stays intact in shape.
-            leftHip: _flattenDip(s.leftHip),
-            rightHip: _flattenDip(s.rightHip),
+            leftHip: _shallowDip(s.timestamp, s.leftHip),
+            rightHip: _shallowDip(s.timestamp, s.rightHip),
             leftShoulder: s.leftShoulder,
             rightShoulder: s.rightShoulder,
             leftWrist: s.leftWrist,
@@ -384,15 +381,16 @@ void main() {
       ];
     }
 
-    test('a shallow dip no longer drags the score to zero', () {
-      final scores = _score(shallowDipClip());
+    test('a shallow dip costs an approach jump nothing', () {
+      // Same drive, much shallower dip. The depth term is not part of the
+      // judgement on an approach jump, so the score must not move: sinking
+      // less is correct technique when converting run-up speed, and the old
+      // scoring read it as an absence of power.
+      final shallow = _score(shallowDipClip()).power.value;
+      final normal = _score(_clip()).power.value;
 
-      expect(scores.power.value, isNotNull);
-      expect(
-        scores.power.value!,
-        greaterThan(0),
-        reason: 'a shallow plant is correct technique on an approach jump',
-      );
+      expect(shallow, isNotNull);
+      expect(shallow, closeTo(normal!, 3));
     });
 
     test('the detail line reports the drive off the plant', () {
