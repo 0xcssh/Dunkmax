@@ -19,8 +19,10 @@ import 'processing_screen.dart';
 /// right symmetry, arm swing. Any one of them that could not be measured on
 /// this clip renders as unavailable with the reason, never as a zero or a
 /// filler number. Same rule for the written breakdown below: it's built
-/// entirely from real measured numbers (see core/jump_feedback.dart) — no
-/// claims about form we can't observe.
+/// entirely from real measured numbers (see core/jump_feedback.dart) — the
+/// vertical and the gap, plus the best- and worst-scoring *measured* form
+/// aspects and coaching aimed at that weakness. No claims about form we can't
+/// observe, and nothing ranked that wasn't measured.
 class JumpResultScreen extends StatelessWidget {
   final JumpResult result;
   final JumpTrend? trend;
@@ -45,7 +47,11 @@ class JumpResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final feedback = JumpFeedback.build(result, trend: trend);
+    final feedback = JumpFeedback.build(
+      result,
+      trend: trend,
+      scores: analysis.scores,
+    );
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -436,6 +442,16 @@ class _EstimateLine extends StatelessWidget {
   }
 }
 
+/// The written read on the jump: the headline number, the trend note, then —
+/// when body tracking measured enough to rank them — the best and worst
+/// measured aspects and two tips aimed at that weakness.
+///
+/// The strength/weakness rows carry the same measurement string the matching
+/// tile in FORM SCORES shows. That repetition is deliberate and framed
+/// differently on each side: the tile is the number, this is the sentence that
+/// says why it matters. When nothing could be ranked, the rows are simply
+/// absent and the tips revert to the general ones — the card never fills the
+/// space with a guess.
 class _BreakdownCard extends StatelessWidget {
   final JumpFeedbackSummary feedback;
 
@@ -503,10 +519,30 @@ class _BreakdownCard extends StatelessWidget {
               ],
             ),
           ),
+          if (feedback.strength != null) ...[
+            const SizedBox(height: 12),
+            _AspectNote(
+              caption: 'STRONGEST',
+              icon: Icons.check_circle_outline,
+              tone: DunkColors.accentGreen,
+              aspect: feedback.strength!,
+            ),
+          ],
+          if (feedback.weakness != null) ...[
+            const SizedBox(height: 10),
+            _AspectNote(
+              caption: 'WEAKEST',
+              icon: Icons.track_changes,
+              tone: DunkColors.primary,
+              aspect: feedback.weakness!,
+            ),
+          ],
           const SizedBox(height: 14),
-          const Text(
-            'GENERAL TIPS TO CLOSE THE GAP',
-            style: TextStyle(
+          Text(
+            feedback.hasRankedAspects
+                ? 'HOW TO WORK ON IT'
+                : 'GENERAL TIPS TO CLOSE THE GAP',
+            style: const TextStyle(
               color: DunkColors.textTertiary,
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -553,6 +589,94 @@ class _BreakdownCard extends StatelessWidget {
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One ranked aspect of the jump — the strongest or the one to work on —
+/// rendered in the same tinted-panel language as the trend note above it: a
+/// caption with the aspect name, the score as a pill, the sentence, and the
+/// measurement it rests on.
+class _AspectNote extends StatelessWidget {
+  final String caption;
+  final IconData icon;
+  final Color tone;
+  final JumpAspectNote aspect;
+
+  const _AspectNote({
+    required this.caption,
+    required this.icon,
+    required this.tone,
+    required this.aspect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tone.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: tone, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '$caption · ${aspect.label.toUpperCase()}',
+                  style: TextStyle(
+                    color: tone,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${aspect.score}/100',
+                  style: TextStyle(
+                    color: tone,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            aspect.note,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+          if (aspect.measurement.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Measured: ${aspect.measurement}',
+              style: const TextStyle(
+                color: DunkColors.textTertiary,
+                fontSize: 11,
+                height: 1.3,
+              ),
+            ),
+          ],
         ],
       ),
     );
