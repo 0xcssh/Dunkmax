@@ -292,8 +292,10 @@ in `features/analyze/`.
 
 - Rim = 120". Dunk needs reach ≥ 126" (rim + 6" clearance).
 - Standing reach = the athlete's **measured** reach when they have one
-  (`OnboardingProfile.standingReachInches`, asked as a skippable onboarding
-  question and editable from the Home settings sheet), otherwise the estimate
+  (`OnboardingProfile.standingReachInches`, set from the Home settings sheet —
+  **deliberately not an onboarding question**: sending a first-run athlete to
+  measure themselves against a wall is more friction than the answer is worth,
+  and a quiz step most people skip should not exist), otherwise the estimate
   `height × 1.33`. Arm length varies by several inches at the same height, so
   the estimate is the weakest link in every "inches to dunk" claim: wherever a
   gap or dunk target is shown, `VertAssessment.reachIsMeasured` decides whether
@@ -321,10 +323,9 @@ state promises a personalisation that isn't there.
 
 ## Onboarding flow (built) — order
 
-Welcome → **quiz (progress bar, 11 Q):** dunk goal (multi) · experience ·
+Welcome → **quiz (progress bar, 10 Q):** dunk goal (multi) · experience ·
 position · days/week · training location · hops level · height (wheel) ·
-**standing reach (wheel, skippable)** · weight (slider) · age (wheel) ·
-commitment → **sell screens:** gap analysis
+weight (slider) · age (wheel) · commitment → **sell screens:** gap analysis
 ("Here's the gap") → jump-potential projection → how it works (the
 measurement method — replaced the old placeholder social-proof screen) →
 building loader → plan reveal → **free analysis** → **paywall** → app shell.
@@ -332,7 +333,7 @@ building loader → plan reveal → **free analysis** → **paywall** → app sh
 ## What's built vs TODO
 
 Built & CI-green:
-- Full onboarding (14 screens) wired to the tested core.
+- Full onboarding (13 screens) wired to the tested core.
 - Tested core: program catalog, program progress, vert/gap/projection math,
   workout session/streak, jump trend.
 - App shell (5 tabs); **Train** tab functional: 3-day program rotations
