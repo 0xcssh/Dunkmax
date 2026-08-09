@@ -33,11 +33,20 @@ class ExerciseGuide {
   /// null for drills that need nothing (they are their own home version).
   final String? homeSubstituteId;
 
-  /// Optional real demo media. Both null for every drill today: no clips or
-  /// photos have been filmed, and the app does not ship stand-ins that look
-  /// like demonstrations. The written [steps] are the content.
+  /// Optional real demo media.
+  ///
+  /// [demoVideoUrl] is null everywhere: no clips exist. wger hosts 78 videos
+  /// but they are raw phone uploads (34 MB to 390 MB) and none cover
+  /// plyometrics, so there is nothing to point at.
+  ///
+  /// [demoFrames] are the start and end positions of the movement, bundled
+  /// from the free-exercise-db dataset — see `docs/exercise-media.md` for its
+  /// provenance and the licensing caveat the owner accepted. A drill with no
+  /// honest match has none rather than borrowing another exercise's photo:
+  /// wall sits are illustrated by no dataset entry that is actually a wall
+  /// sit, so they keep the written-steps-only treatment.
   final String? demoVideoUrl;
-  final String? demoImageAsset;
+  final List<String> demoFrames;
 
   const ExerciseGuide({
     required this.id,
@@ -49,10 +58,10 @@ class ExerciseGuide {
     required this.equipment,
     this.homeSubstituteId,
     this.demoVideoUrl,
-    this.demoImageAsset,
+    this.demoFrames = const [],
   });
 
-  bool get hasDemoMedia => demoVideoUrl != null || demoImageAsset != null;
+  bool get hasDemoMedia => demoVideoUrl != null || demoFrames.isNotEmpty;
 }
 
 /// Authored coaching content for every drill the catalog can prescribe,
@@ -89,6 +98,10 @@ abstract class ExerciseLibrary {
       trains: ['Reactive strength', 'Calves and Achilles', 'Quads', 'Glutes'],
       equipment: Equipment.box,
       homeSubstituteId: 'tuck_jumps',
+      demoFrames: [
+        'assets/exercises/depth_jumps/0.jpg',
+        'assets/exercises/depth_jumps/1.jpg',
+      ],
     ),
     'box_jumps': ExerciseGuide(
       id: 'box_jumps',
@@ -112,6 +125,10 @@ abstract class ExerciseLibrary {
       trains: ['Explosive hip and knee extension', 'Quads', 'Glutes'],
       equipment: Equipment.box,
       homeSubstituteId: 'squat_jumps',
+      demoFrames: [
+        'assets/exercises/box_jumps/0.jpg',
+        'assets/exercises/box_jumps/1.jpg',
+      ],
     ),
     'weighted_box_jumps': ExerciseGuide(
       id: 'weighted_box_jumps',
@@ -135,6 +152,10 @@ abstract class ExerciseLibrary {
       trains: ['Maximal jumping force', 'Quads', 'Glutes', 'Hamstrings'],
       equipment: Equipment.weights,
       homeSubstituteId: 'squat_jumps',
+      demoFrames: [
+        'assets/exercises/weighted_box_jumps/0.jpg',
+        'assets/exercises/weighted_box_jumps/1.jpg',
+      ],
     ),
     'squat_jumps': ExerciseGuide(
       id: 'squat_jumps',
@@ -156,6 +177,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Jump power', 'Quads', 'Glutes', 'Calves'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/squat_jumps/0.jpg',
+        'assets/exercises/squat_jumps/1.jpg',
+      ],
     ),
     'weighted_squat_jumps': ExerciseGuide(
       id: 'weighted_squat_jumps',
@@ -179,6 +204,10 @@ abstract class ExerciseLibrary {
       trains: ['Force production', 'Quads', 'Glutes', 'Trunk'],
       equipment: Equipment.weights,
       homeSubstituteId: 'squat_jumps',
+      demoFrames: [
+        'assets/exercises/weighted_squat_jumps/0.jpg',
+        'assets/exercises/weighted_squat_jumps/1.jpg',
+      ],
     ),
     'tuck_jumps': ExerciseGuide(
       id: 'tuck_jumps',
@@ -200,6 +229,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Reactive strength', 'Calves', 'Quads', 'Hip flexors'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/tuck_jumps/0.jpg',
+        'assets/exercises/tuck_jumps/1.jpg',
+      ],
     ),
     'broad_jumps': ExerciseGuide(
       id: 'broad_jumps',
@@ -221,6 +254,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Horizontal power', 'Glutes', 'Hamstrings', 'Quads'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/broad_jumps/0.jpg',
+        'assets/exercises/broad_jumps/1.jpg',
+      ],
     ),
     // ------------------------------------------------------------- strength
     'bulgarian_split_squat_jumps': ExerciseGuide(
@@ -247,6 +284,10 @@ abstract class ExerciseLibrary {
       trains: ['Single-leg power', 'Quads', 'Glutes', 'Balance'],
       equipment: Equipment.bench,
       homeSubstituteId: 'split_squat_jumps',
+      demoFrames: [
+        'assets/exercises/bulgarian_split_squat_jumps/0.jpg',
+        'assets/exercises/bulgarian_split_squat_jumps/1.jpg',
+      ],
     ),
     'split_squat_jumps': ExerciseGuide(
       id: 'split_squat_jumps',
@@ -270,6 +311,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Single-leg power', 'Quads', 'Glutes', 'Balance'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/split_squat_jumps/0.jpg',
+        'assets/exercises/split_squat_jumps/1.jpg',
+      ],
     ),
     'box_step_ups': ExerciseGuide(
       id: 'box_step_ups',
@@ -293,6 +338,10 @@ abstract class ExerciseLibrary {
       trains: ['Single-leg strength', 'Quads', 'Glutes'],
       equipment: Equipment.box,
       homeSubstituteId: 'reverse_lunges',
+      demoFrames: [
+        'assets/exercises/box_step_ups/0.jpg',
+        'assets/exercises/box_step_ups/1.jpg',
+      ],
     ),
     'reverse_lunges': ExerciseGuide(
       id: 'reverse_lunges',
@@ -316,6 +365,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Single-leg strength', 'Quads', 'Glutes', 'Balance'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/reverse_lunges/0.jpg',
+        'assets/exercises/reverse_lunges/1.jpg',
+      ],
     ),
     'nordic_hamstring_curls': ExerciseGuide(
       id: 'nordic_hamstring_curls',
@@ -341,6 +394,10 @@ abstract class ExerciseLibrary {
       trains: ['Eccentric hamstring strength', 'Hamstrings', 'Glutes'],
       equipment: Equipment.bench,
       homeSubstituteId: 'single_leg_glute_bridges',
+      demoFrames: [
+        'assets/exercises/nordic_hamstring_curls/0.jpg',
+        'assets/exercises/nordic_hamstring_curls/1.jpg',
+      ],
     ),
     'single_leg_glute_bridges': ExerciseGuide(
       id: 'single_leg_glute_bridges',
@@ -363,6 +420,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Hip extension strength', 'Glutes', 'Hamstrings'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/single_leg_glute_bridges/0.jpg',
+        'assets/exercises/single_leg_glute_bridges/1.jpg',
+      ],
     ),
     'wall_sits': ExerciseGuide(
       id: 'wall_sits',
@@ -405,6 +466,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Ankle stiffness', 'Calves', 'Achilles tendon'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/calf_raises/0.jpg',
+        'assets/exercises/calf_raises/1.jpg',
+      ],
     ),
     // ---------------------------------------------------------------- speed
     'single_leg_hops': ExerciseGuide(
@@ -427,6 +492,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Single-leg stiffness', 'Calves', 'Quads', 'Hip stability'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/single_leg_hops/0.jpg',
+        'assets/exercises/single_leg_hops/1.jpg',
+      ],
     ),
     'pogo_hops': ExerciseGuide(
       id: 'pogo_hops',
@@ -448,6 +517,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Ankle stiffness', 'Calves', 'Achilles tendon'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/pogo_hops/0.jpg',
+        'assets/exercises/pogo_hops/1.jpg',
+      ],
     ),
     'bounds': ExerciseGuide(
       id: 'bounds',
@@ -470,6 +543,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Single-leg power', 'Glutes', 'Hamstrings', 'Calves'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/bounds/0.jpg',
+        'assets/exercises/bounds/1.jpg',
+      ],
     ),
     'alternating_bounds': ExerciseGuide(
       id: 'alternating_bounds',
@@ -491,6 +568,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Alternating leg power', 'Glutes', 'Hamstrings', 'Calves'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/alternating_bounds/0.jpg',
+        'assets/exercises/alternating_bounds/1.jpg',
+      ],
     ),
     'lateral_bounds': ExerciseGuide(
       id: 'lateral_bounds',
@@ -512,6 +593,10 @@ abstract class ExerciseLibrary {
       ],
       trains: ['Lateral power', 'Glute medius', 'Quads', 'Hip stability'],
       equipment: Equipment.none,
+      demoFrames: [
+        'assets/exercises/lateral_bounds/0.jpg',
+        'assets/exercises/lateral_bounds/1.jpg',
+      ],
     ),
   };
 

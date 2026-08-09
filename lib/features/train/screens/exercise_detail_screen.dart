@@ -86,7 +86,7 @@ class ExerciseDetailScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   _DemoMedia(
                     videoUrl: guide?.demoVideoUrl ?? exercise.videoUrl,
-                    imageAsset: guide?.demoImageAsset,
+                    frames: guide?.demoFrames ?? const [],
                   ),
                   if (guide == null) ...[
                     const SizedBox(height: 20),
@@ -294,9 +294,12 @@ class _EmptyGuideNote extends StatelessWidget {
 /// demonstration. The written steps below carry the screen.
 class _DemoMedia extends StatefulWidget {
   final String? videoUrl;
-  final String? imageAsset;
 
-  const _DemoMedia({required this.videoUrl, required this.imageAsset});
+  /// Start and end positions of the movement. Two stills read better than one
+  /// here: a single frame of a jump is ambiguous, the pair shows the travel.
+  final List<String> frames;
+
+  const _DemoMedia({required this.videoUrl, required this.frames});
 
   @override
   State<_DemoMedia> createState() => _DemoMediaState();
@@ -374,14 +377,30 @@ class _DemoMediaState extends State<_DemoMedia> {
       );
     }
 
-    final asset = widget.imageAsset;
-    if (asset != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: Image.asset(asset, fit: BoxFit.cover),
-        ),
+    final frames = widget.frames;
+    if (frames.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              for (var i = 0; i < frames.length; i++) ...[
+                if (i > 0) const SizedBox(width: 10),
+                Expanded(
+                  child: _Frame(
+                    asset: frames[i],
+                    label: i == 0 ? 'START' : 'FINISH',
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Reference photos, not a recording of your own jump.',
+            style: TextStyle(color: DunkColors.textTertiary, fontSize: 11),
+          ),
+        ],
       );
     }
 
@@ -576,6 +595,55 @@ class _Chip extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+}
+
+/// One demonstration still, captioned with the phase it shows.
+///
+/// The photo is scaled to fit rather than cropped: these are wide reference
+/// shots of a whole body, and cropping them to a tile cuts the feet off —
+/// which on a jumping drill removes the part that matters.
+class _Frame extends StatelessWidget {
+  final String asset;
+  final String label;
+
+  const _Frame({required this.asset, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: AspectRatio(
+            aspectRatio: 3 / 4,
+            child: ColoredBox(
+              color: DunkColors.surface,
+              child: Image.asset(
+                asset,
+                fit: BoxFit.contain,
+                // A missing asset must not crash a session mid-workout.
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(Icons.image_not_supported_outlined,
+                      color: DunkColors.textTertiary, size: 22),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            color: DunkColors.textTertiary,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -67,12 +67,29 @@ void main() {
       }
     });
 
-    test('no demo media is faked until real clips exist', () {
+    test('demo frames come in start/finish pairs under assets/exercises', () {
+      // The rule this replaces was "no media at all". Real reference photos
+      // now ship, so the rule becomes: whatever is there must be a genuine
+      // pair for that drill, filed under that drill's own id — never another
+      // exercise's photo standing in.
       for (final guide in ExerciseLibrary.guides.values) {
-        expect(guide.demoVideoUrl, isNull, reason: guide.id);
-        expect(guide.demoImageAsset, isNull, reason: guide.id);
-        expect(guide.hasDemoMedia, isFalse, reason: guide.id);
+        expect(guide.demoVideoUrl, isNull,
+            reason: 'no clips exist yet: ${guide.id}');
+        if (guide.demoFrames.isEmpty) continue;
+        expect(guide.demoFrames.length, 2, reason: guide.id);
+        for (final frame in guide.demoFrames) {
+          expect(frame, startsWith('assets/exercises/${guide.id}/'),
+              reason: guide.id);
+        }
+        expect(guide.hasDemoMedia, isTrue, reason: guide.id);
       }
+    });
+
+    test('a drill with no honest photo simply has none', () {
+      // Wall sits have no matching entry in the source dataset, and
+      // illustrating them with a squat would be showing a different exercise.
+      expect(ExerciseLibrary.guides['wall_sits']!.demoFrames, isEmpty);
+      expect(ExerciseLibrary.guides['wall_sits']!.hasDemoMedia, isFalse);
     });
   });
 

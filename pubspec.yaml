@@ -45,3 +45,27 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # Start/end demonstration frames per exercise. Flutter only bundles
+    # files directly inside a listed directory, never its subfolders, so
+    # every drill folder has to be named here.
+    # Provenance and the licensing caveat: docs/exercise-media.md
+    - assets/exercises/alternating_bounds/
+    - assets/exercises/bounds/
+    - assets/exercises/box_jumps/
+    - assets/exercises/box_step_ups/
+    - assets/exercises/broad_jumps/
+    - assets/exercises/bulgarian_split_squat_jumps/
+    - assets/exercises/calf_raises/
+    - assets/exercises/depth_jumps/
+    - assets/exercises/lateral_bounds/
+    - assets/exercises/nordic_hamstring_curls/
+    - assets/exercises/pogo_hops/
+    - assets/exercises/reverse_lunges/
+    - assets/exercises/single_leg_glute_bridges/
+    - assets/exercises/single_leg_hops/
+    - assets/exercises/split_squat_jumps/
+    - assets/exercises/squat_jumps/
+    - assets/exercises/tuck_jumps/
+    - assets/exercises/weighted_box_jumps/
+    - assets/exercises/weighted_squat_jumps/
