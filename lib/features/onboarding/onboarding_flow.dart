@@ -18,15 +18,20 @@ import 'screens/goal_screen.dart';
 import 'screens/height_screen.dart';
 import 'screens/hops_screen.dart';
 import 'screens/how_it_works_screen.dart';
+import 'screens/intro_carousel_screen.dart';
 import 'screens/plan_reveal_screen.dart';
 import 'screens/position_screen.dart';
 import 'screens/potential_screen.dart';
 import 'screens/training_location_screen.dart';
 import 'screens/weight_screen.dart';
-import 'screens/welcome_screen.dart';
+import 'widgets/court_backdrop.dart';
+import 'widgets/shared_axis_switcher.dart';
+import 'widgets/staggered_entrance.dart';
 
+/// Declared in flow order — [_go] reads the ordering to work out whether the
+/// athlete advanced or went back, which is what points the transition.
 enum _Step {
-  welcome,
+  intro,
   goal,
   experience,
   position,
@@ -44,9 +49,13 @@ enum _Step {
   planReveal,
 }
 
-/// Drives the full onboarding sequence: an 11-question quiz (with progress bar)
-/// followed by the sell screens (gap → potential → how it works → plan
-/// reveal), then hands the completed [OnboardingProfile] to [onCompleted].
+/// Drives the full onboarding sequence: a swipeable intro carousel, a
+/// 10-question quiz (with progress bar), then the sell screens (gap →
+/// potential → how it works → plan reveal), before handing the completed
+/// [OnboardingProfile] to [onCompleted].
+///
+/// Presentation lives here rather than in the steps: the painted [CourtBackdrop]
+/// sits behind all of them, and [SharedAxisSwitcher] moves between them.
 class OnboardingFlow extends StatefulWidget {
   final ValueChanged<OnboardingProfile> onCompleted;
 
@@ -57,7 +66,11 @@ class OnboardingFlow extends StatefulWidget {
 }
 
 class _OnboardingFlowState extends State<OnboardingFlow> {
-  _Step _step = _Step.welcome;
+  _Step _step = _Step.intro;
+
+  /// Which way the last move went. The step enum is declared in flow order, so
+  /// [_go] can derive this itself and no call site has to say.
+  bool _movingBack = false;
 
   final Set<DunkGoal> _goals = {};
   ExperienceLevel? _experience;
@@ -83,7 +96,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   static const _totalQuizSteps = 10;
 
-  void _go(_Step step) => setState(() => _step = step);
+  void _go(_Step step) => setState(() {
+        _movingBack = step.index < _step.index;
+        _step = step;
+      });
 
   OnboardingProfile get _draftProfile => OnboardingProfile(
         goals: _goals,
@@ -101,18 +117,37 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
-      transitionBuilder: (child, animation) =>
-          FadeTransition(opacity: animation, child: child),
-      child: KeyedSubtree(key: ValueKey(_step), child: _buildStep()),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Painted once for the whole flow rather than per screen: the steps
+        // then never have to know about it, and the court does not restart
+        // behind every transition.
+        CourtBackdrop(animate: !MediaQuery.disableAnimationsOf(context)),
+        // Every step is a Scaffold, and the theme paints those opaque. Making
+        // them transparent here is what lets the court through without any
+        // screen changing its own layout.
+        Theme(
+          data: Theme.of(context)
+              .copyWith(scaffoldBackgroundColor: Colors.transparent),
+          child: SharedAxisSwitcher(
+            reverse: _movingBack,
+            // Re-keying per step is what both triggers the transition and
+            // gives the step a fresh arrival stagger.
+            child: StaggeredEntrance(
+              key: ValueKey(_step),
+              child: _buildStep(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildStep() {
     switch (_step) {
-      case _Step.welcome:
-        return WelcomeScreen(onStart: () => _go(_Step.goal));
+      case _Step.intro:
+        return IntroCarouselScreen(onStart: () => _go(_Step.goal));
 
       case _Step.goal:
         return GoalScreen(
@@ -126,7 +161,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               _goals.add(g);
             }
           }),
-          onBack: () => _go(_Step.welcome),
+          onBack: () => _go(_Step.intro),
           onContinue: () => _go(_Step.experience),
         );
 

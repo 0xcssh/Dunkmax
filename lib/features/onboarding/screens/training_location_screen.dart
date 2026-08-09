@@ -5,6 +5,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
+import '../widgets/staggered_entrance.dart';
 
 class TrainingLocationScreen extends StatelessWidget {
   final TrainingLocation? selected;
@@ -39,6 +40,7 @@ class TrainingLocationScreen extends StatelessWidget {
       subtitle: "We'll recommend programs that fit your setup.",
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
+      staggerBody: false,
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: TrainingLocation.values.length,
@@ -46,12 +48,15 @@ class TrainingLocationScreen extends StatelessWidget {
         itemBuilder: (context, i) {
           final loc = TrainingLocation.values[i];
           final (icon, tint) = _icons[loc]!;
-          return SelectableCard(
-            leading: IconTile(icon: icon, tint: tint),
-            title: loc.title,
-            subtitle: loc.subtitle,
-            selected: selected == loc,
-            onTap: () => onSelect(loc),
+          return StaggerItem(
+            index: OnboardingScaffold.bodyStaggerIndex + i,
+            child: SelectableCard(
+              leading: IconTile(icon: icon, tint: tint),
+              title: loc.title,
+              subtitle: loc.subtitle,
+              selected: selected == loc,
+              onTap: () => onSelect(loc),
+            ),
           );
         },
       ),

@@ -5,6 +5,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
+import '../widgets/staggered_entrance.dart';
 
 class GoalScreen extends StatelessWidget {
   final Set<DunkGoal> selected;
@@ -41,6 +42,8 @@ class GoalScreen extends StatelessWidget {
       subtitle: "Select every goal that fires you up — we'll build the path.",
       onBack: onBack,
       onContinue: selected.isEmpty ? null : onContinue,
+      // The cards arrive one after another instead of as a single block.
+      staggerBody: false,
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: DunkGoal.values.length,
@@ -48,12 +51,15 @@ class GoalScreen extends StatelessWidget {
         itemBuilder: (context, i) {
           final goal = DunkGoal.values[i];
           final (icon, tint) = _icons[goal]!;
-          return SelectableCard(
-            leading: IconTile(icon: icon, tint: tint),
-            title: goal.title,
-            subtitle: goal.subtitle,
-            selected: selected.contains(goal),
-            onTap: () => onToggle(goal),
+          return StaggerItem(
+            index: OnboardingScaffold.bodyStaggerIndex + i,
+            child: SelectableCard(
+              leading: IconTile(icon: icon, tint: tint),
+              title: goal.title,
+              subtitle: goal.subtitle,
+              selected: selected.contains(goal),
+              onTap: () => onToggle(goal),
+            ),
           );
         },
       ),

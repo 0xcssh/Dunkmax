@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
+import 'staggered_entrance.dart';
 
 /// Shared chrome for every quiz step: a segmented progress bar + back button
 /// up top, a title/subtitle block, the step's body, and a pinned Continue CTA.
+///
+/// The blocks arrive in a short stagger (see [StaggerItem]) when the step is
+/// entered. The header is deliberately left out of it: the progress bar is
+/// continuous chrome, so re-animating it every step would fight the sense that
+/// it is one bar filling up.
 class OnboardingScaffold extends StatelessWidget {
   final int step;
   final int totalSteps;
@@ -14,6 +20,19 @@ class OnboardingScaffold extends StatelessWidget {
   final String ctaLabel;
   final VoidCallback? onContinue;
   final VoidCallback? onBack;
+
+  /// Whether the body should arrive as one block. Screens whose body is a list
+  /// of option cards pass false and stagger the cards individually, from
+  /// [bodyStaggerIndex] upwards.
+  final bool staggerBody;
+
+  /// Where the body sits in the stagger order — also the first index a screen
+  /// staggering its own cards should use.
+  static const int bodyStaggerIndex = 2;
+
+  /// The CTA is pinned late and at a fixed index so it always lands last,
+  /// whatever the body does.
+  static const int _ctaStaggerIndex = 7;
 
   const OnboardingScaffold({
     super.key,
@@ -25,6 +44,7 @@ class OnboardingScaffold extends StatelessWidget {
     required this.onContinue,
     this.ctaLabel = 'CONTINUE',
     this.onBack,
+    this.staggerBody = true,
   });
 
   @override
@@ -46,13 +66,26 @@ class OnboardingScaffold extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 32),
-              Text(title, style: DunkTheme.onboardingTitle),
+              StaggerItem(
+                index: 0,
+                child: Text(title, style: DunkTheme.onboardingTitle),
+              ),
               const SizedBox(height: 12),
-              Text(subtitle, style: DunkTheme.onboardingSubtitle),
+              StaggerItem(
+                index: 1,
+                child: Text(subtitle, style: DunkTheme.onboardingSubtitle),
+              ),
               const SizedBox(height: 28),
-              Expanded(child: child),
+              Expanded(
+                child: staggerBody
+                    ? StaggerItem(index: bodyStaggerIndex, child: child)
+                    : child,
+              ),
               const SizedBox(height: 12),
-              PrimaryButton(label: ctaLabel, onPressed: onContinue),
+              StaggerItem(
+                index: _ctaStaggerIndex,
+                child: PrimaryButton(label: ctaLabel, onPressed: onContinue),
+              ),
             ],
           ),
         ),

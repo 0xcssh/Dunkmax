@@ -5,6 +5,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
+import '../widgets/staggered_entrance.dart';
 
 class ExperienceScreen extends StatelessWidget {
   final ExperienceLevel? selected;
@@ -39,6 +40,7 @@ class ExperienceScreen extends StatelessWidget {
       subtitle: 'No ego here. Be honest so we can push you right.',
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
+      staggerBody: false,
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: ExperienceLevel.values.length,
@@ -46,12 +48,15 @@ class ExperienceScreen extends StatelessWidget {
         itemBuilder: (context, i) {
           final level = ExperienceLevel.values[i];
           final (icon, tint) = _icons[level]!;
-          return SelectableCard(
-            leading: IconTile(icon: icon, tint: tint),
-            title: level.title,
-            subtitle: level.subtitle,
-            selected: selected == level,
-            onTap: () => onSelect(level),
+          return StaggerItem(
+            index: OnboardingScaffold.bodyStaggerIndex + i,
+            child: SelectableCard(
+              leading: IconTile(icon: icon, tint: tint),
+              title: level.title,
+              subtitle: level.subtitle,
+              selected: selected == level,
+              onTap: () => onSelect(level),
+            ),
           );
         },
       ),

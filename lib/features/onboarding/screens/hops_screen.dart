@@ -5,6 +5,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
+import '../widgets/staggered_entrance.dart';
 
 class HopsScreen extends StatelessWidget {
   final HopsLevel? selected;
@@ -41,20 +42,28 @@ class HopsScreen extends StatelessWidget {
       subtitle: 'Be honest — this calibrates your whole plan.',
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
+      staggerBody: false,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // The vertical "ladder" rail from the reference screen.
-          Container(
-            width: 3,
-            margin: const EdgeInsets.only(right: 14, top: 6, bottom: 6),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [DunkColors.stroke, DunkColors.primary, DunkColors.stroke],
+          StaggerItem(
+            index: OnboardingScaffold.bodyStaggerIndex,
+            child: Container(
+              width: 3,
+              margin: const EdgeInsets.only(right: 14, top: 6, bottom: 6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    DunkColors.stroke,
+                    DunkColors.primary,
+                    DunkColors.stroke,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(3),
               ),
-              borderRadius: BorderRadius.circular(3),
             ),
           ),
           Expanded(
@@ -65,12 +74,15 @@ class HopsScreen extends StatelessWidget {
               itemBuilder: (context, i) {
                 final level = HopsLevel.values[i];
                 final (icon, tint) = _icons[level]!;
-                return SelectableCard(
-                  leading: IconTile(icon: icon, tint: tint),
-                  title: level.title,
-                  subtitle: level.subtitle,
-                  selected: selected == level,
-                  onTap: () => onSelect(level),
+                return StaggerItem(
+                  index: OnboardingScaffold.bodyStaggerIndex + i,
+                  child: SelectableCard(
+                    leading: IconTile(icon: icon, tint: tint),
+                    title: level.title,
+                    subtitle: level.subtitle,
+                    selected: selected == level,
+                    onTap: () => onSelect(level),
+                  ),
                 );
               },
             ),

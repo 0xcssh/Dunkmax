@@ -75,8 +75,15 @@ class _MotivationBanner extends StatelessWidget {
           Icon(Icons.local_fire_department, color: DunkColors.primary, size: 20),
           SizedBox(width: 10),
           Expanded(
+            // "Athletes who train 4+ days see results 2x faster" used to sit
+            // here. There is no study behind that number and no user base to
+            // draw it from — it was invented to make a nudge sound
+            // authoritative, which is the same rule the fake ratings and
+            // testimonials were removed under. What replaces it is true of
+            // any training programme and claims no measurement.
             child: Text(
-              'Athletes who train 4+ days see results 2x faster',
+              'More sessions a week means more volume — pick what you can '
+              'actually keep up.',
               style: TextStyle(
                 color: DunkColors.primaryBright,
                 fontWeight: FontWeight.w600,

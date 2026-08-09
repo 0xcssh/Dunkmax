@@ -5,6 +5,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
+import '../widgets/staggered_entrance.dart';
 
 class CommitmentScreen extends StatelessWidget {
   final CommitmentLevel? selected;
@@ -40,6 +41,7 @@ class CommitmentScreen extends StatelessWidget {
           'Athletes who commit before they start are the ones who make the leap.',
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
+      staggerBody: false,
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: CommitmentLevel.values.length,
@@ -47,12 +49,15 @@ class CommitmentScreen extends StatelessWidget {
         itemBuilder: (context, i) {
           final level = CommitmentLevel.values[i];
           final (icon, tint) = _icons[level]!;
-          return SelectableCard(
-            leading: IconTile(icon: icon, tint: tint),
-            title: level.title,
-            subtitle: level.subtitle,
-            selected: selected == level,
-            onTap: () => onSelect(level),
+          return StaggerItem(
+            index: OnboardingScaffold.bodyStaggerIndex + i,
+            child: SelectableCard(
+              leading: IconTile(icon: icon, tint: tint),
+              title: level.title,
+              subtitle: level.subtitle,
+              selected: selected == level,
+              onTap: () => onSelect(level),
+            ),
           );
         },
       ),

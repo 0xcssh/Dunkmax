@@ -33,13 +33,24 @@ Future<DunkMaxApp> _buildApp() async {
   );
 }
 
+/// Onboarding's painted court backdrop animates continuously, so the tree
+/// never goes idle and `pumpAndSettle` would run to its timeout. Pump a fixed
+/// stretch instead — comfortably longer than the flow's own arrival stagger
+/// (620 ms) and its step transition (320 ms).
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 1));
+  await tester.pump(const Duration(seconds: 1));
+}
+
 void main() {
-  testWidgets('fresh launch shows the welcome hook', (tester) async {
+  testWidgets('fresh launch shows the intro carousel', (tester) async {
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(await _buildApp());
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
+    expect(find.textContaining('SEE YOUR REAL'), findsOneWidget);
     expect(find.text("LET'S START"), findsOneWidget);
   });
 
@@ -47,10 +58,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(await _buildApp());
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     await tester.tap(find.text("LET'S START"));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(find.textContaining('DUNK GOAL'), findsOneWidget);
     // Continue is gated until at least one goal is picked.

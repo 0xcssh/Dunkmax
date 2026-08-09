@@ -133,7 +133,10 @@ lib/
     jump_log_store.dart  Persists JumpLogEntry history (fed by Analyze),
                          same one-entry-per-string pattern
   features/
-    onboarding/          Welcome hook + 11-question quiz + sell screens
+    onboarding/          Intro carousel (3 swipeable panels, live in-app
+                         mockups) + 10-question quiz + sell screens. The whole
+                         flow shares a painted `widgets/court_backdrop.dart`
+                         and a direction-aware `widgets/shared_axis_switcher`
     paywall/             Real paywall: renders the live RevenueCat offering
                          (store prices, trial length, derived savings), buys,
                          restores; honest unavailable state with no API key
@@ -326,17 +329,57 @@ state promises a personalisation that isn't there.
 
 ## Onboarding flow (built) — order
 
-Welcome → **quiz (progress bar, 10 Q):** dunk goal (multi) · experience ·
+Intro carousel → **quiz (progress bar, 10 Q):** dunk goal (multi) · experience ·
 position · days/week · training location · hops level · height (wheel) ·
 weight (slider) · age (wheel) · commitment → **sell screens:** gap analysis
 ("Here's the gap") → jump-potential projection → how it works (the
 measurement method — replaced the old placeholder social-proof screen) →
 building loader → plan reveal → **free analysis** → **paywall** → app shell.
 
+### Presentation (owned by `onboarding_flow.dart`, not by the steps)
+
+- **`widgets/court_backdrop.dart`** — the dark court behind every step, a
+  `CustomPainter` and deliberately **not** a photo: no licence to track, no
+  asset weight, and it can be tuned and animated for kilobytes. Four layers —
+  dark vertical gradient, perspective floorboards converging on a vanishing
+  point, a warm off-centre spotlight, a heavy vignette — all held at low alpha
+  (boards ≤ 16%, spotlight ≈ 11%) because **legibility of the text on top wins
+  over the illustration**. A 26 s eased loop drifts the vanishing point and
+  breathes the spotlight; it honours `MediaQuery.disableAnimationsOf`. Applied
+  once at flow level, with a `Theme` override making the steps' `Scaffold`s
+  transparent, so no screen changed its own layout.
+- **`widgets/shared_axis_switcher.dart`** — direction-aware step transitions
+  (outgoing slides+fades one way, incoming from the other). `AnimatedSwitcher`
+  can't do this: it reverses the entry transition, so a page always leaves the
+  way it arrived. Direction is derived from the `_Step` enum's declaration
+  order, so no call site has to say which way it is going. The outgoing page is
+  wrapped in `IgnorePointer`; the incoming one is live from frame 1 — **an
+  animation never delays a tap**.
+- **`widgets/staggered_entrance.dart`** — one controller per step; `StaggerItem`
+  fades/lifts title, subtitle, each option card and the CTA in sequence
+  (`OnboardingScaffold` places them; card screens pass `staggerBody: false` and
+  stagger their own cards from `OnboardingScaffold.bodyStaggerIndex`). It only
+  changes opacity/offset, never hit testing.
+- **`screens/intro_carousel_screen.dart`** — three swipeable panels (jump
+  analysis · training plan · progress), each a **live widget mockup**
+  (`widgets/phone_mockup.dart` + `widgets/mock_app_screens.dart`) rather than a
+  screenshot: nothing here can take one, and a bundled PNG would go stale the
+  moment a real screen changed. It **replaced** the old `welcome_screen.dart`
+  (two full-screen hooks with two CTAs before the first question was one too
+  many; its "TRAIN WITH A REAL PLAN" headline lives on as panel 2). The
+  reference app's "4.8 · 675+ ratings" badge is deliberately absent — sample
+  numbers *inside* the phone are a picture of the product, claims about other
+  people are not.
+- Because the backdrop animates continuously the tree never goes idle, so
+  `test/app_smoke_test.dart` pumps fixed durations instead of `pumpAndSettle`
+  (which would run to its timeout). Any future onboarding widget test must do
+  the same.
+
 ## What's built vs TODO
 
 Built & CI-green:
-- Full onboarding (13 screens) wired to the tested core.
+- Full onboarding (intro carousel + 15 screens) wired to the tested core, on a
+  painted court backdrop with shared-axis step transitions (see below).
 - Tested core: program catalog, program progress, vert/gap/projection math,
   workout session/streak, jump trend.
 - App shell (5 tabs); **Train** tab functional: 3-day program rotations

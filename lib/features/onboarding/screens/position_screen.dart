@@ -5,6 +5,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
+import '../widgets/staggered_entrance.dart';
 
 class PositionScreen extends StatelessWidget {
   final CourtPosition? selected;
@@ -33,17 +34,22 @@ class PositionScreen extends StatelessWidget {
       subtitle: "We'll tailor exercises to your position.",
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
+      staggerBody: false,
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: CourtPosition.values.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, i) {
           final position = CourtPosition.values[i];
-          return SelectableCard(
-            leading: NumberTile(number: position.number, tint: DunkColors.primary),
-            title: position.label,
-            selected: selected == position,
-            onTap: () => onSelect(position),
+          return StaggerItem(
+            index: OnboardingScaffold.bodyStaggerIndex + i,
+            child: SelectableCard(
+              leading:
+                  NumberTile(number: position.number, tint: DunkColors.primary),
+              title: position.label,
+              selected: selected == position,
+              onTap: () => onSelect(position),
+            ),
           );
         },
       ),
