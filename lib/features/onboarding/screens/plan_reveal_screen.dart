@@ -61,8 +61,12 @@ class PlanRevealScreen extends StatelessWidget {
                   children: [
                     const Text("HERE'S YOUR PLAN", style: DunkTheme.onboardingTitle),
                     const SizedBox(height: 10),
-                    Text(
-                      'Matched to your goals, level and schedule.',
+                    // Goals are collected but never reach the programming —
+                    // only experience, training days and location do. Naming
+                    // them here would be a claim the catalog does not honour.
+                    const Text(
+                      'Matched to your level, your schedule and where you '
+                      'train.',
                       style: DunkTheme.onboardingSubtitle,
                     ),
                     const SizedBox(height: 20),

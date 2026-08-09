@@ -81,8 +81,9 @@ class _SourceScreenState extends State<SourceScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Film your jump straight-on, full body in frame. We measure '
-              'hang time to estimate your vertical — no calibration needed.',
+              'Film your jump straight-on, full body in frame. We track your '
+              'feet to time the flight, then gravity gives the height — no '
+              'calibration needed.',
               style: DunkTheme.onboardingSubtitle,
             ),
             const SizedBox(height: 24),

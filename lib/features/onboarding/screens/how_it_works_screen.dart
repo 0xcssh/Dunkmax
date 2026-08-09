@@ -26,18 +26,33 @@ class HowItWorksScreen extends StatelessWidget {
     required this.onBack,
   });
 
+  /// Every line here has to be something the app does today.
+  ///
+  /// This list previously claimed the programme was built from "your height,
+  /// age, experience and training days". Height and age never reached the
+  /// programming — they drive the dunk target and the projection curve, which
+  /// is a different thing — so the sell screen was promising a
+  /// personalisation that did not exist. Check any claim added here against
+  /// `core/program_catalog.dart` and `core/pose_jump_detector.dart` before it
+  /// ships.
   static const _points = <(IconData, String, String)>[
+    (
+      Icons.accessibility_new,
+      'We watch your body, not the pixels',
+      'On-device tracking follows your feet frame by frame and finds the '
+          'exact instants they leave the floor and meet it again.',
+    ),
     (
       Icons.straighten,
       'Measured, not guessed',
-      'We time your hang from the video and derive the height from '
-          'gravity itself. No camera calibration, no eyeballing.',
+      'Your hang time gives your height through gravity alone — no camera '
+          'calibration, no markers, no eyeballing.',
     ),
     (
       Icons.tune,
-      'A plan built around you',
-      'Your height, age, experience and training days decide the program '
-          'you get — not a one-size-fits-all template.',
+      'A plan you can actually run',
+      'Your experience, your training days and whether you have a gym '
+          'decide your programme — no barbell drills if you train at home.',
     ),
     (
       Icons.trending_up,
