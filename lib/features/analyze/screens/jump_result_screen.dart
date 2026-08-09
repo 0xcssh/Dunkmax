@@ -92,7 +92,7 @@ class JumpResultScreen extends StatelessWidget {
 
 /// Raw detection data for this clip, and — stated plainly, not implied —
 /// which of the three methods produced the number above it: body tracking,
-/// the frame-motion fallback, or the athlete's own manual marks.
+/// or the frame-motion fallback.
 ///
 /// While detection is still being validated against real footage, showing
 /// exactly what each pass saw (instead of only the final number) turns the

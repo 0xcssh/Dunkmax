@@ -14,12 +14,12 @@ import '../../core/trim_range.dart';
 import '../../core/vert_assessment.dart';
 import '../../services/jump_log_store.dart';
 import 'screens/jump_result_screen.dart';
-import 'screens/mark_jump_screen.dart';
 import 'screens/processing_screen.dart';
 import 'screens/source_screen.dart';
 import 'screens/trim_screen.dart';
+import 'screens/unmeasured_screen.dart';
 
-enum _Step { source, trim, mark, processing, result }
+enum _Step { source, trim, processing, unmeasured, result }
 
 /// Drives the Analyze tab: pick/record a jump clip → trim it to the one jump →
 /// find takeoff/landing → the result dashboard. The headline number (EST.
@@ -33,7 +33,8 @@ enum _Step { source, trim, mark, processing, result }
 ///
 /// Finding the airborne window is a three-tier cascade (see
 /// [ProcessingScreen]): pose tracking first, whole-frame motion energy as a
-/// fallback, and manual marking when neither can answer. Every tier reports
+/// fallback. When neither can answer there is no number: the athlete is
+/// told what the detector saw and how to fix the clip. Every tier reports
 /// which one it was, so the result screen never presents a fallback reading as
 /// if it came from body tracking.
 ///
@@ -73,7 +74,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   JumpResult? _result;
   JumpTrend? _trend;
   JumpAnalysis _analysis = JumpAnalysis.empty;
-  JumpDetectionMethod _method = JumpDetectionMethod.manual;
+  JumpDetectionMethod _method = JumpDetectionMethod.pose;
 
   void _onVideoSelected(File video, VideoAttemptType attemptType) {
     setState(() {
@@ -95,16 +96,16 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     setState(() => _analysis = analysis);
     final measurement = analysis.measurement;
     if (measurement == null) {
-      // Neither pose tracking nor motion energy found a clear jump — fall
-      // back to manual marking rather than dead-ending the user.
-      setState(() => _step = _Step.mark);
+      // No measurement. The athlete used to be handed the clip and asked to
+      // tap the takeoff and landing frames; that is a fiddly job offered at
+      // the moment the app failed at its headline feature, and identifying
+      // those two frames by eye is the dominant error source even for trained
+      // users at 240 fps. They get the reason and the fix instead.
+      setState(() => _step = _Step.unmeasured);
       return;
     }
     _finishWithMeasurement(measurement, analysis.method!);
   }
-
-  void _onMarked(JumpMeasurement measurement) =>
-      _finishWithMeasurement(measurement, JumpDetectionMethod.manual);
 
   Future<void> _finishWithMeasurement(
     JumpMeasurement measurement,
@@ -169,7 +170,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
         _result = null;
         _trend = null;
         _analysis = JumpAnalysis.empty;
-        _method = JumpDetectionMethod.manual;
+        _method = JumpDetectionMethod.pose;
         _step = _Step.source;
       });
 
@@ -200,14 +201,11 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
           rangeEnd: _trim!.end,
           onDetected: _onDetected,
         );
-      case _Step.mark:
-        return MarkJumpScreen(
-          video: _video!,
-          onMarked: _onMarked,
-          onCancel: _reset,
-          isFallback: true,
-          rangeStart: _trim?.start,
-          rangeEnd: _trim?.end,
+      case _Step.unmeasured:
+        return UnmeasuredScreen(
+          rejection: _analysis.pose.rejection,
+          onRetrim: () => setState(() => _step = _Step.trim),
+          onNewClip: _reset,
         );
       case _Step.result:
         return JumpResultScreen(

@@ -15,8 +15,7 @@ import '../pose_extraction.dart';
 /// never presented as more (or less) authoritative than it is.
 enum JumpDetectionMethod {
   pose('Body tracking'),
-  motion('Frame motion'),
-  manual('Your own marks');
+  motion('Frame motion');
 
   final String label;
   const JumpDetectionMethod(this.label);
@@ -45,7 +44,7 @@ class JumpAnalysis {
   );
 
   /// Pose first, motion energy second, null when neither could answer (the
-  /// caller then falls back to manual marking).
+  /// caller then shows why, rather than asking the athlete to mark it).
   JumpMeasurement? get measurement => pose.result ?? motion.result;
 
   JumpDetectionMethod? get method {
@@ -75,8 +74,12 @@ class JumpAnalysis {
 ///    unavailable. It is *not* used when pose ran and declined: that decline
 ///    is a considered refusal by the better method, and overriding it with
 ///    the weaker one is how a jump measured at 28-29" got reported as 8".
-/// 3. Otherwise the caller falls back to **manual marking**, which always
-///    works and is honest about who made the call.
+/// 3. Otherwise there is no number. The caller shows what the detector
+///    declined on and how to fix the clip. Asking the athlete to tap the
+///    takeoff and landing frames themselves used to be the fallback; those
+///    two frames are the dominant error source in this method even for
+///    trained users at 240 fps, so a wrong measurement dressed as the
+///    athlete's own choice is worse than none.
 ///
 /// The checklist below tracks the real stages of that pass as they complete —
 /// it is not a decorative animation, and when the fallback engages it says so
@@ -160,7 +163,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       } else if (pose.result == null && mounted) {
         setState(() => _fallbackNote =
             "Body tracking couldn't measure this clip "
-            '(${pose.rejection.label}) — mark the jump yourself.');
+            '(${pose.rejection.label}).');
       }
 
       // The form scores read the *same* landmark series, so they cost no

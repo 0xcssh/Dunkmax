@@ -144,8 +144,11 @@ lib/
                          honestly locked (no backend, no accounts)
     analyze/             Source (record/pick video) → trim to one jump →
                          processing beat → result dashboard (flight-time vert);
-                         manual mark takeoff/landing is the last-resort
-                         fallback; a valid result is persisted to JumpLogStore.
+                         when nothing can be measured the athlete gets the
+                         detector's reason and how to fix the clip — never a
+                         request to mark the frames by hand (screens/
+                         unmeasured_screen.dart); a valid result is persisted
+                         to JumpLogStore.
                          The trim range (core/trim_range.dart, pure + tested)
                          is a *range selection*, never a re-encode: it is
                          passed into both frame samplers, which spend a fixed
