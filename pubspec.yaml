@@ -28,6 +28,15 @@ dependencies:
   # time; with none set the app runs fully offline and the global board shows
   # its locked state, so CI and local runs need no secrets.
   supabase_flutter: ^2.8.0
+  # In-app purchases via RevenueCat, same pattern as PodRadar. The API key
+  # comes from --dart-define; with none set the app treats every athlete as
+  # unsubscribed and the paywall says purchases are unavailable, so CI, tests
+  # and the web preview stay secret-free and never touch StoreKit.
+  purchases_flutter: ^8.4.0
+  # Opens the Privacy Policy and Terms links on the paywall. App Review taps
+  # those links and expects a real page, so showing the URL for copying is not
+  # enough — this is a submission requirement, not a nicety.
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

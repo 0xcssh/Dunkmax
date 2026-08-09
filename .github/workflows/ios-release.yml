@@ -77,7 +77,21 @@ jobs:
         # forwarded to xcodebuild as build settings.
         env:
           FLUTTER_XCODE_IPHONEOS_DEPLOYMENT_TARGET: "15.5"
-        run: flutter build ios --release --no-codesign
+        # Secrets are threaded in as --dart-define. Every one of them is
+        # optional by design: with an empty value the corresponding feature
+        # reports itself unavailable rather than failing, which is what keeps
+        # ci.yml and web-preview.yml secret-free.
+        #
+        # PREVIEW_UNLOCK opens the paywall on a build made before RevenueCat
+        # exists, so TestFlight can exercise everything that is not the
+        # purchase. It is inert once REVENUECAT_API_KEY is set, and removing
+        # this line is a submission step in docs/revenuecat-setup.md.
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}" \
+            --dart-define=REVENUECAT_API_KEY="${{ secrets.REVENUECAT_API_KEY }}" \
+            --dart-define=PREVIEW_UNLOCK=true
 
       - name: Import signing certificate
         uses: apple-actions/import-codesign-certs@v3

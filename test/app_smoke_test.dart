@@ -2,7 +2,9 @@ import 'package:dunkmax/app.dart';
 import 'package:dunkmax/services/athlete_profile_store.dart';
 import 'package:dunkmax/services/jump_log_store.dart';
 import 'package:dunkmax/services/leaderboard_service.dart';
+import 'package:dunkmax/core/subscription_offer.dart';
 import 'package:dunkmax/services/onboarding_store.dart';
+import 'package:dunkmax/services/subscription_service.dart';
 import 'package:dunkmax/services/workout_session_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +18,10 @@ Future<DunkMaxApp> _buildApp() async {
   // every one of its methods is a no-op, so nothing here touches a network.
   final leaderboardService = LeaderboardService();
   await leaderboardService.initialize();
+  // Likewise unconfigured: no RevenueCat key under test, so the SDK is never
+  // configured and StoreKit is never touched.
+  final subscriptionService = SubscriptionService();
+  await subscriptionService.initialize();
 
   return DunkMaxApp(
     store: store,
@@ -23,6 +29,7 @@ Future<DunkMaxApp> _buildApp() async {
     jumpLogStore: jumpLogStore,
     athleteProfileStore: athleteProfileStore,
     leaderboardService: leaderboardService,
+    subscriptionService: subscriptionService,
   );
 }
 
@@ -63,5 +70,26 @@ void main() {
       verticalInches: 30,
       heightInches: 73,
     );
+  });
+
+  test('the subscription service is inert without an API key', () async {
+    final service = SubscriptionService();
+
+    expect(service.isConfigured, isFalse);
+    // Must not throw, must not hang, must never call Purchases.configure.
+    await service.initialize();
+    expect(service.isAvailable, isFalse);
+    expect(await service.fetchOffer(), isNull);
+    expect(await service.purchaseById('\$rc_annual'),
+        PurchaseOutcome.unavailable);
+    expect(await service.restore(), isFalse);
+    await service.refreshEntitlement();
+    expect(service.isSubscribed.value, isFalse);
+
+    // Nobody is entitled without a key, so a non-release build gets the
+    // explicit dev/CI escape hatch instead of being locked out entirely.
+    // kReleaseMode is false under `flutter test`.
+    expect(service.allowsUnconfiguredAccess, isTrue);
+    expect(service.hasAccess, isTrue);
   });
 }

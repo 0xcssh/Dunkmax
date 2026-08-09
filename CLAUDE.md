@@ -81,7 +81,9 @@ Signing isn't set up on this repo yet. To get a signed IPA on the iPhone:
 ```
 lib/
   main.dart              Bootstraps SharedPreferences store, runs the app
-  app.dart               Phase machine: onboarding → paywall → app shell
+  app.dart               Phase machine: onboarding → free analysis → paywall →
+                         app shell. The paywall gate is the ENTITLEMENT, not a
+                         tap: it listens to SubscriptionService.isSubscribed
   theme/app_theme.dart   DunkColors palette (near-black + orange) + text styles
   core/                  PURE Dart, NO Flutter imports — fully CI-tested.
     models/              DunkGoal, ExperienceLevel, CourtPosition, Exercise,
@@ -100,8 +102,19 @@ lib/
                           scores were measured)
     trim_range.dart       Analyze's trim selection: handle clamping (0.6 s
                           minimum span), clip<->fraction mapping, 0:00.0 format
+    subscription_offer.dart  BillingPeriod (ISO-8601 "P1Y"), SubscriptionPlan
+                          (per-week price, billed line, trial line, Apple
+                          renewal disclosure), SubscriptionOffer (BEST VALUE +
+                          derived Save N%), PurchaseOutcome. `formatLikePrice`
+                          rewrites the digits inside the store's own localised
+                          price string, so we never guess a currency format
+    legal_urls.dart       Privacy / Terms URLs in one place (see TODO inside)
   services/
     onboarding_store.dart shared_preferences wrapper (persist profile + flag)
+    subscription_service.dart  RevenueCat glue: guarded configure, offering
+                          fetch → SubscriptionPlan, purchase / restore,
+                          ValueNotifier<bool> isSubscribed. Inert with no
+                          --dart-define key
     workout_session_store.dart  Persists completed WorkoutSessions (one JSON
                          string per entry, so one corrupt entry can't sink
                          the rest)
@@ -109,7 +122,9 @@ lib/
                          same one-entry-per-string pattern
   features/
     onboarding/          Welcome hook + 11-question quiz + sell screens
-    paywall/             Presentation-only paywall (IAP is a follow-up)
+    paywall/             Real paywall: renders the live RevenueCat offering
+                         (store prices, trial length, derived savings), buys,
+                         restores; honest unavailable state with no API key
     home/                5-tab shell (Home, Analyze, Train, Feed, Progress) —
                          all five functional
     feed/                Leaderboards: the athlete's OWN jumps ranked
@@ -302,7 +317,16 @@ Built & CI-green:
   (`WorkoutStreak`, counts across all programs — a habit metric, not
   program-scoped), current vertical + trend since first test
   (`JumpTrendCalculator`, honest "—" empty state if no jump logged yet).
-- Presentation-only paywall.
+- **Paywall wired to RevenueCat** (`services/subscription_service.dart` +
+  `core/subscription_offer.dart`, 30 tests). Prices, billing period, trial
+  length and the savings badge are all derived from the fetched offering —
+  each derivation returns null rather than a guess, so a claim the product
+  can't support simply disappears (the old hardcoded "Save 83%" was invented;
+  the real figure from the same prices is 84%). `app.dart` gates on the
+  **entitlement**, not on a tap. Key comes from `--dart-define`
+  (`REVENUECAT_API_KEY`); with none set the SDK is never configured and the
+  paywall says purchases are unavailable. Owner setup:
+  `docs/revenuecat-setup.md`.
 - CI (analyze+test, unsigned iOS build) + web-preview workflow.
 
 TODO (rough priority):
@@ -348,8 +372,25 @@ TODO (rough priority):
       board (medal ranks, thumbnails, tap to replay) remains below it.
 - [ ] **Coach** (AI chat).
 - [ ] **iOS signing** → IPA on device (see above).
-- [ ] **IAP via RevenueCat** (real paywall + 3-day trial; same account
-      pattern as PodRadar). Two products for the trial/no-trial cascade.
+- [x] **IAP via RevenueCat** — app-side done. `SubscriptionService` mirrors
+      `LeaderboardService`: `isConfigured`, guarded `initialize()`, every call
+      timed out and swallowed. Entitlement id is the single constant
+      `SubscriptionService.entitlementId = 'pro'` and **must match the
+      RevenueCat dashboard** or a real purchase unlocks nothing (the paywall
+      detects and names that case). A cancelled purchase is
+      `PurchaseOutcome.cancelled`, not a failure — the UI stays silent.
+      **Dev/CI escape hatch:** nobody can be entitled without a key, so
+      `allowsUnconfiguredAccess = !isConfigured && !kReleaseMode` lets
+      unconfigured *non-release* builds through a clearly-labelled
+      "CONTINUE WITHOUT PURCHASE" button. A *release* build with no key fails
+      closed — no purchase, no way in — so this can never ship as a bypass.
+      Still TODO (owner, see `docs/revenuecat-setup.md`): App Store Connect
+      products + paid-apps agreement, the RevenueCat project, the
+      `REVENUECAT_API_KEY` repo secret and the one-line `--dart-define` in
+      `ios-release.yml`, and `url_launcher` so the Privacy/Terms links open a
+      browser instead of a copy-the-URL dialog (URLs live in
+      `core/legal_urls.dart`; the privacy one is a reserved `.invalid`
+      placeholder until a real page is published).
 - [ ] **Localization** — externalize strings to flutter_localizations + ARB
       (en, fr, es, de, it, pt-BR). Biggest ASO edge; don't defer to the end.
 - [ ] Real **app icon** + a condensed display font (currently system font).
@@ -395,6 +436,7 @@ TODO (rough priority):
 | Bundle ID | `com.awdia.dunkmax` (not yet registered) |
 | Team ID | `8L8G4P4Z9X` (shared; GitHub var `APPLE_TEAM_ID`) |
 | Signing secrets | Not yet added to this repo (see iOS section) |
-| RevenueCat | Not set up yet (mirror PodRadar's pattern) |
-| Subscriptions | Reference app used an annual + trial; price TBD |
+| RevenueCat | App-side wired; dashboard/account not created yet. Entitlement id `pro`; secret `REVENUECAT_API_KEY` → `--dart-define`. See `docs/revenuecat-setup.md` |
+| Subscriptions | Yearly + weekly, each in a trial / no-trial pair (cascade); 3-day trial; price TBD. Not created in App Store Connect yet |
+| Legal URLs | `lib/core/legal_urls.dart`. Terms = Apple's standard EULA (real). Privacy = `.invalid` placeholder, **must be published before submission** |
 | Permissions | Camera + Photo Library — code (`image_picker`) is wired, but the Info.plist usage-description strings aren't committed yet (see Analyze section above) |
