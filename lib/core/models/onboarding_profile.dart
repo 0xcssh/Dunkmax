@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'commitment_level.dart';
 import 'court_position.dart';
 import 'dunk_goal.dart';
+import 'dunk_hand.dart';
 import 'experience_level.dart';
 import 'hops_level.dart';
 import 'training_location.dart';
@@ -33,6 +34,13 @@ class OnboardingProfile {
   /// showing a dunk gap should say which one it used.
   final int? standingReachInches;
 
+  /// How the athlete intends to finish a dunk. Null when the answer predates
+  /// the question (or was never given), in which case VertAssessment keeps the
+  /// one-hand target — the friendlier of the two, and never an invented one.
+  /// A two-hand finish has to get both forearms over the ring, so it raises
+  /// the reach target and therefore the vertical the athlete is training for.
+  final DunkHand? dunkHand;
+
   const OnboardingProfile({
     required this.goals,
     required this.experience,
@@ -45,6 +53,7 @@ class OnboardingProfile {
     this.ageYears = 25,
     this.commitment = CommitmentLevel.very,
     this.standingReachInches,
+    this.dunkHand,
   });
 
   OnboardingProfile copyWith({
@@ -58,6 +67,7 @@ class OnboardingProfile {
     int? weightLbs,
     int? ageYears,
     int? standingReachInches,
+    DunkHand? dunkHand,
     CommitmentLevel? commitment,
   }) {
     return OnboardingProfile(
@@ -72,6 +82,7 @@ class OnboardingProfile {
       ageYears: ageYears ?? this.ageYears,
       commitment: commitment ?? this.commitment,
       standingReachInches: standingReachInches ?? this.standingReachInches,
+      dunkHand: dunkHand ?? this.dunkHand,
     );
   }
 
@@ -88,6 +99,7 @@ class OnboardingProfile {
         'commitment': commitment.storageKey,
         if (standingReachInches != null)
           'standingReachInches': standingReachInches,
+        if (dunkHand != null) 'dunkHand': dunkHand!.storageKey,
       };
 
   String toJson() => jsonEncode(toMap());
@@ -124,6 +136,11 @@ class OnboardingProfile {
               CommitmentLevel.very,
       standingReachInches: map['standingReachInches'] is int
           ? map['standingReachInches'] as int
+          : null,
+      // Absent (a profile saved before the question existed) or unrecognised
+      // both decode to null, which keeps the one-hand target.
+      dunkHand: map['dunkHand'] is String
+          ? DunkHand.fromStorageKey(map['dunkHand'] as String)
           : null,
     );
   }

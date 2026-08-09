@@ -23,6 +23,7 @@ class GapScreen extends StatelessWidget {
         ageYears: profile.ageYears,
         hops: profile.hopsLevel,
         measuredStandingReach: profile.standingReachInches,
+        dunkHand: profile.dunkHand,
       );
 
   String get _heightLabel =>
@@ -70,6 +71,10 @@ class GapScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     _GapMeter(assessment: a),
+                    if (profile.dunkHand?.isTwoHanded ?? false) ...[
+                      const SizedBox(height: 12),
+                      const _TwoHandNote(),
+                    ],
                     if (!a.reachIsMeasured) ...[
                       const SizedBox(height: 12),
                       _EstimatedReachNote(assessment: a),
@@ -98,6 +103,36 @@ class GapScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Shown only to an athlete who picked a two-hand finish: their target is
+/// several inches higher than a one-hand one, and a number that moves by four
+/// inches because of an answer they gave two screens ago has to say why.
+class _TwoHandNote extends StatelessWidget {
+  const _TwoHandNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.back_hand, color: DunkColors.textTertiary, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'You picked a two-hand finish, which asks for both forearms over '
+            'the ring — about ${VertAssessment.twoHandExtraClearance}" more '
+            'than a one-hand dunk. Your target reflects that.',
+            style: const TextStyle(
+              color: DunkColors.textTertiary,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

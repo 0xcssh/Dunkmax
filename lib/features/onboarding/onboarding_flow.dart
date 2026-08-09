@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/commitment_level.dart';
 import '../../core/models/court_position.dart';
 import '../../core/models/dunk_goal.dart';
+import '../../core/models/dunk_hand.dart';
 import '../../core/models/experience_level.dart';
 import '../../core/models/hops_level.dart';
 import '../../core/models/onboarding_profile.dart';
@@ -12,6 +13,7 @@ import 'screens/age_screen.dart';
 import 'screens/building_plan_screen.dart';
 import 'screens/commitment_screen.dart';
 import 'screens/days_per_week_screen.dart';
+import 'screens/dunk_hand_screen.dart';
 import 'screens/experience_screen.dart';
 import 'screens/gap_screen.dart';
 import 'screens/goal_screen.dart';
@@ -41,6 +43,7 @@ enum _Step {
   height,
   weight,
   age,
+  dunkHand,
   commitment,
   gap,
   potential,
@@ -49,8 +52,8 @@ enum _Step {
   planReveal,
 }
 
-/// Drives the full onboarding sequence: a swipeable intro carousel, a
-/// 10-question quiz (with progress bar), then the sell screens (gap →
+/// Drives the full onboarding sequence: a swipeable intro carousel, an
+/// 11-question quiz (with progress bar), then the sell screens (gap →
 /// potential → how it works → plan reveal), before handing the completed
 /// [OnboardingProfile] to [onCompleted].
 ///
@@ -92,9 +95,13 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   int _weightLbs = 180;
   int _ageYears = 25;
+
+  /// Null until answered; VertAssessment reads null as a one-hand target.
+  DunkHand? _dunkHand;
+
   CommitmentLevel? _commitment;
 
-  static const _totalQuizSteps = 10;
+  static const _totalQuizSteps = 11;
 
   void _go(_Step step) => setState(() {
         _movingBack = step.index < _step.index;
@@ -112,6 +119,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         standingReachInches: _standingReachInches,
         weightLbs: _weightLbs,
         ageYears: _ageYears,
+        dunkHand: _dunkHand,
         commitment: _commitment ?? CommitmentLevel.very,
       );
 
@@ -242,16 +250,26 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           ageYears: _ageYears,
           onChanged: (v) => _ageYears = v,
           onBack: () => _go(_Step.weight),
+          onContinue: () => _go(_Step.dunkHand),
+        );
+
+      case _Step.dunkHand:
+        return DunkHandScreen(
+          step: 10,
+          totalSteps: _totalQuizSteps,
+          selected: _dunkHand,
+          onSelect: (v) => setState(() => _dunkHand = v),
+          onBack: () => _go(_Step.age),
           onContinue: () => _go(_Step.commitment),
         );
 
       case _Step.commitment:
         return CommitmentScreen(
-          step: 10,
+          step: 11,
           totalSteps: _totalQuizSteps,
           selected: _commitment,
           onSelect: (v) => setState(() => _commitment = v),
-          onBack: () => _go(_Step.age),
+          onBack: () => _go(_Step.dunkHand),
           onContinue: () => _go(_Step.gap),
         );
 

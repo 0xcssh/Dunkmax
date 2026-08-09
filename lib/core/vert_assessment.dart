@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'models/dunk_hand.dart';
 import 'models/hops_level.dart';
 
 /// Pure vertical-jump math: turns the athlete's vitals + self-reported hops
@@ -13,10 +14,25 @@ class VertAssessment {
   /// Standard 10-foot rim, in inches.
   static const int rimHeight = 120;
 
-  /// Extra reach above the rim needed to actually finish a dunk (hand + ball).
+  /// Extra reach above the rim needed to finish a **one-hand** dunk: the ball
+  /// and one hand have to clear the ring.
   static const int dunkClearance = 6;
 
-  /// Rim + clearance: the reach height a dunk requires.
+  /// A two-hand finish needs both forearms over the ring, not one hand, so it
+  /// asks for more height from the same athlete. Four inches is a coaching
+  /// figure rather than a measured one — it is documented as such here so it
+  /// is never mistaken for something derived.
+  static const int twoHandExtraClearance = 4;
+
+  /// Clearance above the rim for [hand]. Unknown hand falls back to the
+  /// one-hand figure, which is the friendlier of the two: it is better to
+  /// under-state a target than to invent inches an athlete does not need.
+  static int dunkClearanceFor(DunkHand? hand) =>
+      (hand?.isTwoHanded ?? false)
+          ? dunkClearance + twoHandExtraClearance
+          : dunkClearance;
+
+  /// Rim + one-hand clearance. Kept for the default case and pinned by tests.
   static const int dunkReachTarget = rimHeight + dunkClearance; // 126
 
   /// Standing reach ≈ 1.33 × height (fingertips overhead, flat-footed).
@@ -39,12 +55,19 @@ class VertAssessment {
   /// height estimate — and say so wherever the result is shown.
   final int? measuredStandingReach;
 
+  /// How the athlete intends to finish. Null keeps the one-hand target.
+  final DunkHand? dunkHand;
+
   VertAssessment({
     required this.heightInches,
     required this.ageYears,
     required this.hops,
     this.measuredStandingReach,
+    this.dunkHand,
   });
+
+  /// The reach height this athlete's chosen finish actually requires.
+  int get reachTarget => rimHeight + dunkClearanceFor(dunkHand);
 
   /// True when [standingReach] is the athlete's own measurement rather than
   /// an estimate derived from their height.
@@ -55,7 +78,7 @@ class VertAssessment {
       reachIsMeasured ? measuredStandingReach! : standingReachInches(heightInches);
 
   /// Inches of vertical leap needed to get a hand over the rim to dunk.
-  int get requiredVert => math.max(0, dunkReachTarget - standingReach);
+  int get requiredVert => math.max(0, reachTarget - standingReach);
 
   /// Estimated current vertical from the self-reported hops level, expressed
   /// relative to the rim (touching the rim ⇒ reach == rim height).

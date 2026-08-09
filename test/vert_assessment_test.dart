@@ -1,3 +1,4 @@
+import 'package:dunkmax/core/models/dunk_hand.dart';
 import 'package:dunkmax/core/models/hops_level.dart';
 import 'package:dunkmax/core/vert_assessment.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -139,6 +140,68 @@ void main() {
 
       expect(zero.reachIsMeasured, isFalse);
       expect(zero.standingReach, VertAssessment.standingReachInches(73));
+    });
+  });
+
+  group('the chosen finish sets how much room over the rim is needed', () {
+    VertAssessment mk(DunkHand? hand) => VertAssessment(
+          heightInches: 73,
+          ageYears: 26,
+          hops: HopsLevel.touchRim,
+          dunkHand: hand,
+        );
+
+    test('an unanswered hand behaves exactly like a one-hand finish', () {
+      final unanswered = mk(null);
+      final oneHand = mk(DunkHand.right);
+
+      expect(unanswered.reachTarget, oneHand.reachTarget);
+      expect(unanswered.requiredVert, oneHand.requiredVert);
+      expect(unanswered.gapInches, oneHand.gapInches);
+      // And it is still the calibrated reference number.
+      expect(unanswered.requiredVert, 29);
+    });
+
+    test('left and right are the same target — only the count of hands matters',
+        () {
+      expect(mk(DunkHand.left).requiredVert, mk(DunkHand.right).requiredVert);
+    });
+
+    test('a two-hand finish raises the required vert by exactly the extra '
+        'clearance', () {
+      final oneHand = mk(DunkHand.right);
+      final twoHands = mk(DunkHand.both);
+
+      expect(twoHands.requiredVert,
+          oneHand.requiredVert + VertAssessment.twoHandExtraClearance);
+      // Today's estimate is rim-relative, so it does not move — the gap is
+      // what grows.
+      expect(twoHands.estimatedCurrentVert, oneHand.estimatedCurrentVert);
+      expect(twoHands.gapInches,
+          oneHand.gapInches + VertAssessment.twoHandExtraClearance);
+    });
+
+    test('reachTarget is rim + clearance for each case', () {
+      expect(mk(null).reachTarget, VertAssessment.dunkReachTarget); // 126
+      expect(mk(DunkHand.left).reachTarget, VertAssessment.dunkReachTarget);
+      expect(mk(DunkHand.right).reachTarget, VertAssessment.dunkReachTarget);
+      expect(
+        mk(DunkHand.both).reachTarget,
+        VertAssessment.rimHeight +
+            VertAssessment.dunkClearance +
+            VertAssessment.twoHandExtraClearance,
+      );
+    });
+
+    test('dunkClearanceFor is the one-hand figure unless both hands', () {
+      expect(VertAssessment.dunkClearanceFor(null),
+          VertAssessment.dunkClearance);
+      expect(VertAssessment.dunkClearanceFor(DunkHand.left),
+          VertAssessment.dunkClearance);
+      expect(
+        VertAssessment.dunkClearanceFor(DunkHand.both),
+        VertAssessment.dunkClearance + VertAssessment.twoHandExtraClearance,
+      );
     });
   });
 }

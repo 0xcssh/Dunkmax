@@ -134,7 +134,7 @@ lib/
                          same one-entry-per-string pattern
   features/
     onboarding/          Intro carousel (3 swipeable panels, live in-app
-                         mockups) + 10-question quiz + sell screens. The whole
+                         mockups) + 11-question quiz + sell screens. The whole
                          flow shares a painted `widgets/court_backdrop.dart`
                          and a direction-aware `widgets/shared_axis_switcher`
     paywall/             Real paywall: renders the live RevenueCat offering
@@ -296,7 +296,16 @@ in `features/analyze/`.
 
 ## Vert math (`core/vert_assessment.dart`) — calibrated to the reference
 
-- Rim = 120". Dunk needs reach ≥ 126" (rim + 6" clearance).
+- Rim = 120". A **one-hand** dunk needs reach ≥ 126" (rim + 6" clearance); a
+  **two-hand** finish has to get both forearms over the ring, so it adds
+  `twoHandExtraClearance` (4", a coaching figure, documented as such) → 130".
+  Which one applies comes from the onboarding dunk-hand question
+  (`OnboardingProfile.dunkHand`, `core/models/dunk_hand.dart`); an unanswered
+  or legacy-null hand keeps the one-hand target — better to under-state a
+  target than to invent inches. The question is worded around exactly this
+  ("how much room over the rim your finish needs"); the reference app claims it
+  feeds an "approach angle analysis" and **nothing here analyses approach
+  angle** — do not write that.
 - Standing reach = the athlete's **measured** reach when they have one
   (`OnboardingProfile.standingReachInches`, set from the Home settings sheet —
   **deliberately not an onboarding question**: sending a first-run athlete to
@@ -307,7 +316,8 @@ in `features/analyze/`.
   gap or dunk target is shown, `VertAssessment.reachIsMeasured` decides whether
   a short "this reach is estimated" caveat appears (gap screen + Analyze result
   vert card). Sanity bounds live in `core/standing_reach.dart` (pure, tested).
-- `requiredVert = 126 − standingReach`.
+- `requiredVert = reachTarget − standingReach` (`reachTarget` = 126, or 130 for
+  a two-hand finish).
 - `estimatedCurrentVert` from the self-reported hops level, rim-relative
   (touch-the-rim ⇒ reach == 120).
 - `gapInches = requiredVert − currentVert`.
@@ -327,11 +337,18 @@ commitment are collected, persisted, shown back to the athlete — and never
 reach the programming. Either make them count or stop asking: the current
 state promises a personalisation that isn't there.
 
+`hopsLevel`, `standingReachInches` and now `dunkHand` are the exception: they
+feed `VertAssessment` and visibly move the numbers (`dunkHand` is passed at
+every construction site — gap screen, potential screen, Analyze). A new quiz
+question has to earn its place that way; that is why the dunk-hand question
+exists at all.
+
 ## Onboarding flow (built) — order
 
-Intro carousel → **quiz (progress bar, 10 Q):** dunk goal (multi) · experience ·
+Intro carousel → **quiz (progress bar, 11 Q):** dunk goal (multi) · experience ·
 position · days/week · training location · hops level · height (wheel) ·
-weight (slider) · age (wheel) · commitment → **sell screens:** gap analysis
+weight (slider) · age (wheel) · dunk hand (left/right/both) · commitment →
+**sell screens:** gap analysis
 ("Here's the gap") → jump-potential projection → how it works (the
 measurement method — replaced the old placeholder social-proof screen) →
 building loader → plan reveal → **free analysis** → **paywall** → app shell.
@@ -378,7 +395,7 @@ building loader → plan reveal → **free analysis** → **paywall** → app sh
 ## What's built vs TODO
 
 Built & CI-green:
-- Full onboarding (intro carousel + 15 screens) wired to the tested core, on a
+- Full onboarding (intro carousel + 16 screens) wired to the tested core, on a
   painted court backdrop with shared-axis step transitions (see below).
 - Tested core: program catalog, program progress, vert/gap/projection math,
   workout session/streak, jump trend.

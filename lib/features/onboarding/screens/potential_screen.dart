@@ -25,6 +25,7 @@ class PotentialScreen extends StatelessWidget {
       ageYears: profile.ageYears,
       hops: profile.hopsLevel,
       measuredStandingReach: profile.standingReachInches,
+      dunkHand: profile.dunkHand,
     );
     const weeks = [1, 3, 5, 8];
     final values = [for (final w in weeks) a.projectedVertAtWeek(w)];
