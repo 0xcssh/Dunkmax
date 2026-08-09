@@ -1,4 +1,3 @@
-import 'models/exercise.dart';
 import 'models/training_program.dart';
 
 /// Turns "how many sessions have I completed" + a [TrainingProgram] into
@@ -155,12 +154,11 @@ class TrainingSchedule {
       warmUp: base.warmUp,
       exercises: [
         for (final exercise in base.exercises)
-          Exercise(
-            id: exercise.id,
-            name: exercise.name,
+          // copyWith, not a fresh Exercise: progression only touches the set
+          // count, and everything else (equipment, a home substitution the
+          // catalog applied, media) has to survive the rewrite untouched.
+          exercise.copyWith(
             sets: setsFor(baseSets: exercise.sets, week: week),
-            repsLabel: exercise.repsLabel,
-            videoUrl: exercise.videoUrl,
           ),
       ],
     );

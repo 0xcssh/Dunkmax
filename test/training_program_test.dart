@@ -7,7 +7,7 @@ const _dayA = ProgramDay(
   focus: 'Power',
   warmUp: '5 min jump rope',
   exercises: [
-    Exercise(id: 'a_ex', name: 'A Exercise', sets: 4, repsLabel: '10 reps'),
+    Exercise(id: 'a_ex', name: 'A Exercise', sets: 4, repsLabel: '10 reps', equipment: Equipment.none),
   ],
 );
 
@@ -16,7 +16,7 @@ const _dayB = ProgramDay(
   focus: 'Strength',
   warmUp: '5 min lunges',
   exercises: [
-    Exercise(id: 'b_ex', name: 'B Exercise', sets: 4, repsLabel: '8 reps'),
+    Exercise(id: 'b_ex', name: 'B Exercise', sets: 4, repsLabel: '8 reps', equipment: Equipment.none),
   ],
 );
 
@@ -25,7 +25,7 @@ const _dayC = ProgramDay(
   focus: 'Speed',
   warmUp: '5 min sprint drills',
   exercises: [
-    Exercise(id: 'c_ex', name: 'C Exercise', sets: 3, repsLabel: '20m'),
+    Exercise(id: 'c_ex', name: 'C Exercise', sets: 3, repsLabel: '20m', equipment: Equipment.none),
   ],
 );
 

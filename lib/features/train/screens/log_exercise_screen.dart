@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 
+import '../../../core/exercise_library.dart';
 import '../../../core/models/exercise.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
+import 'exercise_detail_screen.dart';
 
 /// Logs actual reps/weight for a single exercise's sets. One instance of
 /// this screen is shown per exercise in [SessionFlow]; [onLogged] advances
@@ -106,11 +107,19 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(widget.exercise.name, style: DunkTheme.onboardingTitle),
+            _ExerciseTitle(
+              exercise: widget.exercise,
+              onTap: () =>
+                  ExerciseDetailScreen.open(context, widget.exercise),
+            ),
             const SizedBox(height: 6),
             Text(widget.exercise.volumeLabel, style: DunkTheme.onboardingSubtitle),
             const SizedBox(height: 16),
-            _VideoSection(videoUrl: widget.exercise.videoUrl),
+            _GuideCard(
+              exercise: widget.exercise,
+              onTap: () =>
+                  ExerciseDetailScreen.open(context, widget.exercise),
+            ),
             const SizedBox(height: 16),
             Expanded(
               child: ListView.separated(
@@ -146,132 +155,154 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
   }
 }
 
-/// Demo-clip card shown above the set list. Plays the exercise's video when
-/// [videoUrl] is set; otherwise shows an honest "coming soon" placeholder —
-/// no real clips are authored for any exercise yet (see [Exercise.videoUrl]).
-class _VideoSection extends StatefulWidget {
-  final String? videoUrl;
-  const _VideoSection({required this.videoUrl});
+/// The exercise name, tappable to open its full guide. The affordance is an
+/// explicit orange info icon — without it the name reads as a plain heading
+/// and nobody would think to tap it.
+class _ExerciseTitle extends StatelessWidget {
+  final Exercise exercise;
+  final VoidCallback onTap;
 
-  @override
-  State<_VideoSection> createState() => _VideoSectionState();
-}
-
-class _VideoSectionState extends State<_VideoSection> {
-  VideoPlayerController? _controller;
-  bool _videoReady = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final url = widget.videoUrl;
-    if (url != null) {
-      final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-      _controller = controller;
-      controller.initialize().then((_) {
-        if (!mounted) return;
-        setState(() => _videoReady = true);
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  void _togglePlayback() {
-    final controller = _controller;
-    if (controller == null || !_videoReady) return;
-    setState(() {
-      controller.value.isPlaying ? controller.pause() : controller.play();
-    });
-  }
+  const _ExerciseTitle({required this.exercise, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    if (widget.videoUrl == null) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: DunkColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: DunkColors.stroke),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.lock_outline, color: DunkColors.textTertiary, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Text(
-                    'DEMO VIDEO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Demo video coming soon.',
-                    style: TextStyle(color: DunkColors.textSecondary, fontSize: 12),
-                  ),
-                ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: Text(exercise.name, style: DunkTheme.onboardingTitle),
               ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final controller = _controller;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: DunkColors.surface,
-          border: Border.all(color: DunkColors.stroke),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: AspectRatio(
-          aspectRatio: _videoReady && controller != null
-              ? controller.value.aspectRatio
-              : 16 / 9,
-          child: !_videoReady || controller == null
-              ? const Center(
-                  child: CircularProgressIndicator(color: DunkColors.primary),
-                )
-              : GestureDetector(
-                  onTap: _togglePlayback,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    fit: StackFit.expand,
-                    children: [
-                      VideoPlayer(controller),
-                      AnimatedOpacity(
-                        opacity: controller.value.isPlaying ? 0 : 1,
-                        duration: const Duration(milliseconds: 150),
-                        child: Container(
-                          color: Colors.black26,
-                          child: const Icon(
-                            Icons.play_circle_fill,
-                            color: Colors.white,
-                            size: 56,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              const SizedBox(width: 10),
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Icon(Icons.info_outline,
+                    size: 20, color: DunkColors.primary),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+/// Row above the set list that opens the drill's coaching guide.
+///
+/// It replaces the old demo-video placeholder: no clip is filmed for any
+/// exercise yet, and a card whose only message is "coming soon" is worth less
+/// than one that opens the written execution steps.
+class _GuideCard extends StatelessWidget {
+  final Exercise exercise;
+  final VoidCallback onTap;
+
+  const _GuideCard({required this.exercise, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final guide = ExerciseLibrary.guideForExercise(exercise);
+    final subtitle = guide == null
+        ? 'No coaching notes yet for this drill.'
+        : '${guide.steps.length} steps, common mistakes and what it trains.';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: DunkColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: DunkColors.stroke),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: DunkColors.surfaceRaised,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.menu_book_outlined,
+                        color: DunkColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'HOW TO DO IT',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            color: DunkColors.textSecondary,
+                            fontSize: 12,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right,
+                      color: DunkColors.textTertiary, size: 20),
+                ],
+              ),
+              if (exercise.isSubstitution) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.swap_horiz,
+                        size: 14, color: DunkColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Swapped for your home setup'
+                        '${_replacedSuffix(exercise)}',
+                        style: const TextStyle(
+                          color: DunkColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _replacedSuffix(Exercise exercise) {
+    final id = exercise.substitutedForId;
+    if (id == null) return '';
+    final replaced = ExerciseLibrary.guideFor(id);
+    return replaced == null ? '' : ' — replaces ${replaced.name}';
   }
 }
 

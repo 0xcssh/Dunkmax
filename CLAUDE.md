@@ -89,7 +89,19 @@ lib/
     models/              DunkGoal, ExperienceLevel, CourtPosition, Exercise,
                          TrainingProgram, HopsLevel, TrainingLocation,
                          CommitmentLevel, OnboardingProfile
-    program_catalog.dart Profile → recommended TrainingProgram (deterministic)
+    program_catalog.dart Profile → recommended TrainingProgram (deterministic).
+                         Experience picks the template, daysPerWeek the volume,
+                         and **trainingLocation actually shapes the plan**: a
+                         `home` athlete's equipment drills are swapped for
+                         their bodyweight substitutes (see exercise_library)
+    exercise_library.dart Authored coaching content per exercise id — summary,
+                         execution steps, common mistakes, muscles/quality,
+                         `Equipment` requirement and the home substitute.
+                         `Exercise.equipment` is **required** at every
+                         authoring site so nothing silently claims to need no
+                         kit; `test/exercise_library_test.dart` pins that every
+                         id the catalog prescribes has a guide, so the two
+                         files cannot drift
     program_progress.dart completed / remaining / % math (Train progress card)
     vert_assessment.dart  Height+age+hops → reach, vert-to-dunk, gap, projection
     workout_streak.dart   Consecutive-day streak from completion timestamps
@@ -141,7 +153,14 @@ lib/
                          inside the flight (and no multi-jump case)
     train/               SessionFlow: warm-up → per-exercise set/reps/lbs
                          logging (one screen per exercise) → summary, then
-                         persists a WorkoutSession via WorkoutSessionStore
+                         persists a WorkoutSession via WorkoutSessionStore.
+                         The exercise name (and a HOW TO DO IT card) opens
+                         exercise_detail_screen: steps, common mistakes,
+                         muscles, equipment, and the "swapped for your home
+                         setup" note. No demo clip is filmed for any drill, so
+                         the media slot renders an honest empty state and a
+                         real url/asset drops into ExerciseGuide when one
+                         exists
     shared/widgets/      PrimaryButton (gradient CTA), SelectableCard
 test/                    Core unit tests + app smoke test
 ```
@@ -289,8 +308,16 @@ in `features/analyze/`.
 
 Calibrated so a 6'1" (73") "touch the rim" athlete → reach 97", dunk 29",
 today 23", gap 6" — exactly matching the reference screenshots. Pinned by
-`test/vert_assessment_test.dart`. Height + age also drive program
-adaptation (see `program_catalog.dart`).
+`test/vert_assessment_test.dart`.
+
+**Height and age do NOT drive program adaptation** — this file claimed they
+did, and they don't. `ProgramCatalog.recommend` reads exactly two fields:
+`experience` (which of the three programs) and `daysPerWeek` (sessions per
+week), plus `trainingLocation` since the home-substitution work. Onboarding
+asks eleven questions; goals, court position, weight, age, height and
+commitment are collected, persisted, shown back to the athlete — and never
+reach the programming. Either make them count or stop asking: the current
+state promises a personalisation that isn't there.
 
 ## Onboarding flow (built) — order
 
@@ -311,6 +338,9 @@ Built & CI-green:
 - App shell (5 tabs); **Train** tab functional: 3-day program rotations
   (Power/Strength/Speed split, per program), warm-up → per-exercise
   set/reps/lbs logging → summary flow, persisted via `WorkoutSessionStore`.
+  Every drill has an authored guide (`core/exercise_library.dart`) reachable
+  from its name, and the **training-location answer is honoured**: a home-only
+  athlete is never prescribed a box, bench or loaded drill.
 - **Analyze** tab functional (flight-time vert measurement, see below);
   results persist to `JumpLogStore`.
 - **Progress** tab functional: workouts completed (X/total), day streak
