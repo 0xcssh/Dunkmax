@@ -388,6 +388,15 @@ class _DemoMediaState extends State<_DemoMedia> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Two positions cross-faded on a loop. It is not footage, but a
+          // still of a jump is ambiguous — start and finish alternating reads
+          // as the movement, which is the thing being taught. Costs nothing:
+          // both frames already ship.
+          if (frames.length >= 2)
+            _FrameLoop(frames: frames)
+          else
+            _Frame(asset: frames.first, label: 'POSITION'),
+          const SizedBox(height: 10),
           Row(
             children: [
               for (var i = 0; i < frames.length; i++) ...[
@@ -610,6 +619,79 @@ class _Chip extends StatelessWidget {
 /// The photo is scaled to fit rather than cropped: these are wide reference
 /// shots of a whole body, and cropping them to a tile cuts the feet off —
 /// which on a jumping drill removes the part that matters.
+/// Cross-fades between the start and finish positions on a loop, so the pair
+/// reads as a movement rather than as two photographs.
+///
+/// Honours the platform's reduce-motion setting: with animations disabled it
+/// simply holds the start position, and the still pair below it carries the
+/// same information either way.
+class _FrameLoop extends StatefulWidget {
+  final List<String> frames;
+
+  const _FrameLoop({required this.frames});
+
+  @override
+  State<_FrameLoop> createState() => _FrameLoopState();
+}
+
+class _FrameLoopState extends State<_FrameLoop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  /// Eased rather than linear, and held at each end, so the movement lands in
+  /// a position instead of sliding continuously between two.
+  late final Animation<double> _t = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0.25, 0.75, curve: Curves.easeInOut),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: AspectRatio(
+        aspectRatio: 3 / 2,
+        child: ColoredBox(
+          color: DunkColors.surface,
+          child: AnimatedBuilder(
+            animation: _t,
+            builder: (context, _) => Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(widget.frames[0], fit: BoxFit.cover),
+                Opacity(
+                  opacity: _t.value,
+                  child: Image.asset(widget.frames[1], fit: BoxFit.cover),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Frame extends StatelessWidget {
   final String asset;
   final String label;
