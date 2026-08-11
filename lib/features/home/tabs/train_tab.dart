@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/exercise_library.dart';
 import '../../../core/models/exercise.dart';
 import '../../../core/models/training_program.dart';
 import '../../../core/models/workout_session.dart';
@@ -527,6 +528,47 @@ class _TodaysExercises extends StatelessWidget {
   }
 }
 
+/// The drill's own start-position frame, rather than a generic running figure
+/// repeated down the list.
+///
+/// Falls back to the icon when a drill has no photo — one does: no entry in
+/// the dataset is actually a wall sit, and illustrating one exercise with a
+/// picture of another would be worse than an icon.
+class _ExerciseThumbnail extends StatelessWidget {
+  final Exercise exercise;
+
+  const _ExerciseThumbnail({required this.exercise});
+
+  @override
+  Widget build(BuildContext context) {
+    final frames = ExerciseLibrary.guideForExercise(exercise)?.demoFrames;
+    final radius = BorderRadius.circular(10);
+
+    return Container(
+      width: 44,
+      height: 44,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: DunkColors.surfaceRaised,
+        borderRadius: radius,
+      ),
+      child: frames == null || frames.isEmpty
+          ? const Icon(Icons.directions_run,
+              color: DunkColors.primary, size: 22)
+          : Image.asset(
+              frames.first,
+              fit: BoxFit.cover,
+              // A missing asset must not break the session list.
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.directions_run,
+                color: DunkColors.primary,
+                size: 22,
+              ),
+            ),
+    );
+  }
+}
+
 class _ExerciseRow extends StatelessWidget {
   final Exercise exercise;
 
@@ -536,15 +578,7 @@ class _ExerciseRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: DunkColors.surfaceRaised,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(Icons.directions_run, color: DunkColors.primary, size: 22),
-        ),
+        _ExerciseThumbnail(exercise: exercise),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

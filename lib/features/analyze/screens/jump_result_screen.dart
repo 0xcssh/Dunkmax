@@ -68,9 +68,12 @@ class JumpResultScreen extends StatelessWidget {
           const SizedBox(height: 20),
           _VertCard(result: result),
           const SizedBox(height: 16),
-          _BreakdownCard(feedback: feedback),
-          const SizedBox(height: 16),
+          // Scores sit directly under the headline number on purpose: they are
+          // the other measured output of the same pass, and a reader scanning
+          // the screen should meet both before the prose that interprets them.
           _ScoresCard(scores: analysis.scores),
+          const SizedBox(height: 16),
+          _BreakdownCard(feedback: feedback),
           if (analysis.hasAnyData) ...[
             const SizedBox(height: 16),
             _DiagnosticsCard(
