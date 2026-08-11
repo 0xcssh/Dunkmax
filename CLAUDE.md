@@ -487,7 +487,13 @@ TODO (rough priority):
       placeholder until a real page is published).
 - [ ] **Localization** — externalize strings to flutter_localizations + ARB
       (en, fr, es, de, it, pt-BR). Biggest ASO edge; don't defer to the end.
-- [ ] Real **app icon** + a condensed display font (currently system font).
+- [ ] **App icon** — generation is wired: drop a square, opaque, ≥1024px
+      `assets/icon/app_icon.png` and CI produces every iOS and Android size
+      via `flutter_launcher_icons`, right after `flutter create` regenerates
+      the platform folders. Nothing generated is committed. The build skips
+      the step and keeps Flutter's default while the source is absent, so a
+      missing icon never breaks a build — it just looks unset. Still TODO: a
+      condensed display font (currently the system font).
 
 ## Conventions
 

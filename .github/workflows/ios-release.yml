@@ -69,6 +69,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Generate app icons
+        # Must run after `flutter create` (which regenerates ios/ and android/
+        # with Flutter's default icon) and after `pub get` (the generator is a
+        # dev dependency). Skipped when no source image is present, so the
+        # build still succeeds while the icon is being prepared.
+        run: |
+          if [ -f assets/icon/app_icon.png ]; then
+            dart run flutter_launcher_icons
+          else
+            echo "assets/icon/app_icon.png missing - keeping the default icon"
+          fi
+
       - name: Build (CocoaPods install + asset compile, unsigned)
         # Apple requires MinimumOSVersion >= 15.0 for App Store Connect
         # uploads (warning today, hard block from spring 2027), and
