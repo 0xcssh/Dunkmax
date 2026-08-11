@@ -73,8 +73,14 @@ void main() {
       // pair for that drill, filed under that drill's own id — never another
       // exercise's photo standing in.
       for (final guide in ExerciseLibrary.guides.values) {
-        expect(guide.demoVideoUrl, isNull,
-            reason: 'no clips exist yet: ${guide.id}');
+        // A clip is a drop-in, so this no longer asserts there are none. It
+        // asserts the same rule as the photos: media filed under this drill's
+        // own id, never another exercise's footage standing in.
+        final video = guide.demoVideoAsset;
+        if (video != null) {
+          expect(video, startsWith('assets/exercises/${guide.id}/'),
+              reason: guide.id);
+        }
         if (guide.demoFrames.isEmpty) continue;
         expect(guide.demoFrames.length, 2, reason: guide.id);
         for (final frame in guide.demoFrames) {
