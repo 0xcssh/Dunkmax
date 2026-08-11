@@ -35,9 +35,11 @@ class ExerciseGuide {
 
   /// Optional real demo media.
   ///
-  /// [demoVideoUrl] is null everywhere: no clips exist. wger hosts 78 videos
-  /// but they are raw phone uploads (34 MB to 390 MB) and none cover
-  /// plyometrics, so there is nothing to point at.
+  /// [demoVideoAsset] is a short looping clip bundled with the app, null
+  /// until one is sourced. It is an asset rather than a URL on purpose: the
+  /// rest of the app works with no network, and a demo that only plays online
+  /// would be the one thing in a gym that doesn't. Dropping a file in and
+  /// naming it here is the whole integration — see docs/exercise-media.md.
   ///
   /// [demoFrames] are the start and end positions of the movement, bundled
   /// from the free-exercise-db dataset — see `docs/exercise-media.md` for its
@@ -45,7 +47,7 @@ class ExerciseGuide {
   /// honest match has none rather than borrowing another exercise's photo:
   /// wall sits are illustrated by no dataset entry that is actually a wall
   /// sit, so they keep the written-steps-only treatment.
-  final String? demoVideoUrl;
+  final String? demoVideoAsset;
   final List<String> demoFrames;
 
   const ExerciseGuide({
@@ -57,11 +59,11 @@ class ExerciseGuide {
     required this.trains,
     required this.equipment,
     this.homeSubstituteId,
-    this.demoVideoUrl,
+    this.demoVideoAsset,
     this.demoFrames = const [],
   });
 
-  bool get hasDemoMedia => demoVideoUrl != null || demoFrames.isNotEmpty;
+  bool get hasDemoMedia => demoVideoAsset != null || demoFrames.isNotEmpty;
 }
 
 /// Authored coaching content for every drill the catalog can prescribe,

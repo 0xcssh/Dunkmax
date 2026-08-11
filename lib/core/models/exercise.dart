@@ -53,11 +53,6 @@ class Exercise {
   /// the exercise it stands in for. Null when it is the authored drill.
   final String? substitutedForId;
 
-  /// Optional demo-clip URL, played before/while logging this exercise.
-  /// Null for every exercise in the catalog today — no real clips are
-  /// authored yet, so the UI shows an honest "coming soon" state rather
-  /// than a broken or fabricated video.
-  final String? videoUrl;
 
   const Exercise({
     required this.id,
@@ -66,7 +61,6 @@ class Exercise {
     required this.repsLabel,
     required this.equipment,
     this.substitutedForId,
-    this.videoUrl,
   });
 
   /// True when this exercise was swapped in for an equipment-requiring one.
@@ -82,7 +76,6 @@ class Exercise {
     String? repsLabel,
     Equipment? equipment,
     String? substitutedForId,
-    String? videoUrl,
   }) {
     return Exercise(
       id: id ?? this.id,
@@ -91,7 +84,6 @@ class Exercise {
       repsLabel: repsLabel ?? this.repsLabel,
       equipment: equipment ?? this.equipment,
       substitutedForId: substitutedForId ?? this.substitutedForId,
-      videoUrl: videoUrl ?? this.videoUrl,
     );
   }
 }

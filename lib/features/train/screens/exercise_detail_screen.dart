@@ -85,7 +85,7 @@ class ExerciseDetailScreen extends StatelessWidget {
                   ],
                   const SizedBox(height: 20),
                   _DemoMedia(
-                    videoUrl: guide?.demoVideoUrl ?? exercise.videoUrl,
+                    videoAsset: guide?.demoVideoAsset,
                     frames: guide?.demoFrames ?? const [],
                   ),
                   if (guide == null) ...[
@@ -288,18 +288,19 @@ class _EmptyGuideNote extends StatelessWidget {
 
 /// The demonstration slot.
 ///
-/// Plays [videoUrl] when one exists, shows [imageAsset] when one exists, and
+/// Plays [videoAsset] when one exists, shows the still frames otherwise, and
 /// otherwise renders a deliberate empty state: no clip has been filmed for
 /// any drill yet and the app ships no stand-in that could be mistaken for a
 /// demonstration. The written steps below carry the screen.
 class _DemoMedia extends StatefulWidget {
-  final String? videoUrl;
+  /// Bundled looping clip, or null while none has been sourced for this drill.
+  final String? videoAsset;
 
   /// Start and end positions of the movement. Two stills read better than one
   /// here: a single frame of a jump is ambiguous, the pair shows the travel.
   final List<String> frames;
 
-  const _DemoMedia({required this.videoUrl, required this.frames});
+  const _DemoMedia({required this.videoAsset, required this.frames});
 
   @override
   State<_DemoMedia> createState() => _DemoMediaState();
@@ -312,12 +313,17 @@ class _DemoMediaState extends State<_DemoMedia> {
   @override
   void initState() {
     super.initState();
-    final url = widget.videoUrl;
-    if (url == null) return;
-    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+    final asset = widget.videoAsset;
+    if (asset == null) return;
+    final controller = VideoPlayerController.asset(asset);
     _controller = controller;
     controller.initialize().then((_) {
       if (!mounted) return;
+      // A demonstration should behave like an animation, not like media the
+      // athlete has to operate: loop it, silence it, start it.
+      controller.setLooping(true);
+      controller.setVolume(0);
+      controller.play();
       setState(() => _ready = true);
     });
   }
