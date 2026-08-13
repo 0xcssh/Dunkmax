@@ -1,0 +1,13 @@
+# iOS + Android icon generation, for ci.yml (which scaffolds both platforms).
+# The iOS-only variant used by the release workflow is in
+# flutter_launcher_icons-ios.yaml — keep the shared values in step.
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  ios: true
+  remove_alpha_ios: true
+  android: true
+  # The mark is orange on black, so the adaptive-icon background is the app's
+  # own near-black rather than white; a white plate would frame it like a
+  # sticker.
+  adaptive_icon_background: "#0A0A0B"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"

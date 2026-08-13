@@ -70,13 +70,16 @@ jobs:
         run: flutter pub get
 
       - name: Generate app icons
-        # Must run after `flutter create` (which regenerates ios/ and android/
-        # with Flutter's default icon) and after `pub get` (the generator is a
-        # dev dependency). Skipped when no source image is present, so the
-        # build still succeeds while the icon is being prepared.
+        # Must run after `flutter create` (which puts Flutter's default icon
+        # back) and after `pub get` (the generator is a dev dependency).
+        # Skipped when no source image is present, so the build still
+        # succeeds while the icon is being prepared.
+        #
+        # The iOS-only config matters: this job scaffolds ios/ alone, and the
+        # shared config's Android half fails on a missing AndroidManifest.
         run: |
           if [ -f assets/icon/app_icon.png ]; then
-            dart run flutter_launcher_icons
+            dart run flutter_launcher_icons -f flutter_launcher_icons-ios.yaml
           else
             echo "assets/icon/app_icon.png missing - keeping the default icon"
           fi

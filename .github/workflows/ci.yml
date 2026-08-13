@@ -84,7 +84,7 @@ jobs:
         # build still succeeds while the icon is being prepared.
         run: |
           if [ -f assets/icon/app_icon.png ]; then
-            dart run flutter_launcher_icons
+            dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
           else
             echo "assets/icon/app_icon.png missing - keeping the default icon"
           fi
