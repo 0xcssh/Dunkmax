@@ -10,9 +10,17 @@ import 'package:flutter_test/flutter_test.dart';
 /// catalogue compiles and ships. These tests fail instead — which is the whole
 /// point of shipping only locales that were actually authored (CLAUDE.md: no
 /// machine translations passed off as authored ones).
+/// Reads a catalogue.
+///
+/// Deliberately throws rather than calling `expect` on the file's existence:
+/// this runs at `main()` level to build the shared fixtures, and `expect`
+/// outside a test body throws OutsideTestException, which fails the whole
+/// file to load instead of reporting a missing catalogue.
 Map<String, dynamic> _load(String locale) {
   final file = File('lib/l10n/app_$locale.arb');
-  expect(file.existsSync(), isTrue, reason: '${file.path} is missing');
+  if (!file.existsSync()) {
+    throw StateError('${file.path} is missing');
+  }
   return jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
 }
 
