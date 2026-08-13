@@ -79,7 +79,7 @@ jobs:
         # shared config's Android half fails on a missing AndroidManifest.
         run: |
           if [ -f assets/icon/app_icon.png ]; then
-            dart run flutter_launcher_icons -f flutter_launcher_icons-ios.yaml
+            dart run flutter_launcher_icons -f icons_ios_only.yaml
           else
             echo "assets/icon/app_icon.png missing - keeping the default icon"
           fi

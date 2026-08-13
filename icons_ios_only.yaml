@@ -1,5 +1,11 @@
 # iOS-only icon generation, for ios-release.yml.
 #
+# NOT named flutter_launcher_icons-ios.yaml: the generator reads any
+# `flutter_launcher_icons-<name>.yaml` as a *flavor* config and writes to
+# `AppIcon-<name>.appiconset`, which the Xcode project does not reference. The
+# build then succeeds while the app quietly keeps the default icon — which is
+# exactly what happened on the first attempt.
+#
 # That workflow scaffolds `flutter create --platforms=ios`, so there is no
 # android/ directory. Asking for Android icons there fails on a missing
 # AndroidManifest.xml — which is exactly how the first icon build broke.
