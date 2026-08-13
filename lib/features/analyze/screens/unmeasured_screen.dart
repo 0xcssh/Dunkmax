@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/pose_jump_detector.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
@@ -39,71 +40,69 @@ class UnmeasuredScreen extends StatelessWidget {
   /// Keyed on the detector's own reason so the advice is never generic. Where
   /// trimming genuinely helps, it is named first, because that is the cheapest
   /// fix and the one most likely to work.
-  (String, List<String>) get _diagnosis {
+  (String, List<String>) _diagnosis(AppLocalizations l10n) {
     switch (rejection) {
       case PoseDetectionRejection.noAirborneWindow:
         return (
-          "We tracked you, but your feet never clearly left the floor.",
+          l10n.unmeasuredNoWindowHeadline,
           [
-            'Trim the clip so it holds the jump and a moment either side.',
-            'Keep your feet in frame the whole time — they are what we time.',
-            'Film from the side or straight on, not from above.',
+            l10n.unmeasuredNoWindowFix1,
+            l10n.unmeasuredNoWindowFix2,
+            l10n.unmeasuredNoWindowFix3,
           ],
         );
       case PoseDetectionRejection.tooManyMissing:
       case PoseDetectionRejection.noScaleReference:
         return (
-          "We couldn't keep track of your body through the clip.",
+          l10n.unmeasuredLostTrackHeadline,
           [
-            'Get your whole body in frame, head to feet.',
-            'More light helps — tracking struggles in a dim gym.',
-            'Avoid a busy background directly behind you.',
+            l10n.unmeasuredLostTrackFix1,
+            l10n.unmeasuredLostTrackFix2,
+            l10n.unmeasuredLostTrackFix3,
           ],
         );
       case PoseDetectionRejection.gappyWindow:
         return (
-          'We lost you in the middle of the jump itself.',
+          l10n.unmeasuredGappyHeadline,
           [
-            'Step back so your whole body stays in frame at the top.',
-            'Hold the phone still — panning up with the jump loses you.',
-            'Brighter light reduces the motion blur at takeoff.',
+            l10n.unmeasuredGappyFix1,
+            l10n.unmeasuredGappyFix2,
+            l10n.unmeasuredGappyFix3,
           ],
         );
       case PoseDetectionRejection.liftTooSmall:
         return (
-          'The jump in this clip is too small to time reliably.',
+          l10n.unmeasuredSmallJumpHeadline,
           [
-            'Trim to your best attempt if the clip holds several.',
-            'Film a full-effort jump — a warm-up hop is below what we can time.',
+            l10n.unmeasuredSmallJumpFix1,
+            l10n.unmeasuredSmallJumpFix2,
           ],
         );
       case PoseDetectionRejection.implausibleDuration:
         return (
-          'The flight time we measured is outside what a real jump can be.',
+          l10n.unmeasuredImplausibleHeadline,
           [
-            'Trim tightly around a single jump.',
-            'Make sure the clip plays at normal speed — slow motion breaks the '
-                'timing.',
+            l10n.unmeasuredImplausibleFix1,
+            l10n.unmeasuredImplausibleFix2,
           ],
         );
       case PoseDetectionRejection.tooFewSamples:
         return (
-          'The clip is too short to read.',
-          [
-            'Include a moment before the jump and after the landing.',
-          ],
+          l10n.unmeasuredTooShortHeadline,
+          [l10n.unmeasuredTooShortFix1],
         );
       case PoseDetectionRejection.none:
         return (
-          "We couldn't measure this clip.",
-          ['Trim tightly around a single jump and try again.'],
+          l10n.unmeasuredGenericHeadline,
+          [l10n.unmeasuredGenericFix1],
         );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final (headline, fixes) = _diagnosis;
+    final l10n = AppLocalizations.of(context);
+    final (headline, fixes) = _diagnosis(l10n);
 
     return SafeArea(
       child: Padding(
@@ -111,9 +110,9 @@ class UnmeasuredScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'NO MEASUREMENT',
-              style: TextStyle(
+            Text(
+              l10n.unmeasuredTitle,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -121,8 +120,8 @@ class UnmeasuredScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              "We'd rather tell you than guess a number.",
+            Text(
+              l10n.unmeasuredSubtitle,
               style: DunkTheme.onboardingSubtitle,
             ),
             const Spacer(),
@@ -176,7 +175,7 @@ class UnmeasuredScreen extends StatelessWidget {
             ],
             const Spacer(),
             PrimaryButton(
-              label: 'TRIM AND TRY AGAIN',
+              label: l10n.unmeasuredRetrimCta,
               trailingIcon: Icons.content_cut,
               onPressed: onRetrim,
             ),
@@ -184,9 +183,9 @@ class UnmeasuredScreen extends StatelessWidget {
             Center(
               child: TextButton(
                 onPressed: onNewClip,
-                child: const Text(
-                  'Use a different clip',
-                  style: TextStyle(
+                child: Text(
+                  l10n.unmeasuredNewClip,
+                  style: const TextStyle(
                     color: DunkColors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),

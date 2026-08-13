@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../widgets/onboarding_scaffold.dart';
 
@@ -40,11 +41,12 @@ class _AgeScreenState extends State<AgeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return OnboardingScaffold(
       step: widget.step,
       totalSteps: widget.totalSteps,
-      title: 'YOUR AGE',
-      subtitle: 'Saved to your athlete profile.',
+      title: l10n.ageTitle,
+      subtitle: l10n.savedToAthleteProfile,
       onBack: widget.onBack,
       onContinue: widget.onContinue,
       child: Column(
@@ -63,8 +65,8 @@ class _AgeScreenState extends State<AgeScreen> {
                     fontSize: 52, fontWeight: FontWeight.w800, color: Colors.white)),
           ),
           const SizedBox(height: 8),
-          const Text('YEARS',
-              style: TextStyle(
+          Text(l10n.ageUnitLabel,
+              style: const TextStyle(
                   color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
           const SizedBox(height: 18),
           SizedBox(
@@ -93,7 +95,7 @@ class _AgeScreenState extends State<AgeScreen> {
                 childDelegate: ListWheelChildBuilderDelegate(
                   childCount: _maxAge - _minAge + 1,
                   builder: (context, i) => Center(
-                    child: Text('${_minAge + i} years',
+                    child: Text(l10n.ageOption(_minAge + i),
                         style: const TextStyle(fontSize: 22, color: Colors.white)),
                   ),
                 ),

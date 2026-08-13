@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 import 'staggered_entrance.dart';
@@ -17,7 +18,11 @@ class OnboardingScaffold extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget child;
-  final String ctaLabel;
+
+  /// Null means the generic "CONTINUE" label. It can't be defaulted in the
+  /// constructor any more: the default is a translation, and translations
+  /// need a [BuildContext].
+  final String? ctaLabel;
   final VoidCallback? onContinue;
   final VoidCallback? onBack;
 
@@ -42,7 +47,7 @@ class OnboardingScaffold extends StatelessWidget {
     required this.subtitle,
     required this.child,
     required this.onContinue,
-    this.ctaLabel = 'CONTINUE',
+    this.ctaLabel,
     this.onBack,
     this.staggerBody = true,
   });
@@ -84,7 +89,10 @@ class OnboardingScaffold extends StatelessWidget {
               const SizedBox(height: 12),
               StaggerItem(
                 index: _ctaStaggerIndex,
-                child: PrimaryButton(label: ctaLabel, onPressed: onContinue),
+                child: PrimaryButton(
+                  label: ctaLabel ?? AppLocalizations.of(context).commonContinue,
+                  onPressed: onContinue,
+                ),
               ),
             ],
           ),

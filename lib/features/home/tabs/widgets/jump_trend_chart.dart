@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/jump_log_entry.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../theme/app_theme.dart';
 
 /// Hand-rolled line chart of vertical-jump readings over time — deliberately
@@ -13,17 +14,18 @@ class JumpTrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final sorted = [...entries]..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
     final plotted = sorted.length > 8
         ? sorted.sublist(sorted.length - 8)
         : sorted;
 
     if (plotted.length < 2) {
-      return const SizedBox(
+      return SizedBox(
         height: 160,
         child: Center(
           child: Text(
-            'Log a few more jumps to see your trend',
+            l10n.progressTrendEmpty,
             style: DunkTheme.onboardingSubtitle,
             textAlign: TextAlign.center,
           ),
@@ -34,7 +36,15 @@ class JumpTrendChart extends StatelessWidget {
     return SizedBox(
       height: 180,
       child: CustomPaint(
-        painter: _JumpTrendPainter(entries: plotted),
+        // A CustomPainter has no BuildContext, so both label sets are
+        // resolved here and handed down already translated.
+        painter: _JumpTrendPainter(
+          entries: plotted,
+          dateLabels: [
+            for (final entry in plotted) l10n.jumpDateShort(entry.recordedAt),
+          ],
+          inchesLabel: l10n.inches,
+        ),
         size: Size.infinite,
       ),
     );
@@ -44,7 +54,17 @@ class JumpTrendChart extends StatelessWidget {
 class _JumpTrendPainter extends CustomPainter {
   final List<JumpLogEntry> entries;
 
-  _JumpTrendPainter({required this.entries});
+  /// One label per entry, in the same order — already localised.
+  final List<String> dateLabels;
+
+  /// Formats a gridline value in inches — already localised.
+  final String Function(int) inchesLabel;
+
+  _JumpTrendPainter({
+    required this.entries,
+    required this.dateLabels,
+    required this.inchesLabel,
+  });
 
   static const double _leftMargin = 28;
   static const double _bottomMargin = 20;
@@ -126,11 +146,10 @@ class _JumpTrendPainter extends CustomPainter {
     }
 
     // Date labels beneath each point.
-    for (var i = 0; i < entries.length; i++) {
-      final date = entries[i].recordedAt;
+    for (var i = 0; i < entries.length && i < dateLabels.length; i++) {
       _drawText(
         canvas,
-        '${date.month}/${date.day}',
+        dateLabels[i],
         Offset(points[i].dx, plotRect.bottom + 4),
         align: TextAlign.center,
       );
@@ -149,7 +168,7 @@ class _JumpTrendPainter extends CustomPainter {
       canvas.drawLine(Offset(plotRect.left, y), Offset(plotRect.right, y), gridPaint);
       _drawText(
         canvas,
-        '${v.round()}"',
+        inchesLabel(v.round()),
         Offset(_leftMargin - 4, y),
         align: TextAlign.right,
         anchorRight: true,
@@ -188,6 +207,13 @@ class _JumpTrendPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _JumpTrendPainter oldDelegate) {
     if (entries.length != oldDelegate.entries.length) return true;
+    // A locale change rewrites the labels without touching the entries.
+    for (var i = 0; i < dateLabels.length; i++) {
+      if (i >= oldDelegate.dateLabels.length ||
+          dateLabels[i] != oldDelegate.dateLabels[i]) {
+        return true;
+      }
+    }
     for (var i = 0; i < entries.length; i++) {
       if (entries[i].verticalInches != oldDelegate.entries[i].verticalInches ||
           entries[i].recordedAt != oldDelegate.entries[i].recordedAt) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models/leaderboard_athlete.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 
 /// Asks the athlete for the name they want on the global board.
@@ -54,20 +55,21 @@ class _DisplayNameDialogState extends State<_DisplayNameDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
       backgroundColor: DunkColors.surface,
-      title: const Text(
-        'Your board name',
-        style: TextStyle(color: Colors.white),
+      title: Text(
+        l10n.displayNameTitle,
+        style: const TextStyle(color: Colors.white),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'This is the only thing other athletes see. Your clips never '
-            'leave this phone.',
-            style: TextStyle(color: DunkColors.textSecondary, fontSize: 13),
+          Text(
+            l10n.displayNameBody,
+            style: const TextStyle(
+                color: DunkColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -85,7 +87,7 @@ class _DisplayNameDialogState extends State<_DisplayNameDialog> {
             },
             onSubmitted: (_) => _submit(),
             decoration: InputDecoration(
-              hintText: 'e.g. Marcus',
+              hintText: l10n.displayNameHint,
               hintStyle: const TextStyle(color: DunkColors.textTertiary),
               counterStyle: const TextStyle(color: DunkColors.textTertiary),
               filled: true,
@@ -109,15 +111,15 @@ class _DisplayNameDialogState extends State<_DisplayNameDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: DunkColors.textSecondary),
+          child: Text(
+            l10n.commonCancel,
+            style: const TextStyle(color: DunkColors.textSecondary),
           ),
         ),
         TextButton(
           onPressed: _isValid ? _submit : null,
           child: Text(
-            'Save',
+            l10n.commonSave,
             style: TextStyle(
               color: _isValid ? DunkColors.primary : DunkColors.textTertiary,
               fontWeight: FontWeight.w700,

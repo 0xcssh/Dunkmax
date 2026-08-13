@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/dunk_goal.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
@@ -35,11 +36,12 @@ class GoalScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return OnboardingScaffold(
       step: step,
       totalSteps: totalSteps,
-      title: "WHAT'S YOUR\nDUNK GOAL?",
-      subtitle: "Select every goal that fires you up — we'll build the path.",
+      title: l10n.goalTitle,
+      subtitle: l10n.goalSubtitle,
       onBack: onBack,
       onContinue: selected.isEmpty ? null : onContinue,
       // The cards arrive one after another instead of as a single block.

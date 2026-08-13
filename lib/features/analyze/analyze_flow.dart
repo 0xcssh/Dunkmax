@@ -12,6 +12,7 @@ import '../../core/models/onboarding_profile.dart';
 import '../../core/models/video_attempt_type.dart';
 import '../../core/trim_range.dart';
 import '../../core/vert_assessment.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/jump_log_store.dart';
 import '../../services/media_file_resolver.dart';
 import 'screens/jump_result_screen.dart';
@@ -223,7 +224,9 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
           method: _method,
           attemptType: _attemptType,
           onAnalyzeAnother: widget.onFirstResult ?? _reset,
-          ctaLabel: widget.onFirstResult != null ? 'CONTINUE' : 'ANALYZE ANOTHER JUMP',
+          ctaLabel: widget.onFirstResult != null
+              ? AppLocalizations.of(context).commonContinue
+              : AppLocalizations.of(context).resultCtaAnalyzeAnother,
         );
     }
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/standing_reach.dart';
 import '../../core/vert_assessment.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 
 /// Lets the athlete set or correct their standing reach after onboarding.
@@ -54,11 +55,12 @@ class _StandingReachDialogState extends State<_StandingReachDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
       backgroundColor: DunkColors.surface,
-      title: const Text(
-        'Standing reach',
-        style: TextStyle(color: Colors.white),
+      title: Text(
+        l10n.settingsStandingReach,
+        style: const TextStyle(color: Colors.white),
       ),
       content: SizedBox(
         width: 320,
@@ -66,15 +68,14 @@ class _StandingReachDialogState extends State<_StandingReachDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Stand flat against a wall, reach one arm as high as it goes, '
-              'mark your fingertips, then measure from the floor. Your dunk '
-              'target is built on this number.',
-              style: TextStyle(color: DunkColors.textSecondary, fontSize: 13),
+            Text(
+              l10n.standingReachHowTo,
+              style: const TextStyle(
+                  color: DunkColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 14),
             Text(
-              '${StandingReach.label(_reach)}  ·  $_reach in',
+              l10n.standingReachValue(StandingReach.label(_reach), _reach),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 22,
@@ -97,7 +98,8 @@ class _StandingReachDialogState extends State<_StandingReachDialog> {
                     final inches = StandingReach.minInches + i;
                     return Center(
                       child: Text(
-                        '${StandingReach.label(inches)}  ·  $inches in',
+                        l10n.standingReachValue(
+                            StandingReach.label(inches), inches),
                         style: const TextStyle(
                           fontSize: 18,
                           color: Colors.white,
@@ -111,8 +113,7 @@ class _StandingReachDialogState extends State<_StandingReachDialog> {
             if (widget.currentReachInches == null) ...[
               const SizedBox(height: 4),
               Text(
-                'Currently estimated at ${StandingReach.label(_estimate)} from '
-                'your height.',
+                l10n.standingReachEstimateNote(StandingReach.label(_estimate)),
                 style: const TextStyle(
                   color: DunkColors.textTertiary,
                   fontSize: 12,
@@ -126,16 +127,16 @@ class _StandingReachDialogState extends State<_StandingReachDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: DunkColors.textSecondary),
+          child: Text(
+            l10n.commonCancel,
+            style: const TextStyle(color: DunkColors.textSecondary),
           ),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(_reach),
-          child: const Text(
-            'Save',
-            style: TextStyle(
+          child: Text(
+            l10n.commonSave,
+            style: const TextStyle(
               color: DunkColors.primary,
               fontWeight: FontWeight.w700,
             ),

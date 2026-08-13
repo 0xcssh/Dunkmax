@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/onboarding_profile.dart';
 import '../../../core/program_catalog.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
@@ -20,8 +21,14 @@ class PlanRevealScreen extends StatelessWidget {
   });
 
   // A simple representative week derived from the training frequency.
-  List<(String, bool)> _week() {
-    final labels = ['FOUNDATION', 'BASIC', 'CORE', 'POWER', 'REACTIVE'];
+  List<(String, bool)> _week(AppLocalizations l10n) {
+    final labels = [
+      l10n.planDayFoundation,
+      l10n.planDayBasic,
+      l10n.planDayCore,
+      l10n.planDayPower,
+      l10n.planDayReactive,
+    ];
     final days = <(String, bool)>[];
     var trained = 0;
     for (var d = 0; d < 7 && days.length < 7; d++) {
@@ -31,7 +38,7 @@ class PlanRevealScreen extends StatelessWidget {
         days.add((labels[trained], true));
         trained++;
       } else {
-        days.add(('REST', false));
+        days.add((l10n.planDayRest, false));
       }
     }
     return days;
@@ -39,8 +46,9 @@ class PlanRevealScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final program = ProgramCatalog.recommend(profile);
-    final week = _week();
+    final week = _week(l10n);
 
     return Scaffold(
       body: SafeArea(
@@ -59,14 +67,14 @@ class PlanRevealScreen extends StatelessWidget {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
-                    const Text("HERE'S YOUR PLAN", style: DunkTheme.onboardingTitle),
+                    Text(l10n.planRevealTitle,
+                        style: DunkTheme.onboardingTitle),
                     const SizedBox(height: 10),
                     // Goals are collected but never reach the programming —
                     // only experience, training days and location do. Naming
                     // them here would be a claim the catalog does not honour.
-                    const Text(
-                      'Matched to your level, your schedule and where you '
-                      'train.',
+                    Text(
+                      l10n.planRevealSubtitle,
                       style: DunkTheme.onboardingSubtitle,
                     ),
                     const SizedBox(height: 20),
@@ -87,19 +95,21 @@ class PlanRevealScreen extends StatelessWidget {
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              _Badge('${profile.daysPerWeek} DAYS'),
+                              _Badge(l10n.planBadgeDays(profile.daysPerWeek)),
                               const SizedBox(width: 8),
+                              // Location titles live in the untranslated
+                              // core/models/training_location.dart.
                               _Badge(profile.trainingLocation.title.toUpperCase()),
                               const SizedBox(width: 8),
-                              _Badge('${program.weeks} WEEKS'),
+                              _Badge(l10n.planBadgeWeeks(program.weeks)),
                             ],
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text('THIS WEEK',
-                        style: TextStyle(
+                    Text(l10n.planThisWeek,
+                        style: const TextStyle(
                             color: DunkColors.textSecondary,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1,
@@ -114,7 +124,7 @@ class PlanRevealScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              PrimaryButton(label: 'CONTINUE', onPressed: onContinue),
+              PrimaryButton(label: l10n.commonContinue, onPressed: onContinue),
             ],
           ),
         ),
@@ -154,7 +164,7 @@ class _DayRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 54,
-          child: Text('DAY $day',
+          child: Text(AppLocalizations.of(context).planDayLabel(day),
               style: const TextStyle(
                   color: DunkColors.textTertiary,
                   fontSize: 11,

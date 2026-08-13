@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/exercise_library.dart';
 import '../../../core/models/exercise.dart';
 import '../../../core/models/workout_session.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 import 'exercise_detail_screen.dart';
@@ -89,6 +90,7 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final isLast = widget.exerciseIndex + 1 == widget.totalExercises;
     final canAdvance = _allValidated;
     return SafeArea(
@@ -98,7 +100,8 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'EXERCISE ${widget.exerciseIndex + 1}/${widget.totalExercises}',
+              l10n.logExerciseCounter(
+                  widget.exerciseIndex + 1, widget.totalExercises),
               style: const TextStyle(
                 color: DunkColors.primary,
                 fontWeight: FontWeight.w700,
@@ -137,15 +140,18 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
             ),
             const SizedBox(height: 12),
             PrimaryButton(
-              label: isLast ? 'FINISH SESSION' : 'NEXT EXERCISE',
+              label: isLast
+                  ? l10n.logCtaFinishSession
+                  : l10n.logCtaNextExercise,
               onPressed: canAdvance ? _submit : null,
             ),
             if (!canAdvance) ...[
               const SizedBox(height: 10),
-              const Text(
-                'Validate every set to continue',
+              Text(
+                l10n.logValidateEverySet,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: DunkColors.textSecondary, fontSize: 13),
+                style: const TextStyle(
+                    color: DunkColors.textSecondary, fontSize: 13),
               ),
             ],
           ],
@@ -206,10 +212,11 @@ class _GuideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final guide = ExerciseLibrary.guideForExercise(exercise);
     final subtitle = guide == null
-        ? 'No coaching notes yet for this drill.'
-        : '${guide.steps.length} steps, common mistakes and what it trains.';
+        ? l10n.logGuideNone
+        : l10n.logGuideSubtitle(guide.steps.length);
 
     return Material(
       color: Colors.transparent,
@@ -244,9 +251,9 @@ class _GuideCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'HOW TO DO IT',
-                          style: TextStyle(
+                        Text(
+                          l10n.logGuideTitle,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
@@ -278,8 +285,7 @@ class _GuideCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Swapped for your home setup'
-                        '${_replacedSuffix(exercise)}',
+                        _swapNote(l10n, exercise),
                         style: const TextStyle(
                           color: DunkColors.primary,
                           fontSize: 12,
@@ -298,11 +304,14 @@ class _GuideCard extends StatelessWidget {
     );
   }
 
-  static String _replacedSuffix(Exercise exercise) {
+  /// One whole sentence per case rather than a stem plus a suffix: a
+  /// fragment joined onto another fragment does not survive translation.
+  static String _swapNote(AppLocalizations l10n, Exercise exercise) {
     final id = exercise.substitutedForId;
-    if (id == null) return '';
-    final replaced = ExerciseLibrary.guideFor(id);
-    return replaced == null ? '' : ' — replaces ${replaced.name}';
+    final replaced = id == null ? null : ExerciseLibrary.guideFor(id);
+    if (replaced == null) return l10n.logSwappedForHome;
+    // The replaced drill's name comes from the untranslated exercise library.
+    return l10n.logSwappedForHomeReplaces(replaced.name);
   }
 }
 
@@ -323,6 +332,7 @@ class _SetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -340,7 +350,7 @@ class _SetRow extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'SET $setNumber',
+                  l10n.logSetNumber(setNumber),
                   style: const TextStyle(
                     color: DunkColors.textTertiary,
                     fontSize: 11,
@@ -358,7 +368,7 @@ class _SetRow extends StatelessWidget {
               Expanded(
                 child: _NumberField(
                   controller: repsController,
-                  hintText: 'reps',
+                  hintText: l10n.logRepsHint,
                   keyboardType: TextInputType.number,
                 ),
               ),
@@ -366,7 +376,7 @@ class _SetRow extends StatelessWidget {
               Expanded(
                 child: _NumberField(
                   controller: weightController,
-                  hintText: 'lbs (optional)',
+                  hintText: l10n.logWeightHint,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                 ),
@@ -416,7 +426,9 @@ class _ValidateToggle extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                validated ? 'DONE' : 'VALIDATE',
+                validated
+                    ? AppLocalizations.of(context).logValidated
+                    : AppLocalizations.of(context).logValidate,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,

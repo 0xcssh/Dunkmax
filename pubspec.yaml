@@ -11,6 +11,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Localization. `flutter_localizations` supplies Material/Cupertino/Widgets
+  # translations for every locale we declare; `intl` is what the generated
+  # `AppLocalizations` imports for plural/placeholder formatting. `intl` is
+  # deliberately unconstrained ("any") because flutter_localizations pins an
+  # exact version per SDK and a fixed constraint here would eventually clash.
+  flutter_localizations:
+    sdk: flutter
+  intl: any
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.3.2
   image_picker: ^1.1.2
@@ -48,6 +56,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Runs `gen-l10n` from `l10n.yaml` as part of `flutter pub get`. The
+  # generated Dart is ALSO checked in under lib/l10n/ (see the note there):
+  # there is no Flutter SDK on the dev machine to run the generator, and CI
+  # must compile whether or not the toolchain regenerates it.
+  generate: true
   assets:
     # Start/end demonstration frames per exercise. Flutter only bundles
     # files directly inside a listed directory, never its subfolders, so

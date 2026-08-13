@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
@@ -31,6 +32,7 @@ class WarmupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -44,9 +46,9 @@ class WarmupScreen extends StatelessWidget {
                   icon: const Icon(Icons.close, color: Colors.white),
                 ),
                 const Spacer(),
-                const Text(
-                  'WARM UP',
-                  style: TextStyle(
+                Text(
+                  l10n.warmUpHeader,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
@@ -71,7 +73,9 @@ class WarmupScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text('${focus.toUpperCase()} DAY', style: DunkTheme.onboardingTitle),
+                  // The focus name comes from the untranslated program catalog.
+                  Text(l10n.warmUpFocusDay(focus.toUpperCase()),
+                      style: DunkTheme.onboardingTitle),
                   if (isDeload) ...[
                     const SizedBox(height: 10),
                     Container(
@@ -84,16 +88,15 @@ class WarmupScreen extends StatelessWidget {
                           color: DunkColors.primary.withValues(alpha: 0.45),
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.trending_down,
+                          const Icon(Icons.trending_down,
                               size: 15, color: DunkColors.primary),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'DELOAD WEEK — fewer sets on purpose. This is '
-                              'when adaptation happens.',
-                              style: TextStyle(
+                              l10n.warmUpDeloadNote,
+                              style: const TextStyle(
                                 color: DunkColors.primary,
                                 fontSize: 12,
                                 height: 1.3,
@@ -131,9 +134,9 @@ class WarmupScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'WARM-UP',
-                                style: TextStyle(
+                              Text(
+                                l10n.warmUpCardLabel,
+                                style: const TextStyle(
                                   color: DunkColors.textTertiary,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
@@ -159,7 +162,7 @@ class WarmupScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            PrimaryButton(label: 'START EXERCISES', onPressed: onStart),
+            PrimaryButton(label: l10n.warmUpCta, onPressed: onStart),
           ],
         ),
       ),

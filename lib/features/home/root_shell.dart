@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/onboarding_profile.dart';
 import '../../core/program_catalog.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/athlete_profile_store.dart';
 import '../../services/jump_log_store.dart';
 import '../../services/leaderboard_service.dart';
@@ -57,16 +58,17 @@ class _RootShellState extends State<RootShell> {
     if (stored != _displayName) setState(() => _displayName = stored);
   }
 
-  static const _tabs = [
-    (Icons.home_rounded, 'HOME'),
-    (Icons.monitor_heart_outlined, 'ANALYZE'),
-    (Icons.fitness_center, 'TRAIN'),
-    (Icons.groups_outlined, 'FEED'),
-    (Icons.show_chart, 'PROGRESS'),
-  ];
+  List<(IconData, String)> _tabs(AppLocalizations l10n) => [
+        (Icons.home_rounded, l10n.tabHome),
+        (Icons.monitor_heart_outlined, l10n.tabAnalyze),
+        (Icons.fitness_center, l10n.tabTrain),
+        (Icons.groups_outlined, l10n.tabFeed),
+        (Icons.show_chart, l10n.tabProgress),
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final program = ProgramCatalog.recommend(widget.profile);
 
     final pages = [
@@ -100,13 +102,14 @@ class _RootShellState extends State<RootShell> {
       body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: _BottomBar(
         index: _index,
-        tabs: _tabs,
+        tabs: _tabs(l10n),
         onTap: (i) => setState(() => _index = i),
       ),
     );
   }
 
   Future<void> _openSettings(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final reach = widget.profile.standingReachInches;
     await showModalBottomSheet<void>(
       context: context,
@@ -133,9 +136,9 @@ class _RootShellState extends State<RootShell> {
                     ),
                   ),
                 ),
-                const Text(
-                  'SETTINGS',
-                  style: TextStyle(
+                Text(
+                  l10n.settingsTitle,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -145,9 +148,10 @@ class _RootShellState extends State<RootShell> {
                 const SizedBox(height: 16),
                 _SettingsRow(
                   icon: Icons.badge_outlined,
-                  label: 'Leaderboard name',
+                  label: l10n.settingsLeaderboardName,
                   // Honest about the consent gate: no name, nothing published.
-                  value: _displayName.isEmpty ? 'Not set' : _displayName,
+                  value:
+                      _displayName.isEmpty ? l10n.settingsNotSet : _displayName,
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     _editDisplayName(context);
@@ -156,10 +160,10 @@ class _RootShellState extends State<RootShell> {
                 const SizedBox(height: 10),
                 _SettingsRow(
                   icon: Icons.straighten,
-                  label: 'Standing reach',
+                  label: l10n.settingsStandingReach,
                   // Honest about which number the dunk target rests on: until
                   // it's measured, everything downstream uses an estimate.
-                  value: reach == null ? 'Not set' : '$reach"',
+                  value: reach == null ? l10n.settingsNotSet : l10n.inches(reach),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     _editStandingReach(context);
@@ -168,7 +172,7 @@ class _RootShellState extends State<RootShell> {
                 const SizedBox(height: 10),
                 _SettingsRow(
                   icon: Icons.refresh,
-                  label: 'Retake onboarding',
+                  label: l10n.settingsRetakeOnboarding,
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     _confirmRestartOnboarding(context);
@@ -209,23 +213,27 @@ class _RootShellState extends State<RootShell> {
   }
 
   Future<void> _confirmRestartOnboarding(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: DunkColors.surface,
-        title: const Text('Retake onboarding?', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          "This clears your current profile and takes you back through the quiz from the start.",
-          style: TextStyle(color: DunkColors.textSecondary),
+        title: Text(l10n.retakeOnboardingTitle,
+            style: const TextStyle(color: Colors.white)),
+        content: Text(
+          l10n.retakeOnboardingBody,
+          style: const TextStyle(color: DunkColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: DunkColors.textSecondary)),
+            child: Text(l10n.commonCancel,
+                style: const TextStyle(color: DunkColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Retake', style: TextStyle(color: DunkColors.primary)),
+            child: Text(l10n.retakeOnboardingConfirm,
+                style: const TextStyle(color: DunkColors.primary)),
           ),
         ],
       ),

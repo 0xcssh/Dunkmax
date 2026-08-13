@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/training_program.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 
 /// A brief "assembling your program" beat between the quiz and the app.
@@ -46,9 +47,9 @@ class _BuildingPlanScreenState extends State<BuildingPlanScreen> {
                 ),
               ),
               const SizedBox(height: 28),
-              const Text(
-                'BUILDING YOUR PLAN',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).buildingPlanTitle,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
@@ -57,7 +58,10 @@ class _BuildingPlanScreenState extends State<BuildingPlanScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Matching you to the ${widget.program.name}',
+                // The program name itself comes from the untranslated
+                // core/program_catalog.dart.
+                AppLocalizations.of(context)
+                    .buildingPlanSubtitle(widget.program.name),
                 textAlign: TextAlign.center,
                 style: DunkTheme.onboardingSubtitle,
               ),

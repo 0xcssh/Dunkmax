@@ -5,11 +5,10 @@ import '../../../core/models/onboarding_profile.dart';
 import '../../../core/models/training_program.dart';
 import '../../../core/training_schedule.dart';
 import '../../../core/workout_streak.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../services/jump_log_store.dart';
 import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
-
-const _weekdayInitials = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -198,7 +197,8 @@ class _DayStrip extends StatelessWidget {
         Row(
           children: [
             Text(
-              'DAY $currentSessionNumber/$totalSessions',
+              AppLocalizations.of(context)
+                  .homeDayCounter(currentSessionNumber, totalSessions),
               style: const TextStyle(
                 color: DunkColors.textTertiary,
                 fontSize: 11,
@@ -213,9 +213,9 @@ class _DayStrip extends StatelessWidget {
                 color: DunkColors.accentGreen.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                'TODAY',
-                style: TextStyle(
+              child: Text(
+                AppLocalizations.of(context).homeTodayBadge,
+                style: const TextStyle(
                   color: DunkColors.accentGreen,
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
@@ -260,6 +260,10 @@ class _DayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Seven comma-separated single letters, Monday first — matches
+    // DateTime.weekday, which is 1 = Monday.
+    final weekdayInitials =
+        AppLocalizations.of(context).weekdayInitials.split(',');
     late final Color bg;
     late final Widget statusIcon;
     Border? border;
@@ -313,7 +317,9 @@ class _DayCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            _weekdayInitials[date.weekday - 1],
+            date.weekday - 1 < weekdayInitials.length
+                ? weekdayInitials[date.weekday - 1]
+                : '',
             style: TextStyle(
               color: isToday ? Colors.white70 : DunkColors.textTertiary,
               fontSize: 11,
@@ -369,10 +375,14 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    // `today.focus` comes from the untranslated program catalog.
     final headline = isProgramComplete
-        ? 'PROGRAM COMPLETE'
-        : '${today.focus.toUpperCase()} DAY';
-    final ctaLabel = isProgramComplete ? 'VIEW TRAIN' : 'START SESSION';
+        ? l10n.homeProgramComplete
+        : l10n.homeFocusDay(today.focus.toUpperCase());
+    final ctaLabel = isProgramComplete
+        ? l10n.homeCtaViewTrain
+        : l10n.homeCtaStartSession;
 
     return Container(
       width: double.infinity,
@@ -410,8 +420,9 @@ class _HeroCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             isProgramComplete
-                ? "You've finished every session — nice work."
-                : 'Week $weekNumber • Session $currentSessionNumber/$totalSessions',
+                ? l10n.homeProgramCompleteBody
+                : l10n.homeWeekSession(
+                    weekNumber, currentSessionNumber, totalSessions),
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
@@ -462,15 +473,17 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         Expanded(
           child: _StatCard(
             icon: Icons.straighten,
-            value: trend == null ? '—' : '${trend!.latestVerticalInches}"',
-            label: 'LATEST VERT',
+            value: trend == null ? '—' : l10n.inches(trend!.latestVerticalInches),
+            label: l10n.homeLatestVert,
             trailing: trend != null && trend!.isImproving
-                ? _GreenDelta(text: '+${trend!.deltaFromFirstInches}"')
+                ? _GreenDelta(
+                    text: l10n.inchesPlus(trend!.deltaFromFirstInches))
                 : null,
           ),
         ),
@@ -479,7 +492,7 @@ class _StatsRow extends StatelessWidget {
           child: _StatCard(
             icon: Icons.local_fire_department,
             value: '$streak',
-            label: 'DAY STREAK',
+            label: l10n.homeDayStreak,
           ),
         ),
       ],

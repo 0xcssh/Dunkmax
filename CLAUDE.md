@@ -85,6 +85,16 @@ lib/
                          app shell. The paywall gate is the ENTITLEMENT, not a
                          tap: it listens to SubscriptionService.isSubscribed
   theme/app_theme.dart   DunkColors palette (near-black + orange) + text styles
+  l10n/                  app_en.arb (the template — every message carries an
+                         @description) + app_fr.arb, and the gen-l10n output
+                         (app_localizations*.dart). The generated Dart is
+                         **checked in on purpose**: there is no Flutter SDK on
+                         the dev machine to run the generator, and CI has to
+                         compile from a plain checkout. `flutter pub get`
+                         regenerates it in place (pubspec sets `generate: true`,
+                         config in `l10n.yaml`), so a stale copy self-heals.
+                         Call sites read `AppLocalizations.of(context).key` —
+                         non-null, because `nullable-getter: false`
   core/                  PURE Dart, NO Flutter imports — fully CI-tested.
     models/              DunkGoal, ExperienceLevel, CourtPosition, Exercise,
                          TrainingProgram, HopsLevel, TrainingLocation,
@@ -531,8 +541,25 @@ TODO (rough priority):
       browser instead of a copy-the-URL dialog (URLs live in
       `core/legal_urls.dart`; the privacy one is a reserved `.invalid`
       placeholder until a real page is published).
-- [ ] **Localization** — externalize strings to flutter_localizations + ARB
-      (en, fr, es, de, it, pt-BR). Biggest ASO edge; don't defer to the end.
+- [x] **Localization (en + fr)** — `flutter_localizations` + `intl`,
+      `l10n.yaml`, and a 375-message ARB catalogue in `lib/l10n/`. Every
+      user-facing string under `lib/features/**` is extracted; both locales
+      are **authored**, not machine-translated, which is why only two ship.
+      Adding es/de/it/pt-BR is now a data-only change: drop an `app_xx.arb`
+      beside the others and add the locale to `l10n.yaml`'s neighbours in
+      `AppLocalizations.supportedLocales`. `test/l10n_catalog_test.dart`
+      fails on a missing key, an orphan key or a placeholder mismatch, so a
+      half-translated locale cannot ship silently falling back to English.
+      Still English, deliberately: everything authored in `lib/core/**` —
+      `exercise_library.dart`'s coaching content, `jump_feedback.dart`'s
+      sentences, `jump_form_scores.dart`'s reasons and labels, the enum
+      `title`/`subtitle` getters in `core/models/`, `subscription_offer.dart`'s
+      price and disclosure lines, and `training_schedule.dart`'s
+      `weekdayLabel`/`positionLabel`. `core/` may not import Flutter, and
+      `AppLocalizations` is a Flutter dependency — translating that content
+      means changing those contracts (returning ids, or taking a lookup), which
+      is a separate job. Also left in English on purpose: the Analyze result's
+      DETECTION DETAILS card, which is developer-facing.
 - [ ] **App icon** — generation is wired: drop a square, opaque, ≥1024px
       `assets/icon/app_icon.png` and CI produces every iOS and Android size
       via `flutter_launcher_icons`, right after `flutter create` regenerates
@@ -553,8 +580,14 @@ TODO (rough priority):
   with no rating badge, and the Feed's community board is honestly locked
   rather than filled with made-up athletes. When real reviews exist they get
   *added*; they never come back as placeholders.
-- **Localization is the plan** — avoid hardcoding user-facing copy long-term;
-  English literals are placeholders until the ARB catalog lands.
+- **No new hardcoded user-facing copy.** Every string a user reads lives in
+  `lib/l10n/app_en.arb` with an `@description` saying *where it appears* (the
+  next translator will not have the app open), and in `app_fr.arb`. Copy built
+  by concatenation becomes one ARB entry with ICU placeholders, never joined
+  fragments — fragment order does not survive translation. Anything counting
+  uses a real `plural`. French is written as natural sporting French with
+  *tutoiement*, not a gloss: "vertical" is *détente*, "hang time" is *temps de
+  suspension*, "dunk" stays "dunk".
 - Icons: Material/Cupertino icons only, no emoji in UI. Design must never
   look cheap.
 - Keep the repo **public** during dev (free unlimited macOS Actions minutes,

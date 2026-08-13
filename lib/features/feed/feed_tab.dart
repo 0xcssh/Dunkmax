@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/leaderboard.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/athlete_profile_store.dart';
 import '../../services/jump_log_store.dart';
 import '../../services/leaderboard_service.dart';
@@ -140,6 +141,7 @@ class _FeedTabState extends State<FeedTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final personalBoard = Leaderboard.rank(widget.jumpLogStore.entries);
 
     return SafeArea(
@@ -155,9 +157,8 @@ class _FeedTabState extends State<FeedTab> {
             const SizedBox(height: 20),
             _SectionHeader(
               icon: Icons.public,
-              title: 'ALL-TIME VERTICAL',
-              subtitle: 'Every DunkIt athlete, ranked by their best measured '
-                  'jump.',
+              title: l10n.feedGlobalTitle,
+              subtitle: l10n.feedGlobalSubtitle,
               action: widget.displayName.isEmpty
                   ? null
                   : _SectionAction(
@@ -166,12 +167,12 @@ class _FeedTabState extends State<FeedTab> {
                     ),
             ),
             const SizedBox(height: 12),
-            ..._buildGlobalSection(),
+            ..._buildGlobalSection(l10n),
             const SizedBox(height: 28),
-            const _SectionHeader(
+            _SectionHeader(
               icon: Icons.emoji_events_outlined,
-              title: 'YOUR BEST JUMPS',
-              subtitle: 'Every jump you have analyzed, ranked by vertical.',
+              title: l10n.feedPersonalTitle,
+              subtitle: l10n.feedPersonalSubtitle,
             ),
             const SizedBox(height: 12),
             if (personalBoard.isEmpty)
@@ -187,27 +188,24 @@ class _FeedTabState extends State<FeedTab> {
     );
   }
 
-  List<Widget> _buildGlobalSection() {
+  List<Widget> _buildGlobalSection(AppLocalizations l10n) {
     switch (_state) {
       case _BoardState.notConfigured:
-        return const [
+        return [
           _BoardNoticeCard(
             icon: Icons.cloud_off_outlined,
-            title: 'Global board is off in this build',
-            body: 'This copy of the app was built without leaderboard '
-                'credentials, so there is nothing to connect to. Everything '
-                'else works offline.',
+            title: l10n.feedNotConfiguredTitle,
+            body: l10n.feedNotConfiguredBody,
           ),
         ];
       case _BoardState.loading:
         return const [_BoardLoadingCard()];
       case _BoardState.unavailable:
-        return const [
+        return [
           _BoardNoticeCard(
             icon: Icons.wifi_off_outlined,
-            title: "Can't reach the global board",
-            body: 'Check your connection and pull down to try again. Your own '
-                'jumps below are stored on this device and are unaffected.',
+            title: l10n.feedUnavailableTitle,
+            body: l10n.feedUnavailableBody,
           ),
         ];
       case _BoardState.loaded:
@@ -216,11 +214,10 @@ class _FeedTabState extends State<FeedTab> {
             _NamePromptCard(onSetName: _editDisplayName),
           if (widget.displayName.isEmpty) const SizedBox(height: 12),
           if (_globalBoard.isEmpty)
-            const _BoardNoticeCard(
+            _BoardNoticeCard(
               icon: Icons.emoji_events_outlined,
-              title: 'No athletes ranked yet',
-              body: 'Nobody has posted a measured jump yet. Analyze one and '
-                  'you take the top spot.',
+              title: l10n.feedNoAthletesTitle,
+              body: l10n.feedNoAthletesBody,
             )
           else
             for (final row in _globalBoard) ...[
@@ -253,9 +250,9 @@ class _Header extends StatelessWidget {
           child: const Icon(Icons.groups_outlined, color: Colors.white, size: 24),
         ),
         const SizedBox(width: 12),
-        const Text(
-          'LEADERBOARDS',
-          style: TextStyle(
+        Text(
+          AppLocalizations.of(context).feedTitle,
+          style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,
             letterSpacing: 1,
@@ -368,6 +365,7 @@ class _GlobalAthleteRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final athlete = row.athlete;
 
     return Container(
@@ -403,6 +401,8 @@ class _GlobalAthleteRow extends StatelessWidget {
                 RichText(
                   text: TextSpan(
                     children: [
+                      // Both figures are formatted by the untranslated
+                      // leaderboard model; only the separator is ours.
                       TextSpan(
                         text: athlete.formattedVertical,
                         style: const TextStyle(
@@ -412,7 +412,8 @@ class _GlobalAthleteRow extends StatelessWidget {
                         ),
                       ),
                       TextSpan(
-                        text: ' · ${athlete.formattedHeight}',
+                        text: l10n.feedGlobalStatSeparator(
+                            athlete.formattedHeight),
                         style: const TextStyle(
                           color: DunkColors.textSecondary,
                           fontSize: 13,
@@ -433,9 +434,9 @@ class _GlobalAthleteRow extends StatelessWidget {
                 color: DunkColors.primary,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                'YOU',
-                style: TextStyle(
+              child: Text(
+                l10n.feedYouBadge,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
@@ -458,6 +459,7 @@ class _RankedJumpRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final entry = row.entry;
     // The entry stores file names (legacy entries: absolute paths); the file
     // they point at today is found by resolving against the current documents
@@ -498,7 +500,7 @@ class _RankedJumpRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _formatDate(entry.recordedAt),
+                      l10n.jumpDateMedium(entry.recordedAt),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -510,7 +512,7 @@ class _RankedJumpRow extends StatelessWidget {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: '${entry.verticalInches}" vert',
+                            text: l10n.feedJumpStat(entry.verticalInches),
                             style: const TextStyle(
                               color: DunkColors.primary,
                               fontSize: 13,
@@ -518,7 +520,12 @@ class _RankedJumpRow extends StatelessWidget {
                             ),
                           ),
                           TextSpan(
-                            text: ' · ${entry.attemptType?.title ?? 'Jump'}',
+                            // Attempt-type titles live in the untranslated
+                            // core model.
+                            text: l10n.feedAttemptSeparator(
+                              entry.attemptType?.title ??
+                                  l10n.feedAttemptFallback,
+                            ),
                             style: const TextStyle(
                               color: DunkColors.textSecondary,
                               fontSize: 13,
@@ -572,7 +579,7 @@ class _RankBadge extends StatelessWidget {
       child: isPodium
           ? const Icon(Icons.military_tech, color: Colors.white, size: 28)
           : Text(
-              '#$rank',
+              AppLocalizations.of(context).feedRankNumber(rank),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -674,19 +681,20 @@ class _EmptyBoardCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          const Text(
-            'No jumps ranked yet',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).feedEmptyPersonalTitle,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Analyze your first jump to start your board.',
+          Text(
+            AppLocalizations.of(context).feedEmptyPersonalBody,
             textAlign: TextAlign.center,
-            style: TextStyle(color: DunkColors.textSecondary, fontSize: 13),
+            style: const TextStyle(
+                color: DunkColors.textSecondary, fontSize: 13),
           ),
         ],
       ),
@@ -814,9 +822,9 @@ class _BoardLoadingCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
         ],
-        const Text(
-          'Loading the global board…',
-          style: TextStyle(color: DunkColors.textTertiary, fontSize: 12),
+        Text(
+          AppLocalizations.of(context).feedLoading,
+          style: const TextStyle(color: DunkColors.textTertiary, fontSize: 12),
         ),
       ],
     );
@@ -831,6 +839,7 @@ class _NamePromptCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -857,10 +866,10 @@ class _NamePromptCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  "You're not on the board yet",
-                  style: TextStyle(
+                  l10n.feedNamePromptTitle,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -870,11 +879,9 @@ class _NamePromptCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Pick a board name and your best measured jump gets ranked with '
-            'everyone else. Only the name, the vertical and your height are '
-            'shared — never your clips.',
-            style: TextStyle(
+          Text(
+            l10n.feedNamePromptBody,
+            style: const TextStyle(
               color: DunkColors.textSecondary,
               fontSize: 13,
               height: 1.35,
@@ -892,9 +899,9 @@ class _NamePromptCard extends StatelessWidget {
                 child: Container(
                   height: 46,
                   alignment: Alignment.center,
-                  child: const Text(
-                    'SET MY BOARD NAME',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.feedSetBoardName,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -910,12 +917,3 @@ class _NamePromptCard extends StatelessWidget {
     );
   }
 }
-
-const _monthAbbreviations = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-/// e.g. "Aug 4, 2026". Placeholder until the ARB catalog lands (CLAUDE.md).
-String _formatDate(DateTime date) =>
-    '${_monthAbbreviations[date.month - 1]} ${date.day}, ${date.year}';

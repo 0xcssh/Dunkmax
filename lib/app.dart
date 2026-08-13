@@ -5,6 +5,7 @@ import 'features/analyze/analyze_flow.dart';
 import 'features/home/root_shell.dart';
 import 'features/onboarding/onboarding_flow.dart';
 import 'features/paywall/paywall_screen.dart';
+import 'l10n/app_localizations.dart';
 import 'services/athlete_profile_store.dart';
 import 'services/jump_log_store.dart';
 import 'services/leaderboard_service.dart';
@@ -127,9 +128,16 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      // The wordmark, not a translated string — the app is called the same
+      // thing in every locale.
       title: 'DunkMax',
       debugShowCheckedModeBanner: false,
       theme: DunkTheme.build(),
+      // No `locale:` override — the device language decides, falling back to
+      // English for anything we don't ship. Adding a locale later is a
+      // data-only change: drop an `app_xx.arb` next to the two existing ones.
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: _buildHome(),
     );
   }

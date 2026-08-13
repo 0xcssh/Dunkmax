@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/training_program.dart';
 import '../../core/models/workout_session.dart';
 import '../../core/training_schedule.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/workout_session_store.dart';
 import 'screens/log_exercise_screen.dart';
 import 'screens/session_complete_screen.dart';
@@ -78,9 +79,11 @@ class _SessionFlowState extends State<SessionFlow> {
         _Step.warmup => WarmupScreen(
             focus: _day.focus,
             warmUp: _day.warmUp,
-            weekLabel: 'WEEK $_week · DAY '
-                '${_schedule.dayInWeekOfSession(widget.sessionNumber)} OF '
-                '${_schedule.sessionsPerWeek}',
+            weekLabel: AppLocalizations.of(context).trainPositionLabel(
+              _week,
+              _schedule.dayInWeekOfSession(widget.sessionNumber),
+              _schedule.sessionsPerWeek,
+            ),
             isDeload: _schedule.isDeloadWeek(_week),
             onStart: _startExercises,
             onCancel: () => Navigator.of(context).pop(false),

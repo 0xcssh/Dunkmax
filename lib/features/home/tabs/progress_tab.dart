@@ -5,6 +5,7 @@ import '../../../core/models/jump_log_entry.dart';
 import '../../../core/models/training_program.dart';
 import '../../../core/program_progress.dart';
 import '../../../core/workout_streak.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../services/jump_log_store.dart';
 import '../../../services/media_file_resolver.dart';
 import '../../../services/workout_session_store.dart';
@@ -58,9 +59,9 @@ class ProgressTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          const Text(
-            'PROGRESS',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).progressTitle,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -105,13 +106,13 @@ class _TrendChartCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.show_chart, color: DunkColors.primary, size: 18),
-              SizedBox(width: 8),
+              const Icon(Icons.show_chart, color: DunkColors.primary, size: 18),
+              const SizedBox(width: 8),
               Text(
-                'VERTICAL JUMP TREND',
-                style: TextStyle(
+                AppLocalizations.of(context).progressTrendTitle,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -146,9 +147,9 @@ class _RecentAnalysesSection extends StatelessWidget {
           children: [
             const Icon(Icons.videocam_outlined, color: DunkColors.primary, size: 18),
             const SizedBox(width: 8),
-            const Text(
-              'RECENT ANALYSES',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context).progressRecentAnalyses,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
@@ -164,9 +165,9 @@ class _RecentAnalysesSection extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text(
-                'View All',
-                style: TextStyle(
+              child: Text(
+                AppLocalizations.of(context).progressViewAll,
+                style: const TextStyle(
                   color: DunkColors.primary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -197,6 +198,7 @@ class _RecentAnalysisThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final date = entry.recordedAt;
     // What the entry stored is a file name (legacy entries: an absolute path),
     // resolved here against the current documents directory — the container
@@ -261,7 +263,7 @@ class _RecentAnalysisThumb extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '${entry.verticalInches}"',
+                        l10n.inches(entry.verticalInches),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -276,7 +278,7 @@ class _RecentAnalysisThumb extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '${date.month}/${date.day}',
+            l10n.jumpDateShort(date),
             style: const TextStyle(color: DunkColors.textSecondary, fontSize: 11),
           ),
         ],
@@ -293,6 +295,7 @@ class _VerticalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final trend = this.trend;
     return Container(
       padding: const EdgeInsets.all(24),
@@ -302,9 +305,9 @@ class _VerticalCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
-            'CURRENT VERTICAL',
-            style: TextStyle(
+          Text(
+            l10n.progressCurrentVertical,
+            style: const TextStyle(
               color: Colors.white70,
               fontSize: 12,
               fontWeight: FontWeight.w700,
@@ -316,7 +319,9 @@ class _VerticalCard extends StatelessWidget {
             text: TextSpan(
               children: [
                 TextSpan(
-                  text: trend == null ? '—' : '${trend.latestVerticalInches}"',
+                  text: trend == null
+                      ? '—'
+                      : l10n.inches(trend.latestVerticalInches),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 56,
@@ -325,9 +330,9 @@ class _VerticalCard extends StatelessWidget {
                   ),
                 ),
                 if (trend == null)
-                  const TextSpan(
-                    text: '  in',
-                    style: TextStyle(
+                  TextSpan(
+                    text: l10n.progressVertUnitSuffix,
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
@@ -338,9 +343,9 @@ class _VerticalCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           if (trend == null) ...[
-            const Text(
-              'Log your first jump test to start tracking',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+            Text(
+              l10n.progressLogFirstJump,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -353,18 +358,19 @@ class _VerticalCard extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               ),
-              child: const Text(
-                'Go to Analyze',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              child: Text(
+                l10n.progressGoToAnalyze,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w700),
               ),
             ),
           ] else
             Text(
               trend.deltaFromFirstInches > 0
-                  ? '+${trend.deltaFromFirstInches}" since your first test'
+                  ? l10n.progressSinceFirstGain(trend.deltaFromFirstInches)
                   : trend.deltaFromFirstInches < 0
-                      ? '${trend.deltaFromFirstInches}" since your first test'
-                      : 'No change since your first test',
+                      ? l10n.progressSinceFirstLoss(trend.deltaFromFirstInches)
+                      : l10n.progressSinceFirstNoChange,
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             ),
@@ -381,6 +387,7 @@ class _WorkoutsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -391,13 +398,14 @@ class _WorkoutsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.fitness_center, color: DunkColors.primary, size: 18),
-              SizedBox(width: 8),
+              const Icon(Icons.fitness_center,
+                  color: DunkColors.primary, size: 18),
+              const SizedBox(width: 8),
               Text(
-                'WORKOUTS',
-                style: TextStyle(
+                l10n.progressWorkouts,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -412,17 +420,17 @@ class _WorkoutsCard extends StatelessWidget {
             children: [
               _Stat(
                 value: '${progress.completedSessions}',
-                label: 'COMPLETED',
+                label: l10n.progressCompleted,
                 color: DunkColors.primary,
               ),
               _Stat(
                 value: '${progress.remaining}',
-                label: 'REMAINING',
+                label: l10n.progressRemaining,
                 color: Colors.white,
               ),
               _Stat(
-                value: '${progress.percentComplete}%',
-                label: 'COMPLETE',
+                value: l10n.progressPercent(progress.percentComplete),
+                label: l10n.progressCompleteLabel,
                 color: DunkColors.primary,
               ),
             ],
@@ -459,14 +467,15 @@ class _StreakCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.local_fire_department, color: DunkColors.primary, size: 18),
-              SizedBox(width: 8),
+              const Icon(Icons.local_fire_department,
+                  color: DunkColors.primary, size: 18),
+              const SizedBox(width: 8),
               Text(
-                'DAY STREAK',
-                style: TextStyle(
+                AppLocalizations.of(context).progressDayStreak,
+                style: const TextStyle(
                   color: DunkColors.textTertiary,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -487,9 +496,9 @@ class _StreakCard extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const TextSpan(
-                  text: '  days',
-                  style: TextStyle(
+                TextSpan(
+                  text: AppLocalizations.of(context).progressStreakDaysSuffix,
+                  style: const TextStyle(
                     color: DunkColors.textSecondary,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/onboarding_profile.dart';
 import '../../../core/vert_assessment.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
@@ -26,15 +27,22 @@ class GapScreen extends StatelessWidget {
         dunkHand: profile.dunkHand,
       );
 
-  String get _heightLabel =>
-      "${profile.heightInches ~/ 12}'${profile.heightInches % 12}\"";
+  String _heightLabel(AppLocalizations l10n) => l10n.heightValueCompact(
+        profile.heightInches ~/ 12,
+        profile.heightInches % 12,
+      );
 
-  String get _primaryGoal =>
-      profile.goals.isEmpty ? 'Your First Dunk' : profile.goals.first.title;
+  /// The goal titles themselves come from `core/models/dunk_goal.dart`, which
+  /// is pure Dart and stays untranslated for now — only the "no goal picked"
+  /// fallback is localised here.
+  String _primaryGoal(AppLocalizations l10n) =>
+      profile.goals.isEmpty ? l10n.gapDefaultGoal : profile.goals.first.title;
 
   @override
   Widget build(BuildContext context) {
     final a = _a;
+    final l10n = AppLocalizations.of(context);
+    final heightLabel = _heightLabel(l10n);
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -54,19 +62,22 @@ class GapScreen extends StatelessWidget {
                   children: [
                     Text(
                         a.reachIsMeasured
-                            ? 'BASED ON YOUR REACH + HOPS'
-                            : 'BASED ON YOUR HEIGHT + HOPS',
+                            ? l10n.gapBasedOnReach
+                            : l10n.gapBasedOnHeight,
                         style: const TextStyle(
                             color: DunkColors.primary,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1,
                             fontSize: 13)),
                     const SizedBox(height: 8),
-                    const Text("HERE'S THE GAP.", style: DunkTheme.onboardingTitle),
+                    Text(l10n.gapTitle, style: DunkTheme.onboardingTitle),
                     const SizedBox(height: 12),
                     Text(
-                      "You're $_heightLabel. About ${a.estimatedCurrentVert}\" today. "
-                      "Dunking usually takes ~${a.requiredVert}\".",
+                      l10n.gapIntro(
+                        heightLabel,
+                        a.estimatedCurrentVert,
+                        a.requiredVert,
+                      ),
                       style: DunkTheme.onboardingSubtitle,
                     ),
                     const SizedBox(height: 24),
@@ -81,24 +92,30 @@ class GapScreen extends StatelessWidget {
                     ],
                     const SizedBox(height: 20),
                     _SummaryGrid(rows: [
-                      ('Height', _heightLabel),
+                      (l10n.gapRowHeight, heightLabel),
                       (
-                        'Standing reach',
-                        '${a.standingReach}"'
-                            '${a.reachIsMeasured ? '' : ' (est.)'}'
+                        l10n.gapRowStandingReach,
+                        a.reachIsMeasured
+                            ? l10n.inches(a.standingReach)
+                            : l10n.gapReachEstimatedSuffix(a.standingReach)
                       ),
-                      ('Est. today', '${a.estimatedCurrentVert}"'),
-                      ('Dunk target', '${a.requiredVert}"'),
-                      ('Weight', '${profile.weightLbs} lbs'),
-                      ('Hops', profile.hopsLevel.title),
-                      ('Primary goal', _primaryGoal),
-                      ('Training days', '${profile.daysPerWeek}/week'),
+                      (l10n.gapRowEstToday, l10n.inches(a.estimatedCurrentVert)),
+                      (l10n.gapRowDunkTarget, l10n.inches(a.requiredVert)),
+                      (l10n.gapRowWeight, l10n.gapWeightValue(profile.weightLbs)),
+                      // The hops labels come from core/models/hops_level.dart,
+                      // which is pure Dart and stays English for now.
+                      (l10n.gapRowHops, profile.hopsLevel.title),
+                      (l10n.gapRowPrimaryGoal, _primaryGoal(l10n)),
+                      (
+                        l10n.gapRowTrainingDays,
+                        l10n.gapTrainingDaysValue(profile.daysPerWeek)
+                      ),
                     ]),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
-              PrimaryButton(label: 'CLOSE THE GAP', onPressed: onContinue),
+              PrimaryButton(label: l10n.gapCta, onPressed: onContinue),
             ],
           ),
         ),
@@ -122,9 +139,8 @@ class _TwoHandNote extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'You picked a two-hand finish, which asks for both forearms over '
-            'the ring — about ${VertAssessment.twoHandExtraClearance}" more '
-            'than a one-hand dunk. Your target reflects that.',
+            AppLocalizations.of(context)
+                .gapTwoHandNote(VertAssessment.twoHandExtraClearance),
             style: const TextStyle(
               color: DunkColors.textTertiary,
               fontSize: 12,
@@ -154,9 +170,8 @@ class _EstimatedReachNote extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Based on an estimated ${assessment.standingReach}" standing reach '
-            'from your height. Measure your real reach — in Settings any time — '
-            'for an exact target.',
+            AppLocalizations.of(context)
+                .gapEstimatedReachNote(assessment.standingReach),
             style: const TextStyle(
               color: DunkColors.textTertiary,
               fontSize: 12,
@@ -175,6 +190,7 @@ class _GapMeter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -185,11 +201,20 @@ class _GapMeter extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _Big(value: '~${assessment.estimatedCurrentVert}"', label: 'TODAY', color: Colors.white),
+          _Big(
+              value: l10n.inchesApprox(assessment.estimatedCurrentVert),
+              label: l10n.gapMeterToday,
+              color: Colors.white),
           const Icon(Icons.arrow_forward, color: DunkColors.textTertiary),
-          _Big(value: '-${assessment.gapInches}"', label: 'EST. GAP', color: DunkColors.primary),
+          _Big(
+              value: l10n.inchesGap(assessment.gapInches),
+              label: l10n.gapMeterGap,
+              color: DunkColors.primary),
           const Icon(Icons.arrow_forward, color: DunkColors.textTertiary),
-          _Big(value: '~${assessment.requiredVert}"', label: 'DUNK', color: DunkColors.accentGreen),
+          _Big(
+              value: l10n.inchesApprox(assessment.requiredVert),
+              label: l10n.gapMeterDunk,
+              color: DunkColors.accentGreen),
         ],
       ),
     );

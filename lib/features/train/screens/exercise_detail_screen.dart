@@ -3,6 +3,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../../core/exercise_library.dart';
 import '../../../core/models/exercise.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 
 /// Full coaching detail for one drill: what it trains, how to execute it,
@@ -27,6 +28,10 @@ class ExerciseDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    // Everything the guide itself holds — summary, steps, mistakes, trained
+    // qualities, equipment label — is authored in pure-Dart core and stays
+    // English for now. Only this screen's own chrome is translated.
     final guide = ExerciseLibrary.guideForExercise(exercise);
     final replaced = exercise.substitutedForId == null
         ? null
@@ -45,9 +50,9 @@ class ExerciseDetailScreen extends StatelessWidget {
                   icon: const Icon(Icons.close, color: Colors.white),
                 ),
                 const Spacer(),
-                const Text(
-                  'EXERCISE GUIDE',
-                  style: TextStyle(
+                Text(
+                  l10n.exerciseGuideHeader,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
@@ -94,7 +99,7 @@ class ExerciseDetailScreen extends StatelessWidget {
                   ] else ...[
                     const SizedBox(height: 20),
                     _Section(
-                      title: 'WHY IT MATTERS',
+                      title: l10n.exerciseGuideWhyItMatters,
                       child: Text(
                         guide.summary,
                         style: const TextStyle(
@@ -106,7 +111,7 @@ class ExerciseDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     _Section(
-                      title: 'HOW TO DO IT',
+                      title: l10n.exerciseGuideHowToDoIt,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -119,7 +124,7 @@ class ExerciseDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     _Section(
-                      title: 'COMMON MISTAKES',
+                      title: l10n.exerciseGuideCommonMistakes,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -134,7 +139,7 @@ class ExerciseDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     _Section(
-                      title: 'WHAT IT TRAINS',
+                      title: l10n.exerciseGuideWhatItTrains,
                       child: Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -218,9 +223,9 @@ class _SubstitutionNote extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'SWAPPED FOR YOUR HOME SETUP',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).exerciseGuideSwappedTitle,
+                  style: const TextStyle(
                     color: DunkColors.primary,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -230,12 +235,9 @@ class _SubstitutionNote extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   replaced == null
-                      ? 'The authored drill needs equipment you told us you '
-                          'do not train with. This one trains the same '
-                          'quality with nothing but the floor.'
-                      : 'Replaces $replaced, which needs equipment you told '
-                          'us you do not train with. This one trains the same '
-                          'quality with nothing but the floor.',
+                      ? AppLocalizations.of(context).exerciseGuideSwappedBody
+                      : AppLocalizations.of(context)
+                          .exerciseGuideSwappedBodyNamed(replaced),
                   style: const TextStyle(
                     color: DunkColors.textSecondary,
                     fontSize: 13,
@@ -264,16 +266,16 @@ class _EmptyGuideNote extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: DunkColors.stroke),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.menu_book_outlined,
+          const Icon(Icons.menu_book_outlined,
               size: 18, color: DunkColors.textTertiary),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'No coaching notes are written for this drill yet.',
-              style: TextStyle(
+              AppLocalizations.of(context).exerciseGuideEmpty,
+              style: const TextStyle(
                 color: DunkColors.textSecondary,
                 fontSize: 14,
                 height: 1.35,
@@ -344,6 +346,7 @@ class _DemoMediaState extends State<_DemoMedia> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final controller = _controller;
     if (controller != null) {
       return ClipRRect(
@@ -395,7 +398,8 @@ class _DemoMediaState extends State<_DemoMedia> {
           if (frames.length >= 2)
             _FrameLoop(frames: frames)
           else
-            _Frame(asset: frames.first, label: 'POSITION'),
+            _Frame(
+                asset: frames.first, label: l10n.exerciseGuideFramePosition),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -404,16 +408,19 @@ class _DemoMediaState extends State<_DemoMedia> {
                 Expanded(
                   child: _Frame(
                     asset: frames[i],
-                    label: i == 0 ? 'START' : 'FINISH',
+                    label: i == 0
+                        ? l10n.exerciseGuideFrameStart
+                        : l10n.exerciseGuideFrameFinish,
                   ),
                 ),
               ],
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Reference photos, not a recording of your own jump.',
-            style: TextStyle(color: DunkColors.textTertiary, fontSize: 11),
+          Text(
+            l10n.exerciseGuideFrameDisclaimer,
+            style: const TextStyle(
+                color: DunkColors.textTertiary, fontSize: 11),
           ),
         ],
       );
@@ -439,25 +446,24 @@ class _DemoMediaState extends State<_DemoMedia> {
                 size: 20, color: DunkColors.textTertiary),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'NO DEMO CLIP YET',
-                  style: TextStyle(
+                  l10n.exerciseGuideNoDemoTitle,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Nothing has been filmed for this drill. The steps below '
-                  'are the full instruction.',
-                  style: TextStyle(
+                  l10n.exerciseGuideNoDemoBody,
+                  style: const TextStyle(
                     color: DunkColors.textSecondary,
                     fontSize: 13,
                     height: 1.35,

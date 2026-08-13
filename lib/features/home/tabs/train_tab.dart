@@ -6,6 +6,7 @@ import '../../../core/models/training_program.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../core/program_progress.dart';
 import '../../../core/training_schedule.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
 import '../../train/session_flow.dart';
@@ -89,9 +90,9 @@ class _TrainTabState extends State<TrainTab> {
                 child: const Icon(Icons.fitness_center, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 10),
-              const Text(
-                'TRAIN',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).trainTitle,
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1,
@@ -136,6 +137,14 @@ class _EnrolledCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    // Built here rather than read off `plan.positionLabel`: that getter lives
+    // in pure-Dart core, which has no access to translations.
+    final position = l10n.trainPositionLabel(
+      plan.week,
+      plan.dayInWeek,
+      plan.sessionsPerWeek,
+    );
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -148,10 +157,10 @@ class _EnrolledCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'ENROLLED PROGRAM',
-                  style: TextStyle(
+                  l10n.trainEnrolledProgram,
+                  style: const TextStyle(
                     color: DunkColors.textTertiary,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -163,6 +172,7 @@ class _EnrolledCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
+          // Program names come from the untranslated program catalog.
           Text(
             program.name.toUpperCase(),
             style: const TextStyle(
@@ -173,15 +183,14 @@ class _EnrolledCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${plan.positionLabel} • ${plan.totalWeeks} WEEKS',
+            l10n.trainProgramMeta(position, plan.totalWeeks),
             style: const TextStyle(color: DunkColors.textSecondary, fontSize: 13),
           ),
           if (plan.isDeloadWeek) ...[
             const SizedBox(height: 10),
-            const Text(
-              'Deload week: less volume on purpose. Lighter weeks are when '
-              'the work you already did turns into new hops.',
-              style: TextStyle(
+            Text(
+              l10n.trainDeloadExplainer,
+              style: const TextStyle(
                 color: DunkColors.textSecondary,
                 fontSize: 12,
                 height: 1.35,
@@ -206,14 +215,14 @@ class _DeloadPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: DunkColors.primary.withValues(alpha: 0.5)),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.trending_down, size: 13, color: DunkColors.primary),
-          SizedBox(width: 5),
+          const Icon(Icons.trending_down, size: 13, color: DunkColors.primary),
+          const SizedBox(width: 5),
           Text(
-            'DELOAD',
-            style: TextStyle(
+            AppLocalizations.of(context).trainDeloadPill,
+            style: const TextStyle(
               color: DunkColors.primary,
               fontSize: 10,
               fontWeight: FontWeight.w800,
@@ -253,7 +262,8 @@ class _WeekStrip extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'WEEK ${week.weekNumber}',
+                  AppLocalizations.of(context)
+                      .trainWeekNumber(week.weekNumber),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
@@ -262,8 +272,10 @@ class _WeekStrip extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${week.trainingDays.length} sessions • '
-                  '${week.restDays.length} rest',
+                  AppLocalizations.of(context).trainWeekSummary(
+                    week.trainingDays.length,
+                    week.restDays.length,
+                  ),
                   style: const TextStyle(
                     color: DunkColors.textSecondary,
                     fontSize: 12,
@@ -298,6 +310,11 @@ class _DayChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Seven comma-separated short weekday names, Monday first — the core
+    // `ScheduledDay.weekdayLabel` is English-only and can't be translated
+    // there, so the index is used against the catalogue instead.
+    final labels = AppLocalizations.of(context).weekdayLabels.split(',');
+    final labelIndex = (day.weekday - 1).clamp(0, labels.length - 1);
     final Color background;
     final Color border;
     final Widget mark;
@@ -326,7 +343,7 @@ class _DayChip extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            day.weekdayLabel,
+            labels[labelIndex],
             style: TextStyle(
               color: isToday && day.isTraining
                   ? DunkColors.primary
@@ -366,6 +383,7 @@ class _RestDayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -389,23 +407,23 @@ class _RestDayCard extends StatelessWidget {
                     color: DunkColors.primary, size: 22),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'REST DAY',
-                      style: TextStyle(
+                      l10n.trainRestDayTitle,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
-                      "You've already trained today.",
-                      style: TextStyle(
+                      l10n.trainRestDaySubtitle,
+                      style: const TextStyle(
                         color: DunkColors.textSecondary,
                         fontSize: 13,
                       ),
@@ -416,10 +434,9 @@ class _RestDayCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Text(
-            'Jumps are built between sessions, not during them. Sleep, eat, '
-            'and let the tendons recover.',
-            style: TextStyle(
+          Text(
+            l10n.trainRestDayBody,
+            style: const TextStyle(
               color: DunkColors.textSecondary,
               fontSize: 13,
               height: 1.4,
@@ -433,7 +450,7 @@ class _RestDayCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Up next: ${nextFocus.toUpperCase()} DAY',
+                  l10n.trainUpNext(nextFocus.toUpperCase()),
                   style: const TextStyle(
                     color: DunkColors.textTertiary,
                     fontSize: 12,
@@ -465,6 +482,7 @@ class _TodaysExercises extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -478,9 +496,9 @@ class _TodaysExercises extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "TODAY'S EXERCISES",
-                style: TextStyle(
+              Text(
+                l10n.trainTodaysExercises,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -493,7 +511,7 @@ class _TodaysExercises extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${exercises.length} exercises',
+                  l10n.trainExerciseCount(exercises.length),
                   style: const TextStyle(
                     color: DunkColors.textSecondary,
                     fontSize: 12,
@@ -503,8 +521,10 @@ class _TodaysExercises extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
+          // Both the focus and the warm-up text come from the untranslated
+          // program catalog.
           Text(
-            '${focus.toUpperCase()} • $warmUp',
+            l10n.trainFocusAndWarmUp(focus.toUpperCase(), warmUp),
             style: const TextStyle(
               color: DunkColors.textSecondary,
               fontSize: 12,
@@ -512,9 +532,9 @@ class _TodaysExercises extends StatelessWidget {
           ),
           if (isDeload) ...[
             const SizedBox(height: 6),
-            const Text(
-              'Volume is dialled back this week — same movements, fewer sets.',
-              style: TextStyle(color: DunkColors.primary, fontSize: 12),
+            Text(
+              l10n.trainDeloadVolumeNote,
+              style: const TextStyle(color: DunkColors.primary, fontSize: 12),
             ),
           ],
           const SizedBox(height: 12),
@@ -615,6 +635,7 @@ class _ProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -625,13 +646,13 @@ class _ProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.show_chart, color: DunkColors.primary, size: 18),
-              SizedBox(width: 8),
+              const Icon(Icons.show_chart, color: DunkColors.primary, size: 18),
+              const SizedBox(width: 8),
               Text(
-                'PROGRAM PROGRESS',
-                style: TextStyle(
+                l10n.trainProgramProgress,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -646,17 +667,17 @@ class _ProgressCard extends StatelessWidget {
             children: [
               _Stat(
                 value: '${progress.completedSessions}',
-                label: 'COMPLETED',
+                label: l10n.progressCompleted,
                 color: DunkColors.primary,
               ),
               _Stat(
                 value: '${progress.remaining}',
-                label: 'REMAINING',
+                label: l10n.progressRemaining,
                 color: Colors.white,
               ),
               _Stat(
-                value: '${progress.percentComplete}%',
-                label: 'COMPLETE',
+                value: l10n.progressPercent(progress.percentComplete),
+                label: l10n.progressCompleteLabel,
                 color: DunkColors.primary,
               ),
             ],
@@ -726,14 +747,15 @@ class _CompleteButton extends StatelessWidget {
   Widget build(BuildContext context) {
     // On a rest day the next session stays reachable — the app recommends
     // recovery, it doesn't lock the athlete out.
+    final l10n = AppLocalizations.of(context);
     final muted = done || isRestDay;
     final String label;
     if (done) {
-      label = 'PROGRAM COMPLETE';
+      label = l10n.trainCtaProgramComplete;
     } else if (isRestDay) {
-      label = 'TRAIN ANYWAY';
+      label = l10n.trainCtaTrainAnyway;
     } else {
-      label = "START TODAY'S SESSION";
+      label = l10n.trainCtaStartSession;
     }
 
     return Material(

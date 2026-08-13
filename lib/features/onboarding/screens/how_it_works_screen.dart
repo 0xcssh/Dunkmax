@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
@@ -35,35 +36,32 @@ class HowItWorksScreen extends StatelessWidget {
   /// personalisation that did not exist. Check any claim added here against
   /// `core/program_catalog.dart` and `core/pose_jump_detector.dart` before it
   /// ships.
-  static const _points = <(IconData, String, String)>[
-    (
-      Icons.accessibility_new,
-      'We watch your body, not the pixels',
-      'On-device tracking follows your feet frame by frame and finds the '
-          'exact instants they leave the floor and meet it again.',
-    ),
-    (
-      Icons.straighten,
-      'Measured, not guessed',
-      'Your hang time gives your height through gravity alone — no camera '
-          'calibration, no markers, no eyeballing.',
-    ),
-    (
-      Icons.tune,
-      'A plan you can actually run',
-      'Your experience, your training days and whether you have a gym '
-          'decide your programme — no barbell drills if you train at home.',
-    ),
-    (
-      Icons.trending_up,
-      'Progress you can check',
-      'Every session and every analysed jump is logged, so the trend you '
-          'see is your own history, not a motivational number.',
-    ),
-  ];
+  List<(IconData, String, String)> _points(AppLocalizations l10n) => [
+        (
+          Icons.accessibility_new,
+          l10n.howItWorksPoint1Title,
+          l10n.howItWorksPoint1Body,
+        ),
+        (
+          Icons.straighten,
+          l10n.howItWorksPoint2Title,
+          l10n.howItWorksPoint2Body,
+        ),
+        (
+          Icons.tune,
+          l10n.howItWorksPoint3Title,
+          l10n.howItWorksPoint3Body,
+        ),
+        (
+          Icons.trending_up,
+          l10n.howItWorksPoint4Title,
+          l10n.howItWorksPoint4Body,
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -82,20 +80,19 @@ class HowItWorksScreen extends StatelessWidget {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
-                    const Text(
-                      'HOW YOUR VERT\nGETS MEASURED',
+                    Text(
+                      l10n.howItWorksTitle,
                       style: DunkTheme.onboardingTitle,
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      'No wearables, no markers on the floor. Just physics '
-                      'and your phone camera.',
+                    Text(
+                      l10n.howItWorksSubtitle,
                       style: DunkTheme.onboardingSubtitle,
                     ),
                     const SizedBox(height: 20),
                     const _PhysicsCard(),
                     const SizedBox(height: 12),
-                    for (final (icon, title, body) in _points) ...[
+                    for (final (icon, title, body) in _points(l10n)) ...[
                       _PointCard(icon: icon, title: title, body: body),
                       const SizedBox(height: 12),
                     ],
@@ -103,7 +100,7 @@ class HowItWorksScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              PrimaryButton(label: 'START MY PLAN', onPressed: onContinue),
+              PrimaryButton(label: l10n.howItWorksCta, onPressed: onContinue),
             ],
           ),
         ),
@@ -120,6 +117,7 @@ class _PhysicsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 18),
       decoration: BoxDecoration(
@@ -131,9 +129,9 @@ class _PhysicsCard extends StatelessWidget {
         children: [
           const Icon(Icons.timer_outlined, color: DunkColors.primary, size: 30),
           const SizedBox(height: 12),
-          const Text(
-            'HANG TIME',
-            style: TextStyle(
+          Text(
+            l10n.hangTimeLabel,
+            style: const TextStyle(
               color: DunkColors.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w800,
@@ -141,9 +139,9 @@ class _PhysicsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'decides your height',
-            style: TextStyle(
+          Text(
+            l10n.hangTimeDecides,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.w900,
@@ -156,9 +154,9 @@ class _PhysicsCard extends StatelessWidget {
               color: DunkColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text(
-              'longer in the air  =  higher jump',
-              style: TextStyle(
+            child: Text(
+              l10n.hangTimeFormula,
+              style: const TextStyle(
                 color: DunkColors.primary,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -166,11 +164,10 @@ class _PhysicsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Two athletes with the same hang time jumped the same height. '
-            'That is what we measure.',
+          Text(
+            l10n.hangTimeNote,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: DunkColors.textSecondary,
               fontSize: 13,
               height: 1.35,

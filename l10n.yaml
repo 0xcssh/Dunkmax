@@ -1,0 +1,16 @@
+# Localization generation (`flutter gen-l10n`, also run by `flutter pub get`
+# because pubspec.yaml sets `generate: true`).
+#
+# `output-dir` is deliberately NOT set: on current Flutter the generated files
+# land next to the ARBs (lib/l10n/), which is what the app imports; on older
+# Flutter that still defaults to the synthetic `flutter_gen` package, setting
+# an output dir without `synthetic-package: false` is an error. Leaving it out
+# is the one configuration that is valid on both — and the checked-in copies in
+# lib/l10n/ mean the app compiles either way.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+# `AppLocalizations.of(context)` returns non-null, so call sites read
+# `AppLocalizations.of(context).someString` with no `!`.
+nullable-getter: false

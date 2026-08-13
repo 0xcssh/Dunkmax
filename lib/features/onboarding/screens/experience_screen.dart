@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/experience_level.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
@@ -33,11 +34,12 @@ class ExperienceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return OnboardingScaffold(
       step: step,
       totalSteps: totalSteps,
-      title: 'HOW EXPERIENCED\nARE YOU\nWITH JUMP TRAINING?',
-      subtitle: 'No ego here. Be honest so we can push you right.',
+      title: l10n.experienceTitle,
+      subtitle: l10n.experienceSubtitle,
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       staggerBody: false,

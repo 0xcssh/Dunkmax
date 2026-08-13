@@ -6,6 +6,7 @@ import '../../../core/jump_auto_detector.dart';
 import '../../../core/jump_form_scores.dart';
 import '../../../core/models/jump_measurement.dart';
 import '../../../core/pose_jump_detector.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../motion_extraction.dart';
 import '../pose_extraction.dart';
@@ -151,8 +152,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       if (pose.result == null && poseSamples.isEmpty) {
         if (mounted) {
           setState(() => _fallbackNote =
-              "Body tracking couldn't run on this clip — trying frame "
-              'motion instead.');
+              AppLocalizations.of(context).processingFallbackMotion);
         }
         final motionSamples = await extractMotionSamples(
           widget.video,
@@ -161,9 +161,9 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
         );
         motion = JumpAutoDetector.detectWithDiagnostics(motionSamples);
       } else if (pose.result == null && mounted) {
-        setState(() => _fallbackNote =
-            "Body tracking couldn't measure this clip "
-            '(${pose.rejection.label}).');
+        // The verdict itself comes from the untranslated detector.
+        setState(() => _fallbackNote = AppLocalizations.of(context)
+            .processingFallbackDeclined(pose.rejection.label));
       }
 
       // The form scores read the *same* landmark series, so they cost no
@@ -186,6 +186,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SafeArea(
       child: Center(
         child: Padding(
@@ -196,11 +197,11 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
               const _PulsingIcon(),
               const SizedBox(height: 24),
               RichText(
-                text: const TextSpan(
+                text: TextSpan(
                   children: [
                     TextSpan(
-                      text: 'ANALYZING',
-                      style: TextStyle(
+                      text: l10n.processingHeadline,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
                         fontSize: 24,
@@ -208,8 +209,8 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                       ),
                     ),
                     TextSpan(
-                      text: ' YOUR JUMP',
-                      style: TextStyle(
+                      text: l10n.processingHeadlineAccent,
+                      style: const TextStyle(
                         color: DunkColors.primary,
                         fontWeight: FontWeight.w900,
                         fontSize: 24,
@@ -232,9 +233,9 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    'AI PROCESSING',
-                    style: TextStyle(
+                  Text(
+                    l10n.processingBadge,
+                    style: const TextStyle(
                       color: DunkColors.textTertiary,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -276,17 +277,17 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _StepRow(
-                      label: 'Tracking your body through the clip',
+                      label: l10n.processingStepTracking,
                       stepPhase: _Phase.tracking,
                       currentPhase: _phase,
                     ),
                     _StepRow(
-                      label: 'Finding your takeoff and landing',
+                      label: l10n.processingStepLocating,
                       stepPhase: _Phase.locating,
                       currentPhase: _phase,
                     ),
                     _StepRow(
-                      label: 'Estimating your vertical',
+                      label: l10n.processingStepEstimating,
                       stepPhase: _Phase.estimating,
                       currentPhase: _phase,
                       isLast: true,

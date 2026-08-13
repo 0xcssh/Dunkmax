@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/hops_level.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
@@ -35,11 +36,12 @@ class HopsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return OnboardingScaffold(
       step: step,
       totalSteps: totalSteps,
-      title: 'WHERE ARE YOUR\nHOPS TODAY?',
-      subtitle: 'Be honest — this calibrates your whole plan.',
+      title: l10n.hopsTitle,
+      subtitle: l10n.hopsSubtitle,
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       staggerBody: false,

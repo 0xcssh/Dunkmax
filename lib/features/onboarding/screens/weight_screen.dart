@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../widgets/onboarding_scaffold.dart';
 
@@ -24,11 +25,12 @@ class WeightScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return OnboardingScaffold(
       step: step,
       totalSteps: totalSteps,
-      title: 'YOUR WEIGHT',
-      subtitle: 'Saved to your athlete profile.',
+      title: l10n.weightTitle,
+      subtitle: l10n.savedToAthleteProfile,
       onBack: onBack,
       onContinue: onContinue,
       child: Container(
@@ -53,8 +55,8 @@ class WeightScreen extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 54, fontWeight: FontWeight.w800, color: Colors.white)),
                   const SizedBox(height: 2),
-                  const Text('LBS',
-                      style: TextStyle(
+                  Text(l10n.weightUnitLabel,
+                      style: const TextStyle(
                           color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
                 ],
               ),

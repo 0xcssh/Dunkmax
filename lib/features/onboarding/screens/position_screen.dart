@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/court_position.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
@@ -27,11 +28,12 @@ class PositionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return OnboardingScaffold(
       step: step,
       totalSteps: totalSteps,
-      title: 'WHAT POSITION DO\nYOU PLAY?',
-      subtitle: "We'll tailor exercises to your position.",
+      title: l10n.positionTitle,
+      subtitle: l10n.positionSubtitle,
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       staggerBody: false,

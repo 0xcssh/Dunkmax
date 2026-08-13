@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../widgets/onboarding_scaffold.dart';
 
@@ -26,11 +27,12 @@ class DaysPerWeekScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return OnboardingScaffold(
       step: step,
       totalSteps: totalSteps,
-      title: 'HOW MANY DAYS\nPER WEEK\nCAN YOU TRAIN?',
-      subtitle: "We'll keep it realistic. Consistency beats intensity.",
+      title: l10n.daysTitle,
+      subtitle: l10n.daysSubtitle,
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       child: Column(
@@ -70,10 +72,11 @@ class _MotivationBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: DunkColors.primary.withValues(alpha: 0.5)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.local_fire_department, color: DunkColors.primary, size: 20),
-          SizedBox(width: 10),
+          const Icon(
+              Icons.local_fire_department, color: DunkColors.primary, size: 20),
+          const SizedBox(width: 10),
           Expanded(
             // "Athletes who train 4+ days see results 2x faster" used to sit
             // here. There is no study behind that number and no user base to
@@ -82,9 +85,8 @@ class _MotivationBanner extends StatelessWidget {
             // testimonials were removed under. What replaces it is true of
             // any training programme and claims no measurement.
             child: Text(
-              'More sessions a week means more volume — pick what you can '
-              'actually keep up.',
-              style: TextStyle(
+              AppLocalizations.of(context).daysBanner,
+              style: const TextStyle(
                 color: DunkColors.primaryBright,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
@@ -139,9 +141,10 @@ class _DayChip extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'days',
-                  style: TextStyle(color: DunkColors.textSecondary, fontSize: 14),
+                Text(
+                  AppLocalizations.of(context).daysChipUnit,
+                  style: const TextStyle(
+                      color: DunkColors.textSecondary, fontSize: 14),
                 ),
                 const SizedBox(height: 6),
                 if (selected)

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 import '../widgets/mock_app_screens.dart';
@@ -31,29 +32,28 @@ class IntroCarouselScreen extends StatefulWidget {
 class _IntroCarouselScreenState extends State<IntroCarouselScreen> {
   final _controller = PageController();
 
-  static const _panels = <_Panel>[
-    _Panel(
-      headline: 'SEE YOUR REAL\nVERTICAL',
-      support:
-          'Film one jump. We time your flight frame by frame and turn it into '
-          'inches — no tape measure, no guessing.',
-      mock: AnalysisMock(),
-    ),
-    _Panel(
-      headline: 'TRAIN WITH A\nREAL PLAN',
-      support:
-          'A week-by-week program matched to your level, your schedule and the '
-          'gear you actually have.',
-      mock: PlanMock(),
-    ),
-    _Panel(
-      headline: 'WATCH THE\nINCHES ADD UP',
-      support:
-          'Every jump you film and every session you finish is logged, so '
-          'progress is a number instead of a feeling.',
-      mock: ProgressMock(),
-    ),
-  ];
+  /// The copy is a translation, so the panels can no longer be a `const`
+  /// list — only the mock screens inside them still are. The count is kept
+  /// separately because the dots and the clamp need it without a context.
+  static const _panelCount = 3;
+
+  List<_Panel> _panels(AppLocalizations l10n) => [
+        _Panel(
+          headline: l10n.introPanel1Headline,
+          support: l10n.introPanel1Support,
+          mock: const AnalysisMock(),
+        ),
+        _Panel(
+          headline: l10n.introPanel2Headline,
+          support: l10n.introPanel2Support,
+          mock: const PlanMock(),
+        ),
+        _Panel(
+          headline: l10n.introPanel3Headline,
+          support: l10n.introPanel3Support,
+          mock: const ProgressMock(),
+        ),
+      ];
 
   @override
   void dispose() {
@@ -74,12 +74,14 @@ class _IntroCarouselScreenState extends State<IntroCarouselScreen> {
   int get _currentPanel {
     final rounded = _page.round();
     if (rounded < 0) return 0;
-    if (rounded > _panels.length - 1) return _panels.length - 1;
+    if (rounded > _panelCount - 1) return _panelCount - 1;
     return rounded;
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final panels = _panels(l10n);
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -89,14 +91,14 @@ class _IntroCarouselScreenState extends State<IntroCarouselScreen> {
               Expanded(
                 child: PageView.builder(
                   controller: _controller,
-                  itemCount: _panels.length,
+                  itemCount: panels.length,
                   // Rebuilds the dots; the panels animate off the controller
                   // directly.
                   onPageChanged: (_) => setState(() {}),
                   itemBuilder: (context, index) => AnimatedBuilder(
                     animation: _controller,
                     builder: (context, _) => _PanelView(
-                      panel: _panels[index],
+                      panel: panels[index],
                       offset: _page - index,
                     ),
                   ),
@@ -105,13 +107,13 @@ class _IntroCarouselScreenState extends State<IntroCarouselScreen> {
               const SizedBox(height: 20),
               StaggerItem(
                 index: 2,
-                child: _Dots(count: _panels.length, current: _currentPanel),
+                child: _Dots(count: panels.length, current: _currentPanel),
               ),
               const SizedBox(height: 22),
               StaggerItem(
                 index: 3,
                 child: PrimaryButton(
-                  label: "LET'S START",
+                  label: l10n.introStartCta,
                   onPressed: widget.onStart,
                 ),
               ),

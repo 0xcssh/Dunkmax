@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/dunk_hand.dart';
 import '../../../core/vert_assessment.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../widgets/onboarding_scaffold.dart';
 import '../widgets/staggered_entrance.dart';
@@ -33,11 +34,12 @@ class DunkHandScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return OnboardingScaffold(
       step: step,
       totalSteps: totalSteps,
-      title: 'WHICH HAND DO\nYOU DUNK WITH?',
-      subtitle: 'It sets how much room over the rim your finish needs.',
+      title: l10n.dunkHandTitle,
+      subtitle: l10n.dunkHandSubtitle,
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       staggerBody: false,
@@ -297,9 +299,8 @@ class _ClearanceNote extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'A one-hand dunk needs the ball and one hand over the ring. Both '
-            'forearms over it is about ${VertAssessment.twoHandExtraClearance}" '
-            'more, so a two-hand finish raises your target.',
+            AppLocalizations.of(context)
+                .dunkHandClearanceNote(VertAssessment.twoHandExtraClearance),
             style: const TextStyle(
               color: DunkColors.textTertiary,
               fontSize: 12,

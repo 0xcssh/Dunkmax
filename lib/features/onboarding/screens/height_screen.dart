@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../widgets/onboarding_scaffold.dart';
 
@@ -45,20 +46,21 @@ class _HeightScreenState extends State<HeightScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return OnboardingScaffold(
       step: widget.step,
       totalSteps: widget.totalSteps,
-      title: 'YOUR HEIGHT',
-      subtitle:
-          'We use this to personalize your jump analysis and vert estimates.',
+      title: l10n.heightTitle,
+      subtitle: l10n.heightSubtitle,
       onBack: widget.onBack,
       onContinue: widget.onContinue,
       child: Column(
         children: [
-          _ValueBox(child: Text('$_feet\' $_inches"', style: _bigStyle)),
+          _ValueBox(
+              child: Text(l10n.heightValue(_feet, _inches), style: _bigStyle)),
           const SizedBox(height: 8),
-          const Text('FEET & INCHES',
-              style: TextStyle(
+          Text(l10n.heightUnitLabel,
+              style: const TextStyle(
                   color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
           const SizedBox(height: 18),
           SizedBox(
@@ -69,7 +71,7 @@ class _HeightScreenState extends State<HeightScreen> {
                   child: _Wheel(
                     controller: _ftCtrl,
                     count: 7 - _minFeet + 1,
-                    label: (i) => '${_minFeet + i} ft',
+                    label: (i) => l10n.heightFeetOption(_minFeet + i),
                     onSelected: (i) => setState(() {
                       _feet = _minFeet + i;
                       _emit();
@@ -80,7 +82,7 @@ class _HeightScreenState extends State<HeightScreen> {
                   child: _Wheel(
                     controller: _inCtrl,
                     count: 12,
-                    label: (i) => '$i in',
+                    label: (i) => l10n.heightInchesOption(i),
                     onSelected: (i) => setState(() {
                       _inches = i;
                       _emit();

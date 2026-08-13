@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/trim_range.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
@@ -39,7 +40,10 @@ class _TrimScreenState extends State<TrimScreen> {
   TrimRange _range = TrimRange.full(Duration.zero);
   bool _ready = false;
   bool _looping = false;
-  String? _error;
+
+  /// A flag rather than a message: it is set from an [initState] callback,
+  /// where a localisation lookup is not allowed. Worded in [build].
+  bool _failedToLoad = false;
 
   @override
   void initState() {
@@ -53,7 +57,7 @@ class _TrimScreenState extends State<TrimScreen> {
       });
     }).catchError((_) {
       if (!mounted) return;
-      setState(() => _error = "Couldn't load that clip.");
+      setState(() => _failedToLoad = true);
     });
     _controller.addListener(_onTick);
   }
@@ -105,8 +109,9 @@ class _TrimScreenState extends State<TrimScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_error != null) {
-      return _ErrorState(message: _error!, onBack: widget.onCancel);
+    final l10n = AppLocalizations.of(context);
+    if (_failedToLoad) {
+      return _ErrorState(message: l10n.trimLoadError, onBack: widget.onCancel);
     }
     if (!_ready) {
       return const Center(
@@ -121,9 +126,9 @@ class _TrimScreenState extends State<TrimScreen> {
             padding: const EdgeInsets.fromLTRB(24, 12, 12, 0),
             child: Row(
               children: [
-                const Text(
-                  'TRIM VIDEO',
-                  style: TextStyle(
+                Text(
+                  l10n.trimTitle,
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1,
@@ -133,9 +138,9 @@ class _TrimScreenState extends State<TrimScreen> {
                 const Spacer(),
                 TextButton(
                   onPressed: widget.onCancel,
-                  child: const Text(
-                    'CANCEL',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.trimCancel,
+                    style: const TextStyle(
                       color: DunkColors.textSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -180,17 +185,17 @@ class _TrimScreenState extends State<TrimScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Drag the handles on the timeline to trim.',
-                  style: TextStyle(
+                Text(
+                  l10n.trimHintDrag,
+                  style: const TextStyle(
                     color: DunkColors.textSecondary,
                     fontSize: 13,
                     height: 1.4,
                   ),
                 ),
-                const Text(
-                  'Start / End — adjust to one jump or dunk for best analysis.',
-                  style: TextStyle(
+                Text(
+                  l10n.trimHintRange,
+                  style: const TextStyle(
                     color: DunkColors.textSecondary,
                     fontSize: 13,
                     height: 1.4,
@@ -200,8 +205,9 @@ class _TrimScreenState extends State<TrimScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _TimeReadout(label: 'START:', value: _range.start),
-                    _TimeReadout(label: 'END:', value: _range.end),
+                    _TimeReadout(
+                        label: l10n.trimStartLabel, value: _range.start),
+                    _TimeReadout(label: l10n.trimEndLabel, value: _range.end),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -214,16 +220,16 @@ class _TrimScreenState extends State<TrimScreen> {
             child: Column(
               children: [
                 PrimaryButton(
-                  label: 'ANALYZE',
+                  label: l10n.trimAnalyzeCta,
                   trailingIcon: Icons.auto_graph,
                   onPressed: () => widget.onConfirmed(_range),
                 ),
                 const SizedBox(height: 4),
                 TextButton(
                   onPressed: widget.onCancel,
-                  child: const Text(
-                    'Retake',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.trimRetake,
+                    style: const TextStyle(
                       color: DunkColors.textTertiary,
                       fontWeight: FontWeight.w600,
                     ),
@@ -527,7 +533,9 @@ class _ErrorState extends StatelessWidget {
                 style: DunkTheme.onboardingSubtitle,
               ),
               const SizedBox(height: 20),
-              PrimaryButton(label: 'TRY AGAIN', onPressed: onBack),
+              PrimaryButton(
+                  label: AppLocalizations.of(context).trimTryAgain,
+                  onPressed: onBack),
             ],
           ),
         ),

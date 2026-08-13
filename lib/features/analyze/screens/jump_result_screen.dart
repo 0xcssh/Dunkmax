@@ -8,6 +8,7 @@ import '../../../core/jump_result.dart';
 import '../../../core/jump_trend.dart';
 import '../../../core/models/video_attempt_type.dart';
 import '../../../core/pose_jump_detector.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 import 'processing_screen.dart';
@@ -32,7 +33,10 @@ class JumpResultScreen extends StatelessWidget {
   final JumpDetectionMethod method;
   final VideoAttemptType attemptType;
   final VoidCallback onAnalyzeAnother;
-  final String ctaLabel;
+
+  /// Null means "analyze another jump" — the default can no longer live in the
+  /// constructor, because it is a translation and needs a [BuildContext].
+  final String? ctaLabel;
 
   const JumpResultScreen({
     super.key,
@@ -42,11 +46,12 @@ class JumpResultScreen extends StatelessWidget {
     required this.method,
     required this.attemptType,
     required this.onAnalyzeAnother,
-    this.ctaLabel = 'ANALYZE ANOTHER JUMP',
+    this.ctaLabel,
   });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final feedback = JumpFeedback.build(
       result,
       trend: trend,
@@ -56,9 +61,9 @@ class JumpResultScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          const Text(
-            'YOUR JUMP',
-            style: TextStyle(
+          Text(
+            l10n.resultTitle,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -84,7 +89,7 @@ class JumpResultScreen extends StatelessWidget {
           ],
           const SizedBox(height: 20),
           PrimaryButton(
-            label: ctaLabel,
+            label: ctaLabel ?? l10n.resultCtaAnalyzeAnother,
             onPressed: onAnalyzeAnother,
           ),
         ],
@@ -462,6 +467,7 @@ class _BreakdownCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -472,13 +478,13 @@ class _BreakdownCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.bolt, color: DunkColors.primary, size: 18),
-              SizedBox(width: 8),
+              const Icon(Icons.bolt, color: DunkColors.primary, size: 18),
+              const SizedBox(width: 8),
               Text(
-                'JUMP BREAKDOWN',
-                style: TextStyle(
+                l10n.resultBreakdownTitle,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -525,7 +531,7 @@ class _BreakdownCard extends StatelessWidget {
           if (feedback.strength != null) ...[
             const SizedBox(height: 12),
             _AspectNote(
-              caption: 'STRONGEST',
+              caption: l10n.resultStrongest,
               icon: Icons.check_circle_outline,
               tone: DunkColors.accentGreen,
               aspect: feedback.strength!,
@@ -534,7 +540,7 @@ class _BreakdownCard extends StatelessWidget {
           if (feedback.weakness != null) ...[
             const SizedBox(height: 10),
             _AspectNote(
-              caption: 'WEAKEST',
+              caption: l10n.resultWeakest,
               icon: Icons.track_changes,
               tone: DunkColors.primary,
               aspect: feedback.weakness!,
@@ -543,8 +549,8 @@ class _BreakdownCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             feedback.hasRankedAspects
-                ? 'HOW TO WORK ON IT'
-                : 'GENERAL TIPS TO CLOSE THE GAP',
+                ? l10n.resultHowToWorkOnIt
+                : l10n.resultGeneralTips,
             style: const TextStyle(
               color: DunkColors.textTertiary,
               fontSize: 11,
@@ -617,6 +623,7 @@ class _AspectNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -633,7 +640,9 @@ class _AspectNote extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '$caption · ${aspect.label.toUpperCase()}',
+                  // The aspect name comes from the untranslated feedback core.
+                  l10n.resultAspectCaption(
+                      caption, aspect.label.toUpperCase()),
                   style: TextStyle(
                     color: tone,
                     fontSize: 11,
@@ -650,7 +659,7 @@ class _AspectNote extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${aspect.score}/100',
+                  l10n.resultScoreOutOf(aspect.score),
                   style: TextStyle(
                     color: tone,
                     fontSize: 11,
@@ -672,7 +681,7 @@ class _AspectNote extends StatelessWidget {
           if (aspect.measurement.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              'Measured: ${aspect.measurement}',
+              l10n.resultMeasuredPrefix(aspect.measurement),
               style: const TextStyle(
                 color: DunkColors.textTertiary,
                 fontSize: 11,
@@ -692,6 +701,7 @@ class _VertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -700,9 +710,9 @@ class _VertCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
-            'EST. VERT',
-            style: TextStyle(
+          Text(
+            l10n.resultEstVert,
+            style: const TextStyle(
               color: Colors.white70,
               fontSize: 12,
               fontWeight: FontWeight.w700,
@@ -711,7 +721,7 @@ class _VertCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${result.verticalInches}"',
+            l10n.inches(result.verticalInches),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 56,
@@ -722,8 +732,8 @@ class _VertCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             result.clearsDunk
-                ? 'That clears your ${result.requiredVert}" dunk target'
-                : '${result.gapInches}" to go to your ${result.requiredVert}" dunk target',
+                ? l10n.resultClearsDunk(result.requiredVert)
+                : l10n.resultGapToDunk(result.gapInches, result.requiredVert),
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           ),
@@ -733,8 +743,7 @@ class _VertCard extends StatelessWidget {
           if (!result.assessment.reachIsMeasured) ...[
             const SizedBox(height: 8),
             Text(
-              'Target assumes an estimated ${result.assessment.standingReach}" '
-              'standing reach. Set your real reach in Settings for an exact one.',
+              l10n.resultEstimatedReachNote(result.assessment.standingReach),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white70,
@@ -775,6 +784,9 @@ class _ScoresCard extends StatelessWidget {
 
   const _ScoresCard({required this.scores});
 
+  /// Keyed on `FormScore.label`, which is authored in pure-Dart core and so
+  /// is not translated. The display name comes from the ARB instead — see
+  /// [_ScoreGrid._displayLabel].
   static const _icons = <String, IconData>{
     'Bounce': Icons.bolt,
     'Power': Icons.fitness_center,
@@ -784,6 +796,7 @@ class _ScoresCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final s = scores;
     return Container(
       padding: const EdgeInsets.all(16),
@@ -803,9 +816,9 @@ class _ScoresCard extends StatelessWidget {
                 size: 16,
               ),
               const SizedBox(width: 6),
-              const Text(
-                'FORM SCORES',
-                style: TextStyle(
+              Text(
+                l10n.resultFormScoresTitle,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -816,11 +829,7 @@ class _ScoresCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            s == null
-                ? 'Scoring your form needs body tracking, and it could not '
-                    'follow you through this clip.'
-                : 'Scored from your body in this clip — nothing is filled in '
-                    'where it could not be measured.',
+            s == null ? l10n.resultScoresUnavailable : l10n.resultScoresIntro,
             style: const TextStyle(
               color: DunkColors.textSecondary,
               fontSize: 12,
@@ -834,10 +843,9 @@ class _ScoresCard extends StatelessWidget {
           const SizedBox(height: 14),
           _ScoreGrid(scores: s),
           const SizedBox(height: 12),
-          const Text(
-            'Scores rate your technique against coaching guidelines, not '
-            'against other athletes.',
-            style: TextStyle(
+          Text(
+            l10n.resultScoresDisclaimer,
+            style: const TextStyle(
               color: DunkColors.textTertiary,
               fontSize: 11,
               height: 1.3,
@@ -858,12 +866,13 @@ class _ScoreGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final tiles = <Widget>[
-      for (final label in _ScoresCard._icons.keys)
+      for (final key in _ScoresCard._icons.keys)
         _ScoreTile(
-          label: label,
-          icon: _ScoresCard._icons[label]!,
-          score: _scoreFor(label),
+          label: _displayLabel(l10n, key),
+          icon: _ScoresCard._icons[key]!,
+          score: _scoreFor(key),
         ),
     ];
 
@@ -891,6 +900,22 @@ class _ScoreGrid extends StatelessWidget {
     if (s == null) return null;
     return s.all.firstWhere((score) => score.label == label);
   }
+
+  /// Maps the core's own (untranslated) score label onto its display name.
+  static String _displayLabel(AppLocalizations l10n, String key) {
+    switch (key) {
+      case 'Bounce':
+        return l10n.scoreBounce;
+      case 'Power':
+        return l10n.scorePower;
+      case 'Control':
+        return l10n.scoreControl;
+      case 'Form':
+        return l10n.scoreForm;
+      default:
+        return key;
+    }
+  }
 }
 
 class _ScoreTile extends StatelessWidget {
@@ -909,9 +934,11 @@ class _ScoreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final value = score?.value;
     final measured = value != null;
-    final reason = score?.unavailableReason ?? 'body tracking did not run';
+    // A reason the score object carries comes from untranslated core code.
+    final reason = score?.unavailableReason ?? l10n.resultNoTrackingReason;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -956,9 +983,9 @@ class _ScoreTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 3),
-                const Text(
-                  '/100',
-                  style: TextStyle(
+                Text(
+                  l10n.resultScoreDenominator,
+                  style: const TextStyle(
                     color: DunkColors.textTertiary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -989,9 +1016,9 @@ class _ScoreTile extends StatelessWidget {
               ),
             ],
           ] else ...[
-            const Text(
-              'Not measured',
-              style: TextStyle(
+            Text(
+              l10n.resultNotMeasured,
+              style: const TextStyle(
                 color: DunkColors.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,

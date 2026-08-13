@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/models/video_attempt_type.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
@@ -24,13 +25,15 @@ class SourceScreen extends StatefulWidget {
 class _SourceScreenState extends State<SourceScreen> {
   final _picker = ImagePicker();
   bool _busy = false;
-  String? _error;
+
+  /// A flag rather than a message, so the wording is resolved in [build].
+  bool _failed = false;
   VideoAttemptType _attemptType = VideoAttemptType.jumpAttempt;
 
   Future<void> _pick(ImageSource source) async {
     setState(() {
       _busy = true;
-      _error = null;
+      _failed = false;
     });
     try {
       final file = await _picker.pickVideo(
@@ -41,7 +44,7 @@ class _SourceScreenState extends State<SourceScreen> {
         widget.onVideoSelected(File(file.path), _attemptType);
       }
     } catch (_) {
-      setState(() => _error = "Couldn't access the camera or library.");
+      setState(() => _failed = true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -49,6 +52,7 @@ class _SourceScreenState extends State<SourceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
@@ -68,9 +72,9 @@ class _SourceScreenState extends State<SourceScreen> {
                       color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'ANALYZE',
-                  style: TextStyle(
+                Text(
+                  l10n.analyzeTitle,
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1,
@@ -80,10 +84,8 @@ class _SourceScreenState extends State<SourceScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Film your jump straight-on, full body in frame. We track your '
-              'feet to time the flight, then gravity gives the height — no '
-              'calibration needed.',
+            Text(
+              l10n.analyzeIntro,
               style: DunkTheme.onboardingSubtitle,
             ),
             const SizedBox(height: 24),
@@ -123,15 +125,15 @@ class _SourceScreenState extends State<SourceScreen> {
               ),
             ),
             const Spacer(),
-            if (_error != null) ...[
+            if (_failed) ...[
               Text(
-                _error!,
+                l10n.analyzePickError,
                 style: const TextStyle(color: Colors.redAccent, fontSize: 13),
               ),
               const SizedBox(height: 12),
             ],
             PrimaryButton(
-              label: _busy ? 'ONE SEC…' : 'RECORD A JUMP',
+              label: _busy ? l10n.analyzeBusyCta : l10n.analyzeRecordCta,
               trailingIcon: Icons.videocam,
               onPressed: _busy ? null : () => _pick(ImageSource.camera),
             ),
@@ -139,9 +141,9 @@ class _SourceScreenState extends State<SourceScreen> {
             Center(
               child: TextButton(
                 onPressed: _busy ? null : () => _pick(ImageSource.gallery),
-                child: const Text(
-                  'Choose from library',
-                  style: TextStyle(
+                child: Text(
+                  l10n.analyzeChooseLibrary,
+                  style: const TextStyle(
                     color: DunkColors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
@@ -153,19 +155,20 @@ class _SourceScreenState extends State<SourceScreen> {
               Center(
                 child: TextButton(
                   onPressed: _busy ? null : widget.onSkip,
-                  child: const Column(
+                  child: Column(
                     children: [
                       Text(
-                        "I'll do this later",
-                        style: TextStyle(
+                        l10n.analyzeSkip,
+                        style: const TextStyle(
                           color: DunkColors.textTertiary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
-                        'You can analyze anytime from the app.',
-                        style: TextStyle(color: DunkColors.textTertiary, fontSize: 11),
+                        l10n.analyzeSkipSubtitle,
+                        style: const TextStyle(
+                            color: DunkColors.textTertiary, fontSize: 11),
                       ),
                     ],
                   ),

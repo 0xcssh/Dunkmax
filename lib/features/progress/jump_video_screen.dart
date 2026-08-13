@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 
 /// Full-screen playback of a persisted jump clip, reached from Progress's
@@ -35,7 +36,11 @@ class JumpVideoScreen extends StatefulWidget {
 class _JumpVideoScreenState extends State<JumpVideoScreen> {
   late final VideoPlayerController _controller;
   bool _ready = false;
-  String? _error;
+
+  /// A flag rather than a message: this is set from [initState]'s callback,
+  /// where looking up a localisation is not allowed. The wording is resolved
+  /// in [build] instead.
+  bool _failedToLoad = false;
 
   /// The clip is normally there — the caller only offers playback for a file
   /// it resolved — but it can be deleted between the tap and this screen, so
@@ -61,7 +66,7 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
       _controller.play();
     }).catchError((_) {
       if (!mounted) return;
-      setState(() => _error = "Couldn't load this clip.");
+      setState(() => _failedToLoad = true);
     });
   }
 
@@ -101,20 +106,21 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
   /// nothing at all — the reported "Share does nothing".
   Future<void> _share() async {
     if (_sharing) return;
+    final l10n = AppLocalizations.of(context);
     if (!_fileExists()) {
       setState(() => _canShare = false);
-      _showMessage('This clip is no longer on your device.');
+      _showMessage(l10n.jumpVideoMissing);
       return;
     }
     setState(() => _sharing = true);
     try {
       await Share.shareXFiles(
         [XFile(widget.videoFile.path)],
-        text: '${widget.verticalInches}" vertical — Dunk It',
+        text: l10n.jumpShareText(widget.verticalInches),
         sharePositionOrigin: _shareOrigin(),
       );
     } catch (_) {
-      _showMessage("Couldn't open the share sheet. Please try again.");
+      _showMessage(l10n.jumpVideoShareFailed);
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
@@ -122,6 +128,7 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: DunkColors.background,
       appBar: AppBar(
@@ -129,7 +136,7 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          '${widget.verticalInches}" · ${widget.recordedAt.month}/${widget.recordedAt.day}/${widget.recordedAt.year}',
+          l10n.jumpVideoTitle(widget.verticalInches, widget.recordedAt),
           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
         ),
         actions: [
@@ -142,9 +149,10 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
         ],
       ),
       body: SafeArea(
-        child: _error != null
+        child: _failedToLoad
             ? Center(
-                child: Text(_error!, style: DunkTheme.onboardingSubtitle),
+                child: Text(l10n.jumpVideoLoadError,
+                    style: DunkTheme.onboardingSubtitle),
               )
             : !_ready
                 ? const Center(

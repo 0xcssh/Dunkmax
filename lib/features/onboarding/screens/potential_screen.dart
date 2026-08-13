@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/onboarding_profile.dart';
 import '../../../core/vert_assessment.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
 
@@ -20,6 +21,7 @@ class PotentialScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final a = VertAssessment(
       heightInches: profile.heightInches,
       ageYears: profile.ageYears,
@@ -49,9 +51,10 @@ class PotentialScreen extends StatelessWidget {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
-                    const Text('YOUR JUMP POTENTIAL', style: DunkTheme.onboardingTitle),
+                    Text(l10n.potentialTitle,
+                        style: DunkTheme.onboardingTitle),
                     const SizedBox(height: 12),
-                    const Text('Projected from your height, hops, and schedule.',
+                    Text(l10n.potentialSubtitle,
                         style: DunkTheme.onboardingSubtitle),
                     const SizedBox(height: 24),
                     Container(
@@ -71,7 +74,7 @@ class PotentialScreen extends StatelessWidget {
                                 value: values[i],
                                 minV: minV,
                                 maxV: maxV,
-                                weekLabel: 'WK ${weeks[i]}',
+                                weekLabel: l10n.potentialWeekLabel(weeks[i]),
                                 highlight: i == weeks.length - 1,
                               ),
                             ),
@@ -88,19 +91,19 @@ class PotentialScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('PROJECTED 8-WEEK WINDOW',
-                              style: TextStyle(
+                          Text(l10n.potentialWindowLabel,
+                              style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 1)),
                           const SizedBox(height: 6),
-                          Text('~${a.projectedVert8Week}"',
+                          Text(l10n.inchesApprox(a.projectedVert8Week),
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 40,
                                   fontWeight: FontWeight.w900)),
-                          Text('Potential from an est. ~${a.estimatedCurrentVert}" today.',
+                          Text(l10n.potentialFromToday(a.estimatedCurrentVert),
                               style: const TextStyle(color: Colors.white, fontSize: 14)),
                         ],
                       ),
@@ -109,7 +112,7 @@ class PotentialScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              PrimaryButton(label: 'SEE MY PLAN', onPressed: onContinue),
+              PrimaryButton(label: l10n.potentialCta, onPressed: onContinue),
             ],
           ),
         ),
@@ -141,7 +144,7 @@ class _Bar extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Text('$value"',
+          Text(AppLocalizations.of(context).inches(value),
               style: TextStyle(
                   color: highlight ? DunkColors.primary : Colors.white,
                   fontWeight: FontWeight.w700,

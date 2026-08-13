@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 
 /// Simplified, recognisable versions of three of the app's own surfaces,
@@ -18,33 +19,37 @@ class AnalysisMock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _MockScreen(
+    final l10n = AppLocalizations.of(context);
+    return _MockScreen(
       children: [
-        _MockLabel('JUMP ANALYSIS'),
-        SizedBox(height: 8),
+        _MockLabel(l10n.mockJumpAnalysis),
+        const SizedBox(height: 8),
         _MockCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _MockLabel('EST. VERT'),
-              SizedBox(height: 2),
+              _MockLabel(l10n.mockEstVert),
+              const SizedBox(height: 2),
+              // An illustrative number, deliberately not localised as a
+              // measurement: it is part of the product shot.
               Text(
-                '29"',
-                style: TextStyle(
+                l10n.inches(29),
+                style: const TextStyle(
                   fontSize: 44,
                   height: 1.05,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(Icons.trending_up, size: 11, color: DunkColors.primary),
-                  SizedBox(width: 4),
+                  const Icon(Icons.trending_up,
+                      size: 11, color: DunkColors.primary),
+                  const SizedBox(width: 4),
                   Text(
-                    '6" TO DUNK',
-                    style: TextStyle(
+                    l10n.mockToDunk(6),
+                    style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.6,
@@ -56,40 +61,40 @@ class AnalysisMock extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(height: 12),
-        _MockLabel('FORM SCORES'),
-        SizedBox(height: 8),
+        const SizedBox(height: 12),
+        _MockLabel(l10n.mockFormScores),
+        const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _ScoreTile(label: 'BOUNCE', value: 82)),
-            SizedBox(width: 8),
-            Expanded(child: _ScoreTile(label: 'POWER', value: 74)),
+            Expanded(child: _ScoreTile(label: l10n.scoreBounce, value: 82)),
+            const SizedBox(width: 8),
+            Expanded(child: _ScoreTile(label: l10n.scorePower, value: 74)),
           ],
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _ScoreTile(label: 'CONTROL', value: 68)),
-            SizedBox(width: 8),
-            Expanded(child: _ScoreTile(label: 'FORM', value: 77)),
+            Expanded(child: _ScoreTile(label: l10n.scoreControl, value: 68)),
+            const SizedBox(width: 8),
+            Expanded(child: _ScoreTile(label: l10n.scoreForm, value: 77)),
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         _MockCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _MockLabel('JUMP BREAKDOWN'),
-              SizedBox(height: 8),
-              _TextLine(widthFactor: 1),
-              SizedBox(height: 5),
-              _TextLine(widthFactor: 0.92),
-              SizedBox(height: 5),
-              _TextLine(widthFactor: 0.6),
+              _MockLabel(l10n.mockJumpBreakdown),
+              const SizedBox(height: 8),
+              const _TextLine(widthFactor: 1),
+              const SizedBox(height: 5),
+              const _TextLine(widthFactor: 0.92),
+              const SizedBox(height: 5),
+              const _TextLine(widthFactor: 0.6),
             ],
           ),
         ),
-        Spacer(),
+        const Spacer(),
       ],
     );
   }
@@ -102,22 +107,25 @@ class PlanMock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _MockScreen(
+    final l10n = AppLocalizations.of(context);
+    return _MockScreen(
       children: [
-        _MockLabel('WEEK 2 · DAY 2 OF 3'),
-        SizedBox(height: 8),
-        _ProgramCard(),
-        SizedBox(height: 12),
-        _WeekStrip(),
-        SizedBox(height: 14),
-        _MockLabel('TODAY · POWER'),
-        SizedBox(height: 8),
-        _ExerciseRow(name: 'Depth Jumps', sets: '4 × 5'),
-        SizedBox(height: 8),
-        _ExerciseRow(name: 'Trap Bar Deadlift', sets: '4 × 5'),
-        SizedBox(height: 8),
-        _ExerciseRow(name: 'Pogo Hops', sets: '3 × 20'),
-        Spacer(),
+        _MockLabel(l10n.mockWeekDay),
+        const SizedBox(height: 8),
+        const _ProgramCard(),
+        const SizedBox(height: 12),
+        const _WeekStrip(),
+        const SizedBox(height: 14),
+        _MockLabel(l10n.mockTodayPower),
+        const SizedBox(height: 8),
+        // Drill names come from core/exercise_library.dart, which is pure
+        // Dart and stays English for now — see CLAUDE.md.
+        const _ExerciseRow(name: 'Depth Jumps', sets: '4 × 5'),
+        const SizedBox(height: 8),
+        const _ExerciseRow(name: 'Trap Bar Deadlift', sets: '4 × 5'),
+        const SizedBox(height: 8),
+        const _ExerciseRow(name: 'Pogo Hops', sets: '3 × 20'),
+        const Spacer(),
       ],
     );
   }
@@ -130,49 +138,51 @@ class ProgressMock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _MockScreen(
+    final l10n = AppLocalizations.of(context);
+    return _MockScreen(
       children: [
-        _MockLabel('PROGRESS'),
-        SizedBox(height: 8),
+        _MockLabel(l10n.mockProgress),
+        const SizedBox(height: 8),
         _MockCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _MockLabel('CURRENT VERTICAL'),
-              SizedBox(height: 2),
+              _MockLabel(l10n.mockCurrentVertical),
+              const SizedBox(height: 2),
               Text(
-                '31"',
-                style: TextStyle(
+                l10n.inches(31),
+                style: const TextStyle(
                   fontSize: 38,
                   height: 1.05,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
-                '+4" SINCE FIRST TEST',
-                style: TextStyle(
+                l10n.mockSinceFirstTest(4),
+                style: const TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.6,
                   color: DunkColors.accentGreen,
                 ),
               ),
-              SizedBox(height: 12),
-              _TrendBars(),
+              const SizedBox(height: 12),
+              const _TrendBars(),
             ],
           ),
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _StatTile(label: 'WORKOUTS', value: '14/24')),
-            SizedBox(width: 8),
-            Expanded(child: _StatTile(label: 'DAY STREAK', value: '6')),
+            Expanded(
+                child: _StatTile(label: l10n.mockWorkouts, value: '14/24')),
+            const SizedBox(width: 8),
+            Expanded(child: _StatTile(label: l10n.mockDayStreak, value: '6')),
           ],
         ),
-        Spacer(),
+        const Spacer(),
       ],
     );
   }
@@ -328,10 +338,12 @@ class _ProgramCard extends StatelessWidget {
         gradient: DunkColors.primaryGradient,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          // Program names come from core/program_catalog.dart, which is pure
+          // Dart and stays English for now.
+          const Text(
             'VERTICAL FOUNDATION',
             style: TextStyle(
               fontSize: 13,
@@ -339,14 +351,14 @@ class _ProgramCard extends StatelessWidget {
               color: Colors.white,
             ),
           ),
-          SizedBox(height: 7),
+          const SizedBox(height: 7),
           Row(
             children: [
-              _MiniBadge('3 DAYS'),
-              SizedBox(width: 5),
-              _MiniBadge('GYM'),
-              SizedBox(width: 5),
-              _MiniBadge('8 WEEKS'),
+              _MiniBadge(AppLocalizations.of(context).mockMiniBadgeDays),
+              const SizedBox(width: 5),
+              _MiniBadge(AppLocalizations.of(context).mockMiniBadgeGym),
+              const SizedBox(width: 5),
+              _MiniBadge(AppLocalizations.of(context).mockMiniBadgeWeeks),
             ],
           ),
         ],
@@ -384,14 +396,15 @@ class _WeekStrip extends StatelessWidget {
   const _WeekStrip();
 
   // Mon/Wed/Fri, the 3-days-a-week layout the schedule actually produces.
-  static const _days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   static const _training = [true, false, true, false, true, false, false];
 
   @override
   Widget build(BuildContext context) {
+    // Seven comma-separated single letters, Monday first.
+    final days = AppLocalizations.of(context).weekdayInitials.split(',');
     return Row(
       children: [
-        for (var i = 0; i < _days.length; i++) ...[
+        for (var i = 0; i < _training.length; i++) ...[
           Expanded(
             child: Container(
               height: 30,
@@ -406,7 +419,7 @@ class _WeekStrip extends StatelessWidget {
                 ),
               ),
               child: Text(
-                _days[i],
+                i < days.length ? days[i] : '',
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w800,
@@ -417,7 +430,7 @@ class _WeekStrip extends StatelessWidget {
               ),
             ),
           ),
-          if (i < _days.length - 1) const SizedBox(width: 4),
+          if (i < _training.length - 1) const SizedBox(width: 4),
         ],
       ],
     );

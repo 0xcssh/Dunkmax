@@ -5,6 +5,7 @@ import '../../core/legal_urls.dart';
 import '../../core/models/onboarding_profile.dart';
 import '../../core/program_catalog.dart';
 import '../../core/subscription_offer.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/subscription_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -64,11 +65,19 @@ class _PaywallScreenState extends State<PaywallScreen> {
   bool _showOtherPlans = false;
   String? _message;
 
-  static const _benefits = [
-    ('Your Vert, Measured', 'Full jump breakdown — vert estimate, gap to your goal & coaching', Icons.monitor_heart_outlined),
-    ('Week 1, Ready Now', 'Your personalized plan starts the moment you unlock', Icons.directions_run),
-    ('Every Inch Tracked', 'Watch your progress toward your goal, week over week', Icons.show_chart),
-  ];
+  List<(String, String, IconData)> _benefits(AppLocalizations l10n) => [
+        (
+          l10n.paywallBenefit1Title,
+          l10n.paywallBenefit1Body,
+          Icons.monitor_heart_outlined
+        ),
+        (
+          l10n.paywallBenefit2Title,
+          l10n.paywallBenefit2Body,
+          Icons.directions_run
+        ),
+        (l10n.paywallBenefit3Title, l10n.paywallBenefit3Body, Icons.show_chart),
+      ];
 
   @override
   void initState() {
@@ -118,6 +127,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
   Future<void> _purchase() async {
     final plan = _selected;
     if (plan == null || _busy) return;
+    // Resolved before the await so no lookup happens across the async gap.
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _busy = true;
       _message = null;
@@ -131,21 +142,17 @@ class _PaywallScreenState extends State<PaywallScreen> {
     } else if (outcome == PurchaseOutcome.cancelled) {
       // The athlete backed out on purpose. Stay put, say nothing.
     } else if (outcome == PurchaseOutcome.notEntitled) {
-      setState(() => _message =
-          'That purchase went through but did not unlock DunkIt. Try Restore '
-          'Purchases, or contact support — you have not lost it.');
+      setState(() => _message = l10n.paywallErrorNotEntitled);
     } else if (outcome == PurchaseOutcome.unavailable) {
-      setState(() =>
-          _message = 'Purchases are unavailable right now. Try again later.');
+      setState(() => _message = l10n.paywallErrorUnavailable);
     } else {
-      setState(() => _message =
-          'The purchase could not be completed. Check your connection and try '
-          'again.');
+      setState(() => _message = l10n.paywallErrorFailed);
     }
   }
 
   Future<void> _restore() async {
     if (_busy) return;
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _busy = true;
       _message = null;
@@ -156,8 +163,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     if (restored) {
       widget.onUnlocked();
     } else {
-      setState(() => _message =
-          'No active DunkIt subscription found on this Apple ID.');
+      setState(() => _message = l10n.paywallErrorNothingToRestore);
     }
   }
 
@@ -172,13 +178,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
     required String url,
     required bool published,
   }) async {
+    final l10n = AppLocalizations.of(context);
     if (published) {
       final uri = Uri.tryParse(url);
       final opened = uri != null &&
           await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (opened || !mounted) return;
       // Falling through means the device had nothing to open it with.
-      setState(() => _message = 'Could not open $title. The address is $url');
+      setState(() => _message = l10n.paywallCouldNotOpenLegal(title, url));
       return;
     }
 
@@ -188,15 +195,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: DunkColors.surface,
         title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: const Text(
-          'This page is not published yet.',
-          style: TextStyle(color: DunkColors.textTertiary, fontSize: 13),
+        content: Text(
+          l10n.paywallPageNotPublished,
+          style: const TextStyle(color: DunkColors.textTertiary, fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Close',
-                style: TextStyle(color: DunkColors.textSecondary)),
+            child: Text(l10n.commonClose,
+                style: const TextStyle(color: DunkColors.textSecondary)),
           ),
         ],
       ),
@@ -205,6 +212,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final program = ProgramCatalog.recommend(widget.profile);
     final offer = _offer;
     final plans = _plans;
@@ -224,10 +232,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
       ctaTap = widget.onUnlocked;
     }
 
+    // The trial length is whatever the store reported; only the sentence
+    // around it is translated.
     final trial = selected?.freeTrial;
-    final headerTail = trial == null
-        ? 'Cancel anytime.'
-        : '${_capitalize(trial.label)} free. Cancel anytime.';
+    final subheadline = trial == null
+        ? l10n.paywallPlanBuilt(program.sessionsPerWeek)
+        : l10n.paywallPlanBuiltWithTrial(
+            program.sessionsPerWeek,
+            _capitalize(trial.label),
+          );
 
     return Scaffold(
       body: Container(
@@ -259,9 +272,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     children: [
                       const _Wordmark(),
                       const SizedBox(height: 20),
-                      const Text(
-                        'GET YOUR\nFIRST DUNK.',
-                        style: TextStyle(
+                      Text(
+                        l10n.paywallHeadline,
+                        style: const TextStyle(
                           fontSize: 32,
                           height: 1.05,
                           fontWeight: FontWeight.w900,
@@ -270,8 +283,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Your ${program.sessionsPerWeek}-day plan is built. '
-                        '$headerTail',
+                        subheadline,
                         style: const TextStyle(
                           color: DunkColors.textSecondary,
                           fontSize: 15,
@@ -279,7 +291,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      for (final (title, subtitle, icon) in _benefits) ...[
+                      for (final (title, subtitle, icon) in _benefits(l10n)) ...[
                         _BenefitRow(title: title, subtitle: subtitle, icon: icon),
                         const SizedBox(height: 16),
                       ],
@@ -304,7 +316,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           onRetry: service.isConfigured ? _retryLoad : null,
                         )
                       else
-                        ..._buildPlanCards(offer!, plans),
+                        ..._buildPlanCards(l10n, offer!, plans),
                     ],
                   ),
                 ),
@@ -324,13 +336,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 _Cta(
                   enabled: ctaEnabled,
                   busy: _busy,
-                  label: _ctaLabel(selected, canSkip),
-                  subLabel: _ctaSubLabel(selected, canSkip),
+                  label: _ctaLabel(l10n, selected, canSkip),
+                  subLabel: _ctaSubLabel(l10n, selected, canSkip),
                   onTap: ctaTap,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  _disclosure(selected, canSkip, service.isConfigured),
+                  _disclosure(l10n, selected, canSkip, service.isConfigured),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       color: DunkColors.textTertiary, fontSize: 11, height: 1.3),
@@ -340,23 +352,23 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _LegalLink(
-                      label: 'Restore Purchases',
+                      label: l10n.paywallRestorePurchases,
                       onTap: _busy ? null : _restore,
                     ),
                     const _LegalDot(),
                     _LegalLink(
-                      label: 'Privacy',
+                      label: l10n.paywallPrivacy,
                       onTap: () => _openLegal(
-                        title: 'Privacy Policy',
+                        title: l10n.paywallPrivacyPolicyTitle,
                         url: LegalUrls.privacyPolicy,
                         published: LegalUrls.privacyPolicyPublished,
                       ),
                     ),
                     const _LegalDot(),
                     _LegalLink(
-                      label: 'Terms',
+                      label: l10n.paywallTerms,
                       onTap: () => _openLegal(
-                        title: 'Terms of Use',
+                        title: l10n.paywallTermsOfUseTitle,
                         url: LegalUrls.termsOfUse,
                         published: LegalUrls.termsOfUsePublished,
                       ),
@@ -372,6 +384,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
   }
 
   List<Widget> _buildPlanCards(
+    AppLocalizations l10n,
     SubscriptionOffer offer,
     List<SubscriptionPlan> plans,
   ) {
@@ -382,12 +395,16 @@ class _PaywallScreenState extends State<PaywallScreen> {
     Widget card(SubscriptionPlan plan) {
       final savings = offer.savingsPercentFor(plan);
       return _PlanCard(
-        badge: plan.packageId == bestValueId ? 'BEST VALUE' : null,
+        badge: plan.packageId == bestValueId ? l10n.paywallBestValue : null,
+        // The plan title and every price line are built by
+        // core/subscription_offer.dart from the store's own strings, and are
+        // not translated here — see CLAUDE.md.
         title: plan.title,
         priceLine: plan.headlineLine,
         subLine: plan.billedLine,
         trialLine: plan.trialLine,
-        savePercent: savings == null ? null : 'Save $savings%',
+        savePercent:
+            savings == null ? null : l10n.paywallSavePercent(savings),
         selected: plan.packageId == _selectedPackageId,
         onTap: _busy
             ? null
@@ -402,9 +419,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
         Center(
           child: TextButton(
             onPressed: () => setState(() => _showOtherPlans = true),
-            child: const Text(
-              'View other plans',
-              style: TextStyle(
+            child: Text(
+              l10n.paywallViewOtherPlans,
+              style: const TextStyle(
                 color: DunkColors.textSecondary,
                 decoration: TextDecoration.underline,
                 fontSize: 14,
@@ -421,42 +438,44 @@ class _PaywallScreenState extends State<PaywallScreen> {
     ];
   }
 
-  String _ctaLabel(SubscriptionPlan? selected, bool canSkip) {
+  String _ctaLabel(
+      AppLocalizations l10n, SubscriptionPlan? selected, bool canSkip) {
+    // `selected.ctaLabel` comes from core/subscription_offer.dart and is not
+    // translated yet.
     if (selected != null) return selected.ctaLabel;
-    if (canSkip) return 'CONTINUE WITHOUT PURCHASE';
-    return 'UNAVAILABLE';
+    if (canSkip) return l10n.paywallCtaContinueWithoutPurchase;
+    return l10n.paywallCtaUnavailable;
   }
 
-  String _ctaSubLabel(SubscriptionPlan? selected, bool canSkip) {
+  String _ctaSubLabel(
+      AppLocalizations l10n, SubscriptionPlan? selected, bool canSkip) {
     if (selected != null) {
       return selected.freeTrial == null
-          ? 'Cancel anytime.'
-          : 'No commitment required. Cancel anytime.';
+          ? l10n.paywallCancelAnytime
+          : l10n.paywallNoCommitment;
     }
     if (canSkip) {
       return SubscriptionService.previewUnlock
-          ? 'Preview build — purchases are not set up yet, so this '
-            'unlocks the app without charging anything.'
-          : 'Debug build — nothing will be charged.';
+          ? l10n.paywallPreviewBuildNote
+          : l10n.paywallDebugBuildNote;
     }
-    return 'Purchases are not available in this build.';
+    return l10n.paywallNoPurchasesInBuild;
   }
 
   String _disclosure(
+    AppLocalizations l10n,
     SubscriptionPlan? selected,
     bool canSkip,
     bool configured,
   ) {
     // The Apple-required disclosure: what is bought, at what price, over what
-    // period, and that it auto-renews — all read off the fetched product.
+    // period, and that it auto-renews — all read off the fetched product, and
+    // assembled (untranslated for now) in core/subscription_offer.dart.
     if (selected != null) return selected.renewalDisclosure;
-    if (canSkip) {
-      return 'This build has no purchase configuration, so nothing is for '
-          'sale and nothing will be charged.';
-    }
+    if (canSkip) return l10n.paywallDisclosureNoConfig;
     return configured
-        ? 'Subscription plans could not be loaded. Nothing has been charged.'
-        : 'Purchases are unavailable in this build.';
+        ? l10n.paywallDisclosureLoadFailed
+        : l10n.paywallDisclosureUnavailable;
   }
 
   static String _capitalize(String value) =>
@@ -547,6 +566,7 @@ class _UnavailableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -565,8 +585,8 @@ class _UnavailableCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   configured
-                      ? 'Plans unavailable'
-                      : 'Purchases unavailable in this build',
+                      ? l10n.paywallPlansUnavailableTitle
+                      : l10n.paywallPurchasesUnavailableTitle,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 15,
@@ -579,10 +599,8 @@ class _UnavailableCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             configured
-                ? 'We could not reach the App Store to load subscription '
-                    'prices. Nothing has been charged.'
-                : 'This build was made without purchase credentials, so there '
-                    'is nothing to buy here.',
+                ? l10n.paywallPlansUnavailableBody
+                : l10n.paywallPurchasesUnavailableBody,
             style: const TextStyle(
               color: DunkColors.textSecondary,
               fontSize: 13,
@@ -596,8 +614,9 @@ class _UnavailableCard extends StatelessWidget {
               child: TextButton(
                 onPressed: onRetry,
                 style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                child: const Text('Try again',
-                    style: TextStyle(color: DunkColors.primary, fontSize: 13)),
+                child: Text(l10n.paywallTryAgain,
+                    style: const TextStyle(
+                        color: DunkColors.primary, fontSize: 13)),
               ),
             ),
           ],

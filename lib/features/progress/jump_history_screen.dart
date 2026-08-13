@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models/jump_log_entry.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/media_file_resolver.dart';
 import '../../theme/app_theme.dart';
 import 'jump_video_screen.dart';
@@ -13,17 +14,20 @@ class JumpHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final sorted = [...entries]..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     return Scaffold(
       appBar: AppBar(
         backgroundColor: DunkColors.background,
-        title: const Text('Jump History', style: TextStyle(color: Colors.white)),
+        title: Text(l10n.jumpHistoryTitle,
+            style: const TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
         child: sorted.isEmpty
-            ? const Center(
-                child: Text('No jumps logged yet.', style: DunkTheme.onboardingSubtitle),
+            ? Center(
+                child: Text(l10n.jumpHistoryEmpty,
+                    style: DunkTheme.onboardingSubtitle),
               )
             : ListView.separated(
                 padding: const EdgeInsets.all(20),
@@ -84,12 +88,12 @@ class JumpHistoryScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${entry.verticalInches}"',
+                                  l10n.inches(entry.verticalInches),
                                   style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${entry.recordedAt.month}/${entry.recordedAt.day}/${entry.recordedAt.year}',
+                                  l10n.jumpDateFull(entry.recordedAt),
                                   style: const TextStyle(color: DunkColors.textSecondary, fontSize: 13),
                                 ),
                               ],
