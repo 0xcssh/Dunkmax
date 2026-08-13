@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../core/models/jump_log_entry.dart';
+import '../../services/media_file_resolver.dart';
 import '../../theme/app_theme.dart';
 import 'jump_video_screen.dart';
 
@@ -32,13 +31,20 @@ class JumpHistoryScreen extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, i) {
                   final entry = sorted[i];
+                  // Stored names (or legacy absolute paths) are resolved
+                  // against the CURRENT documents directory — see
+                  // services/media_file_resolver.dart. A jump whose file is
+                  // gone gets no play affordance rather than a dead tap.
+                  final resolver = MediaFileResolver.instance;
+                  final video = resolver.resolve(entry.videoPath);
+                  final thumbnail = resolver.resolve(entry.thumbnailPath);
                   return InkWell(
                     borderRadius: BorderRadius.circular(14),
-                    onTap: entry.videoPath == null
+                    onTap: video == null
                         ? null
                         : () => Navigator.of(context).push(MaterialPageRoute(
                               builder: (_) => JumpVideoScreen(
-                                videoPath: entry.videoPath!,
+                                videoFile: video,
                                 verticalInches: entry.verticalInches,
                                 recordedAt: entry.recordedAt,
                               ),
@@ -57,9 +63,9 @@ class JumpHistoryScreen extends StatelessWidget {
                             child: SizedBox(
                               width: 64,
                               height: 64,
-                              child: entry.thumbnailPath != null
+                              child: thumbnail != null
                                   ? Image.file(
-                                      File(entry.thumbnailPath!),
+                                      thumbnail,
                                       fit: BoxFit.cover,
                                       errorBuilder: (_, __, ___) => Container(
                                         color: DunkColors.surfaceRaised,

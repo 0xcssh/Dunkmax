@@ -114,6 +114,9 @@ lib/
                           scores were measured)
     trim_range.dart       Analyze's trim selection: handle clamping (0.6 s
                           minimum span), clip<->fraction mapping, 0:00.0 format
+    media_path.dart       basename / isAbsolute / join for the jump-media
+                          paths — pure string work, both separators (see
+                          "Jump media on disk" below)
     subscription_offer.dart  BillingPeriod (ISO-8601 "P1Y"), SubscriptionPlan
                           (per-week price, billed line, trial line, Apple
                           renewal disclosure), SubscriptionOffer (BEST VALUE +
@@ -132,6 +135,9 @@ lib/
                          the rest)
     jump_log_store.dart  Persists JumpLogEntry history (fed by Analyze),
                          same one-entry-per-string pattern
+    media_file_resolver.dart  Caches the documents directory once at startup
+                         (main.dart) so a stored clip/thumbnail name resolves
+                         to a File *synchronously*, inside build methods
   features/
     onboarding/          Intro carousel (3 swipeable panels, live in-app
                          mockups) + 11-question quiz + sell screens. The whole
@@ -293,6 +299,46 @@ differentiator.
 
 Physics lives in `core/` (pure, tested); camera/video-player glue stays thin
 in `features/analyze/`.
+
+### Jump media on disk — store the NAME, never the path
+
+`JumpLogEntry.videoPath` / `.thumbnailPath` hold the **file name** of a file in
+the application documents directory. They are not absolute paths, and must not
+become them again: on iOS the documents directory lives inside a container
+whose UUID **changes on reinstall** and can change across updates, so an
+absolute path captured at record time goes stale and the entry silently loses
+its clip and its still — which is exactly why *old* jumps were the ones whose
+Share button and playback did nothing.
+
+The names are written by `analyze_flow.dart` (via
+`MediaFileResolver.storageNameFor`) and read back through
+`MediaFileResolver.instance.resolve(stored)`, which:
+1. tries an **absolute** stored value as-is — legacy entries whose container
+   has not moved keep working untouched, and nothing is migrated or rewritten;
+2. otherwise (or if that file is gone) resolves the **basename** against the
+   current documents directory — this is what recovers a legacy entry after
+   the container moved;
+3. returns `null` when neither exists.
+
+`null` is a real answer: the thumbnail draws its empty state, the row is not
+tappable, and the video screen hides Share entirely. **An affordance is never
+offered for a file that isn't there** — a dead tap is indistinguishable from a
+bug, which is how this was reported in the first place. Every read site goes
+through the resolver (`feed_tab`, `progress_tab`, `jump_history_screen`,
+`jump_video_screen`); none of them may construct a `File` from a stored value
+directly. The pure half (`core/media_path.dart`, tested) does the string work;
+the directory lookup is async and Flutter-bound, so it stays in `services/`
+and is warmed once in `main.dart`. Uninitialized (widget tests) degrades to
+"absolute paths only", never to a crash.
+
+**Sharing a clip** (`jump_video_screen.dart`): `Share.shareXFiles` is awaited
+and wrapped — a throw used to surface as nothing at all — and is handed a
+`sharePositionOrigin` derived from the share button's own `RenderBox`, because
+iPadOS *requires* an anchor rect for the popover and throws without one.
+`share_plus` is pinned `^10.0.0`, where `Share.shareXFiles` is the current API;
+`SharePlus.instance.share(ShareParams(...))` only exists from **11.0.0** and
+does not resolve here. Verify the resolved version before touching this call —
+a guessed share_plus API has broken CI on this repo before.
 
 ## Vert math (`core/vert_assessment.dart`) — calibrated to the reference
 

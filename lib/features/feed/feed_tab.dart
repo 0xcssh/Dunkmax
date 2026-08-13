@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/leaderboard.dart';
-import '../../core/models/jump_log_entry.dart';
 import '../../services/athlete_profile_store.dart';
 import '../../services/jump_log_store.dart';
 import '../../services/leaderboard_service.dart';
+import '../../services/media_file_resolver.dart';
 import '../../theme/app_theme.dart';
 import '../progress/jump_video_screen.dart';
 import 'display_name_dialog.dart';
@@ -459,25 +459,30 @@ class _RankedJumpRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entry = row.entry;
-    final videoPath = entry.videoPath;
-    final hasVideo = videoPath != null && File(videoPath).existsSync();
+    // The entry stores file names (legacy entries: absolute paths); the file
+    // they point at today is found by resolving against the current documents
+    // directory, since an iOS app container moves on reinstall. No file, no
+    // play affordance — see services/media_file_resolver.dart.
+    final resolver = MediaFileResolver.instance;
+    final video = resolver.resolve(entry.videoPath);
+    final thumbnail = resolver.resolve(entry.thumbnailPath);
 
     return Material(
       color: DunkColors.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: hasVideo
-            ? () => Navigator.of(context).push(
+        onTap: video == null
+            ? null
+            : () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => JumpVideoScreen(
-                      videoPath: videoPath,
+                      videoFile: video,
                       verticalInches: entry.verticalInches,
                       recordedAt: entry.recordedAt,
                     ),
                   ),
-                )
-            : null,
+                ),
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -527,7 +532,10 @@ class _RankedJumpRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              _JumpThumbnail(entry: entry, showPlayButton: hasVideo),
+              _JumpThumbnail(
+                thumbnail: thumbnail,
+                showPlayButton: video != null,
+              ),
             ],
           ),
         ),
@@ -576,16 +584,16 @@ class _RankBadge extends StatelessWidget {
 }
 
 class _JumpThumbnail extends StatelessWidget {
-  final JumpLogEntry entry;
+  /// Already resolved by the caller — null means the still frame is not on
+  /// this device (or never existed), which draws the honest empty state.
+  final File? thumbnail;
   final bool showPlayButton;
 
-  const _JumpThumbnail({required this.entry, required this.showPlayButton});
+  const _JumpThumbnail({required this.thumbnail, required this.showPlayButton});
 
   @override
   Widget build(BuildContext context) {
-    final thumbnailPath = entry.thumbnailPath;
-    final hasThumbnail =
-        thumbnailPath != null && File(thumbnailPath).existsSync();
+    final thumbnail = this.thumbnail;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -595,9 +603,9 @@ class _JumpThumbnail extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (hasThumbnail)
+            if (thumbnail != null)
               Image.file(
-                File(thumbnailPath),
+                thumbnail,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const _ThumbnailPlaceholder(),
               )

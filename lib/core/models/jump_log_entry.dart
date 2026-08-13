@@ -7,13 +7,25 @@ import 'video_attempt_type.dart';
 class JumpLogEntry {
   final int verticalInches;
   final DateTime recordedAt;
-  // Local file path to a still frame captured near takeoff; null if
-  // generation failed or this entry predates the thumbnail feature.
+  // File NAME of a still frame captured near takeoff, inside the application
+  // documents directory; null if generation failed or this entry predates the
+  // thumbnail feature.
+  //
+  // A name, not a path, deliberately: on iOS the documents directory sits in a
+  // container whose UUID changes on reinstall and can change across updates,
+  // so an absolute path captured at record time goes stale and the entry
+  // silently loses its media. Entries written before this change still hold
+  // absolute paths — both forms are read through
+  // `services/media_file_resolver.dart`, which tries an absolute path as-is
+  // and falls back to its basename under the current documents directory.
+  // Nothing here interprets the value; it is stored and returned verbatim so
+  // the model stays pure and old entries round-trip untouched.
   final String? thumbnailPath;
-  // Local file path to the persisted source clip (a copy made at analysis
-  // time, since the original image_picker temp file isn't guaranteed to
-  // survive); null if the copy failed or this entry predates the
-  // video-persistence feature.
+  // File NAME of the persisted source clip (a copy made at analysis time,
+  // since the original image_picker temp file isn't guaranteed to survive);
+  // null if the copy failed or this entry predates the video-persistence
+  // feature. Same name-not-path rule and same legacy handling as
+  // [thumbnailPath].
   final String? videoPath;
   // What the athlete said the clip was (dunk vs. bare jump attempt) —
   // collected for future detector tuning, not yet used to change behavior.

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/jump_trend.dart';
@@ -8,6 +6,7 @@ import '../../../core/models/training_program.dart';
 import '../../../core/program_progress.dart';
 import '../../../core/workout_streak.dart';
 import '../../../services/jump_log_store.dart';
+import '../../../services/media_file_resolver.dart';
 import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
 import '../../progress/jump_history_screen.dart';
@@ -199,17 +198,24 @@ class _RecentAnalysisThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = entry.recordedAt;
+    // What the entry stored is a file name (legacy entries: an absolute path),
+    // resolved here against the current documents directory — the container
+    // the app writes into is not stable across reinstalls on iOS. A jump whose
+    // file no longer resolves is not tappable.
+    final resolver = MediaFileResolver.instance;
+    final video = resolver.resolve(entry.videoPath);
+    final thumbnail = resolver.resolve(entry.thumbnailPath);
     return SizedBox(
       width: 110,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GestureDetector(
-            onTap: entry.videoPath == null
+            onTap: video == null
                 ? null
                 : () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => JumpVideoScreen(
-                        videoPath: entry.videoPath!,
+                        videoFile: video,
                         verticalInches: entry.verticalInches,
                         recordedAt: entry.recordedAt,
                       ),
@@ -224,9 +230,9 @@ class _RecentAnalysisThumb extends StatelessWidget {
                     child: SizedBox(
                       width: 110,
                       height: 90,
-                      child: entry.thumbnailPath != null
+                      child: thumbnail != null
                           ? Image.file(
-                              File(entry.thumbnailPath!),
+                              thumbnail,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
                                 color: DunkColors.surfaceRaised,

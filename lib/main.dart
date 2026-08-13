@@ -5,6 +5,7 @@ import 'app.dart';
 import 'services/athlete_profile_store.dart';
 import 'services/jump_log_store.dart';
 import 'services/leaderboard_service.dart';
+import 'services/media_file_resolver.dart';
 import 'services/onboarding_store.dart';
 import 'services/subscription_service.dart';
 import 'services/workout_session_store.dart';
@@ -18,6 +19,12 @@ Future<void> main() async {
   final sessionStore = await WorkoutSessionStore.load();
   final jumpLogStore = await JumpLogStore.load();
   final athleteProfileStore = await AthleteProfileStore.load();
+  // Caches the application documents directory so jump clips and thumbnails
+  // can be resolved synchronously inside build methods. Jump entries persist
+  // file NAMES, not absolute paths: an iOS app container's UUID changes on
+  // reinstall, which is what silently broke playback and sharing on older
+  // entries. A failure here is swallowed and only costs the thumbnails.
+  await MediaFileResolver.instance.initialize();
   // Global leaderboard. With no --dart-define credentials (CI, tests, web
   // preview, any plain `flutter run`) this returns immediately and the board
   // shows its unavailable state; a network or config failure is caught inside

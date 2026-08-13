@@ -13,6 +13,7 @@ import '../../core/models/video_attempt_type.dart';
 import '../../core/trim_range.dart';
 import '../../core/vert_assessment.dart';
 import '../../services/jump_log_store.dart';
+import '../../services/media_file_resolver.dart';
 import 'screens/jump_result_screen.dart';
 import 'screens/processing_screen.dart';
 import 'screens/source_screen.dart';
@@ -120,36 +121,42 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     );
     final result = JumpResult(measurement: measurement, assessment: assessment);
     if (measurement.isValid) {
-      String? videoPath;
+      // Both files go into the application documents directory and only their
+      // NAMES are persisted. The absolute path is not a durable identifier on
+      // iOS — the container UUID changes on reinstall and can change across
+      // updates — so it is resolved again at read time against whatever the
+      // documents directory is then (services/media_file_resolver.dart).
+      String? videoName;
       try {
         final dir = await getApplicationDocumentsDirectory();
         final ext = _video!.path.contains('.') ? _video!.path.split('.').last : 'mov';
         final path = '${dir.path}/jump_video_${DateTime.now().millisecondsSinceEpoch}.$ext';
         final saved = await _video!.copy(path);
-        videoPath = saved.path;
+        videoName = MediaFileResolver.storageNameFor(saved.path);
       } catch (_) {
-        videoPath = null;
+        videoName = null;
       }
-      String? thumbnailPath;
+      String? thumbnailName;
       try {
         final dir = await getApplicationDocumentsDirectory();
         final path = '${dir.path}/jump_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        thumbnailPath = await VideoThumbnail.thumbnailFile(
+        final written = await VideoThumbnail.thumbnailFile(
           video: _video!.path,
           thumbnailPath: path,
           imageFormat: ImageFormat.JPEG,
           timeMs: measurement.takeoff.inMilliseconds,
           quality: 70,
         );
+        thumbnailName = MediaFileResolver.storageNameFor(written);
       } catch (_) {
-        thumbnailPath = null;
+        thumbnailName = null;
       }
       await widget.jumpLogStore.addEntry(
         JumpLogEntry(
           verticalInches: result.verticalInches,
           recordedAt: DateTime.now(),
-          thumbnailPath: thumbnailPath,
-          videoPath: videoPath,
+          thumbnailPath: thumbnailName,
+          videoPath: videoName,
           attemptType: _attemptType,
         ),
       );
