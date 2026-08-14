@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/models/video_attempt_type.dart';
 import '../../../core/pose_jump_detector.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
+import '../widgets/detection_details_card.dart';
+import 'processing_screen.dart';
 
 /// Shown when body tracking looked at the clip and declined to measure it.
 ///
@@ -21,6 +24,13 @@ import '../../shared/widgets/primary_button.dart';
 class UnmeasuredScreen extends StatelessWidget {
   final PoseDetectionRejection rejection;
 
+  /// Everything both passes saw. Shown here, collapsed, for the same reason
+  /// it is shown on the result screen — except it matters more here: this is
+  /// the screen a bug report is written from, and the first version of it
+  /// left the numbers unreachable at exactly the moment somebody needs them.
+  final JumpAnalysis analysis;
+  final VideoAttemptType attemptType;
+
   /// Re-open the trim step on the same clip: most rejections are fixed by
   /// tightening the range to the single jump.
   final VoidCallback onRetrim;
@@ -31,6 +41,8 @@ class UnmeasuredScreen extends StatelessWidget {
   const UnmeasuredScreen({
     super.key,
     required this.rejection,
+    required this.analysis,
+    required this.attemptType,
     required this.onRetrim,
     required this.onNewClip,
   });
@@ -105,11 +117,12 @@ class UnmeasuredScreen extends StatelessWidget {
     final (headline, fixes) = _diagnosis(l10n);
 
     return SafeArea(
-      child: Padding(
+      child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Text(
               l10n.unmeasuredTitle,
               style: const TextStyle(
@@ -124,7 +137,7 @@ class UnmeasuredScreen extends StatelessWidget {
               l10n.unmeasuredSubtitle,
               style: DunkTheme.onboardingSubtitle,
             ),
-            const Spacer(),
+            const SizedBox(height: 28),
             Container(
               width: 96,
               height: 96,
@@ -173,7 +186,7 @@ class UnmeasuredScreen extends StatelessWidget {
                 ),
               ),
             ],
-            const Spacer(),
+            const SizedBox(height: 28),
             PrimaryButton(
               label: l10n.unmeasuredRetrimCta,
               trailingIcon: Icons.content_cut,
@@ -192,8 +205,17 @@ class UnmeasuredScreen extends StatelessWidget {
                 ),
               ),
             ),
-          ],
-        ),
+              if (analysis.hasAnyData) ...[
+                const SizedBox(height: 16),
+                DetectionDetailsCard(
+                  analysis: analysis,
+                  method: JumpDetectionMethod.pose,
+                  attemptType: attemptType,
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -213,6 +213,8 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
       case _Step.unmeasured:
         return UnmeasuredScreen(
           rejection: _analysis.pose.rejection,
+          analysis: _analysis,
+          attemptType: _attemptType,
           onRetrim: () => setState(() => _step = _Step.trim),
           onNewClip: _reset,
         );
