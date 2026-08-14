@@ -217,8 +217,29 @@ differentiator.
   percentile of foot height — robust to one snapped landmark, unlike a
   min/max), crossed at a threshold expressed in **torso lengths** so it
   survives the camera moving nearer or further. Crossings are interpolated
-  between
-  samples. Because a threshold sitting above the ground clips the window
+  between samples.
+  **That baseline is local in time, not one number for the clip.** An athlete
+  walking toward the camera grows in frame, so their standing foot position
+  slides down the image over seconds — on the capture that forced this, by
+  116 px while the jump lifted them only 87 px, which put the *early standing*
+  frames 55 px "airborne" against the clip-wide 987 px baseline and produced
+  `noAirborneWindow` on a perfectly tracked jump (60/60 frames, upright). So
+  the baseline is a rolling ±0.6 s estimate, in two passes for the same reason
+  the body axis takes two: pass 1 is the 75th percentile over every sample in
+  the window (tolerant of a flight filling most of it, but it lags a drift),
+  pass 2 the **median of just the samples pass 1 called grounded** (unbiased
+  under a linear drift, because the window is centred on the sample). Windows
+  holding fewer than 8 samples — clip ends, sparsely tracked stretches — fall
+  back to the clip-wide baseline, so a tightly trimmed clip degrades to the
+  old behaviour, and a flat floor gives a flat rolling baseline, i.e. no
+  change at all (which is why every pre-existing test still passes untouched).
+  Everything downstream reads *lift above the local baseline*, so the torso
+  threshold, the interpolated crossings, the parabola correction and
+  `BallisticFit` are unchanged. Known limit, documented rather than papered
+  over: a window can only follow a drift of roughly `liftThreshold / window`,
+  about 60–70 px/s here; faster than that and the detector mistimes or refuses
+  rather than inventing a number.
+  Because a threshold sitting above the ground clips the window
   short at both ends, the raw duration is corrected via the flight parabola
   (`T = T_raw / √(1 − L/H)`, with lift `L` chosen and apex lift `H`
   observed) — which is also why the exact threshold value isn't critical.
@@ -302,7 +323,13 @@ differentiator.
   **Control** = ankle/hip height symmetry + torso lean off vertical;
   **Form** = arm-swing amplitude and how close its peak is to takeoff.
   Also derived: **one-foot vs two-foot takeoff**, from how far apart the two
-  ankles cross the ground threshold.
+  ankles cross the ground threshold. The three metrics that touch the ground
+  (contact time, the plant Power's search hangs off, one-foot vs two-foot) are
+  judged against the detector's **local baseline at the takeoff**, not its
+  clip-wide one — on a walk-in clip the clip-wide figure is tens of pixels off
+  the actual floor at that instant against a ~19 px threshold, which does not
+  make the contact time slightly wrong, it makes it "no approach step" or a
+  fabricated one-foot call.
   Two rules hold the whole file together. (1) Every distance is in **torso
   lengths**, so nothing moves when the athlete stands nearer the camera —
   pinned by a test that halves (and quadruples) every pixel coordinate and

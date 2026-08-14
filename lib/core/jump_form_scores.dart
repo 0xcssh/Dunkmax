@@ -275,6 +275,18 @@ abstract class JumpFormScoring {
   /// Convenience wrapper over a completed pose pass. Returns null when the
   /// pose detector produced no measurement — there is no airborne window to
   /// hang the metrics off, so there is nothing to score.
+  ///
+  /// The ground level handed on is the detector's **local** baseline at the
+  /// takeoff, not its clip-wide one. Every metric below that touches the ground
+  /// — contact time, the plant that Power's search window hangs off, one-foot
+  /// vs two-foot — is measured within a second of the takeoff, and on a clip
+  /// where the athlete walks toward the camera the clip-wide baseline is tens
+  /// of pixels away from the floor at that moment (116 px of drift on the
+  /// capture that motivated this; the ground threshold is ~19 px). Judging a
+  /// plant against a floor that far off does not produce a slightly wrong
+  /// contact time, it produces "no approach step" or a fabricated one-foot
+  /// takeoff. Falls back to the clip-wide baseline when the detector had no
+  /// local estimate to give.
   static JumpFormScores? fromDiagnostics(PoseJumpDiagnostics diagnostics) {
     final measurement = diagnostics.result;
     if (measurement == null) return null;
@@ -282,7 +294,8 @@ abstract class JumpFormScoring {
       samples: diagnostics.samples,
       takeoff: measurement.takeoff,
       landing: measurement.landing,
-      groundBaselineY: diagnostics.groundBaselineY,
+      groundBaselineY:
+          diagnostics.localBaselineAtTakeoff ?? diagnostics.groundBaselineY,
       torsoPixels: diagnostics.torsoPixels,
       axis: diagnostics.bodyAxis,
     );
@@ -296,6 +309,14 @@ abstract class JumpFormScoring {
   /// timing used, measured in the same coordinates. [groundBaselineY] is a
   /// descent along [axis], not an image y, whenever [axis] is not
   /// [BodyAxis.image].
+  ///
+  /// It is a **single** ground level, taken at the takeoff (see
+  /// [fromDiagnostics]) rather than the detector's full rolling series. That is
+  /// enough for every metric here, all of which are measured inside a second of
+  /// the takeoff, and it keeps this function's contract a plain number. The
+  /// known cost: on a clip with a fast walk-in, the plant that Bounce times can
+  /// be a couple of hundred milliseconds before takeoff, where the floor has
+  /// moved a few pixels — small against the threshold, but not zero.
   static JumpFormScores compute({
     required List<PoseSample> samples,
     required Duration takeoff,

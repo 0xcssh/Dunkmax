@@ -28,6 +28,7 @@ List<PoseSample> _jumpClip({
   bool Function(int index)? dropDetection,
   bool landmarks = false,
   double Function(int t)? shoulderXOffset,
+  double groundDriftPixelsPerSecond = 0,
 }) {
   final samples = <PoseSample>[];
   final totalMs = leadInMs + flightMs + leadOutMs;
@@ -36,13 +37,16 @@ List<PoseSample> _jumpClip({
 
   var index = 0;
   for (var t = 0; t <= totalMs; t += stepMs, index++) {
+    // The floor the athlete is standing on, in image pixels. Constant unless
+    // the caller asked for a walk-toward-the-camera drift.
+    final groundY = _groundY + groundDriftPixelsPerSecond * t / 1000;
     double footY;
     if (t <= takeoffMs || t >= landingMs) {
-      footY = _groundY;
+      footY = groundY;
     } else {
       final phase = (t - takeoffMs) / flightMs; // 0..1
       final lift = peakLiftPixels * (1 - math.pow(2 * phase - 1, 2));
-      footY = _groundY - lift;
+      footY = groundY - lift;
     }
 
     final dropped = dropDetection?.call(index) ?? false;
@@ -582,6 +586,143 @@ void main() {
       expect(result, isNotNull);
       expect(result!.airborneSeconds, closeTo(0.77, 0.08));
       expect(result.verticalInches, inInclusiveRange(25, 32));
+    });
+  });
+
+  // The bug this group exists for: a clip in which the athlete *walks toward
+  // the camera*. Tracking was perfect (60 frames, 60 detections, frames
+  // upright), and the detector still returned `noAirborneWindow`, because it
+  // took one ground baseline for the whole clip. Perspective moved the
+  // standing foot position 116 px down the frame while the jump itself only
+  // lifted it 87 px, so the clip-wide 75th percentile (987 px, set by the
+  // late close-to-camera frames) put the *early standing* frames 55 px
+  // "airborne" — one run reaching the first sample, correctly discarded by the
+  // rule that a jump is bounded by ground on both sides.
+  group('ground drift', () {
+    /// Verbatim foot-descent series from that device report, in ms:px.
+    /// Standing at the start sits near 932, the apex reaches 840, and standing
+    /// again after the landing settles near 985 and drifts on to 1048.
+    const driftSeries = <int, double>{
+      0: 932, 32: 932, 63: 946, 95: 955, 127: 935, 158: 921, 190: 927,
+      221: 932, 253: 936, 285: 931, 316: 935, 348: 930, 380: 884, 411: 862,
+      443: 842, 475: 840, 506: 845, 538: 847, 569: 844, 601: 852, 633: 852,
+      664: 846, 696: 871, 728: 905, 759: 945, 791: 962, 822: 980, 854: 970,
+      886: 976, 917: 976, 949: 976, 981: 976, 1012: 954, 1044: 980, 1076: 986,
+      1107: 984, 1139: 982, 1170: 988, 1202: 984, 1234: 981, 1265: 981,
+      1297: 987, 1329: 986, 1360: 988, 1392: 993, 1424: 1002, 1455: 999,
+      1487: 999, 1518: 1010, 1550: 1019, 1582: 1003, 1613: 1022, 1645: 1024,
+      1677: 1029, 1708: 1042, 1740: 1048, 1771: 987, 1803: 990, 1835: 986,
+      1866: 986,
+    };
+
+    List<PoseSample> walkInCapture() => [
+          for (final e in driftSeries.entries)
+            PoseSample(
+              timestamp: Duration(milliseconds: e.key),
+              footY: e.value,
+              // Reported by the device as a single figure for the clip.
+              torsoPixels: 193.8,
+            ),
+        ];
+
+    test('the walk-in jump is measured, not rejected', () {
+      final d = PoseJumpDetector.detectWithDiagnostics(walkInCapture());
+
+      expect(d.rejection, PoseDetectionRejection.none);
+      expect(d.result, isNotNull);
+      // Read off the series by hand: the feet leave the floor between the
+      // 348 ms and 380 ms samples and come back down between 759 ms and
+      // 791 ms. Those are the two instants a clip-wide baseline could not
+      // find at the same time.
+      expect(d.crossingTakeoff!.inMilliseconds, closeTo(370, 30));
+      expect(d.crossingLanding!.inMilliseconds, closeTo(800, 30));
+    });
+
+    test('the clip-wide baseline is what calls the first frame airborne', () {
+      // Pinned so the diagnosis, not just the fix, stays true: this is the
+      // arithmetic that produced `noAirborneWindow`.
+      final d = PoseJumpDetector.detectWithDiagnostics(walkInCapture());
+
+      expect(d.groundBaselineY, closeTo(987, 2));
+      expect(d.groundBaselineY - driftSeries[0]!, greaterThan(50));
+      expect(d.liftThresholdPixels, closeTo(19.4, 0.1));
+    });
+
+    test('the local baseline reads ground at both ends and air at the apex',
+        () {
+      final d = PoseJumpDetector.detectWithDiagnostics(walkInCapture());
+      final times = d.samples.map((s) => s.timestamp.inMilliseconds).toList();
+
+      double liftAt(int ms) {
+        final i = times.indexOf(ms);
+        return d.localGroundBaselines[i]! - d.samples[i].footDescent(d.bodyAxis)!;
+      }
+
+      // Standing at the start, on a floor 932 px down the frame.
+      expect(d.localGroundBaselines[times.indexOf(0)], closeTo(932, 4));
+      expect(liftAt(0), lessThan(d.liftThresholdPixels));
+      // The apex, unmistakably airborne — several times the threshold.
+      expect(liftAt(475), greaterThan(4 * d.liftThresholdPixels));
+      // Standing again, close to the camera, on a floor ~55 px further down.
+      expect(d.localGroundBaselines[times.indexOf(1487)], closeTo(988, 6));
+      expect(liftAt(1487), lessThan(d.liftThresholdPixels));
+    });
+
+    test('a linear ground drift larger than the jump changes nothing', () {
+      // Same jump, twice: once on a flat floor, once on a floor sliding
+      // 63 px/s down the frame across a 5.77 s clip — 364 px of drift against
+      // a 270 px jump. The measured flight time must not notice.
+      final flat = PoseJumpDetector.detectWithDiagnostics(
+        _jumpClip(leadInMs: 2500, leadOutMs: 2500),
+      );
+      final drifting = PoseJumpDetector.detectWithDiagnostics(
+        _jumpClip(
+          leadInMs: 2500,
+          leadOutMs: 2500,
+          groundDriftPixelsPerSecond: 63,
+        ),
+      );
+
+      expect(flat.rejection, PoseDetectionRejection.none);
+      expect(drifting.rejection, PoseDetectionRejection.none);
+      expect(drifting.correctedSeconds, closeTo(0.770, 0.02));
+      expect(
+        drifting.result!.airborneSeconds,
+        closeTo(flat.result!.airborneSeconds, 0.02),
+      );
+      // The baseline really did move — this is not a test of a no-op.
+      final locals = [
+        for (final b in drifting.localGroundBaselines)
+          if (b != null) b,
+      ];
+      final lowest = locals.reduce((a, b) => a < b ? a : b);
+      final highest = locals.reduce((a, b) => a > b ? a : b);
+      expect(highest - lowest, greaterThan(270));
+    });
+
+    test('a flat clip gets a flat local baseline, so nothing moves', () {
+      // The whole reason every other test in this file still passes: a rolling
+      // percentile of a flat series is that same flat value.
+      final d = PoseJumpDetector.detectWithDiagnostics(_jumpClip());
+
+      for (final b in d.localGroundBaselines) {
+        if (b != null) expect(b, closeTo(_groundY, 1));
+      }
+      expect(d.correctedSeconds, closeTo(0.770, 0.02));
+    });
+
+    test('a short clip degrades to the clip-wide baseline without breaking',
+        () {
+      // Tightly trimmed: every rolling window covers most of the clip, so the
+      // local estimate is the global one. That is fine — a clip this short
+      // cannot drift much — and it must not fall over.
+      final d = PoseJumpDetector.detectWithDiagnostics(
+        _jumpClip(leadInMs: 200, flightMs: 500, leadOutMs: 200, stepMs: 40),
+      );
+
+      expect(d.rejection, PoseDetectionRejection.none);
+      expect(d.correctedSeconds, closeTo(0.500, 0.03));
+      expect(d.localGroundBaselines.length, d.samples.length);
     });
   });
 }

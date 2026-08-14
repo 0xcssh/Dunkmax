@@ -269,14 +269,36 @@ class PoseJumpDiagnostics {
   /// the image default.
   final int axisSampleCount;
 
-  /// Ground level: the robust high percentile of the foot's descent along
-  /// [bodyAxis] (which is raw [PoseSample.footY] when that axis is the image's
-  /// own vertical).
+  /// Ground level over the **whole clip**: the robust high percentile of the
+  /// foot's descent along [bodyAxis] (which is raw [PoseSample.footY] when that
+  /// axis is the image's own vertical).
+  ///
+  /// Reported for reference and as the fallback the local estimate degrades to,
+  /// but it is **not** what the timing is measured against — see
+  /// [localGroundBaselines].
   final double groundBaselineY;
 
-  /// The airborne threshold, along [bodyAxis] (above the baseline, so
-  /// numerically *smaller* than it).
+  /// The clip-wide airborne threshold, along [bodyAxis] (above
+  /// [groundBaselineY], so numerically *smaller* than it). Reported for
+  /// reference; the run detection uses [liftThresholdPixels] against the
+  /// *local* baseline.
   final double thresholdY;
+
+  /// Ground level estimated **near each sample in time**, aligned one-to-one
+  /// with [samples] and null wherever no pose was detected.
+  ///
+  /// This is what the timing is actually measured against. An athlete who walks
+  /// toward the camera grows in frame, so their standing foot position drifts
+  /// down the image over seconds — on the capture that motivated this, by
+  /// 116 px while the jump itself was only 87 px. One baseline for the clip
+  /// cannot describe both ends of that; a rolling one can. See
+  /// [PoseJumpDetector] rule 1.
+  final List<double?> localGroundBaselines;
+
+  /// The local ground level at the takeoff end of the measured window — the
+  /// number the *form* scores should judge ground contact against (see
+  /// `core/jump_form_scores.dart`). Null when no window was found.
+  final double? localBaselineAtTakeoff;
 
   /// How far above the baseline [thresholdY] sits, in pixels.
   final double liftThresholdPixels;
@@ -325,6 +347,8 @@ class PoseJumpDiagnostics {
     this.bodyAxis = BodyAxis.image,
     this.axisSampleCount = 0,
     required this.groundBaselineY,
+    this.localGroundBaselines = const [],
+    this.localBaselineAtTakeoff,
     required this.thresholdY,
     required this.liftThresholdPixels,
     required this.peakLiftPixels,
@@ -368,6 +392,7 @@ class PoseJumpDiagnostics {
     BodyAxis bodyAxis = BodyAxis.image,
     int axisSampleCount = 0,
     double groundBaselineY = 0,
+    List<double?> localGroundBaselines = const [],
     double thresholdY = 0,
     double liftThresholdPixels = 0,
     double peakLiftPixels = 0,
@@ -383,6 +408,7 @@ class PoseJumpDiagnostics {
       bodyAxis: bodyAxis,
       axisSampleCount: axisSampleCount,
       groundBaselineY: groundBaselineY,
+      localGroundBaselines: localGroundBaselines,
       thresholdY: thresholdY,
       liftThresholdPixels: liftThresholdPixels,
       peakLiftPixels: peakLiftPixels,
@@ -425,12 +451,51 @@ class PoseJumpDiagnostics {
 ///    and a per-frame axis would feed that tilt straight back into the
 ///    measurement it exists to stabilise. On an upright frame the axis is
 ///    exactly `(0, -1)` and every formula below is arithmetically unchanged.
-/// 1. **Ground baseline.** While the athlete is on the ground, the foot's
-///    descent sits in a tight cluster. The baseline is the [_groundPercentile]
-///    percentile of the detected descents — a high percentile because descent
-///    grows downward, so "on the ground" means "large". A percentile, not the
-///    max: one bad frame (a mis-fit landmark snapping to the bottom of the
-///    image) destroys a max, and the whole measurement rides on this number.
+/// 1. **Ground baseline — local in time, not one number for the clip.** While
+///    the athlete is on the ground, the foot's descent sits in a tight cluster,
+///    and the baseline is the [_groundPercentile] percentile of that cluster —
+///    a high percentile because descent grows downward, so "on the ground"
+///    means "large", and a percentile rather than the max because one mis-fit
+///    landmark snapping to the bottom of the image would destroy a max and the
+///    whole measurement rides on this number.
+///
+///    That cluster is only tight over a *short* stretch of clip. An athlete who
+///    walks toward the camera grows in frame, so their standing foot position
+///    slides down the image over seconds. On the capture that forced this
+///    change the drift was **116 px while the jump itself was only 87 px**: a
+///    single clip-wide baseline (the 75th percentile, 987 px, dominated by the
+///    late close-to-camera frames) put the *early standing* frames 55 px
+///    "airborne", so every sample from the start of the clip to the landing
+///    formed one run that began at the first sample — and the rule below that a
+///    jump must be bounded by ground on both sides correctly threw it away. The
+///    guard was right; the global baseline was wrong.
+///
+///    So the baseline is estimated **near each sample**, over a rolling
+///    ±[_baselineWindowSeconds] window — wide enough that a flight (a few
+///    hundred ms) cannot outvote the grounded samples in it, narrow enough that
+///    a walk-in drift barely moves inside it. Two passes, for the same reason
+///    the body axis takes two (`_resolveAxis`): the first uses
+///    [_groundPercentile] over every sample in the window, which tolerates a
+///    long flight but sits high in the cluster and so lags a drift; the second
+///    takes the **median of just the samples the first pass called grounded**,
+///    which is unbiased under a linear drift because the window is centred on
+///    the sample. Windows holding fewer than [_minBaselineWindowSamples]
+///    samples — the ends of a clip, or a sparsely tracked stretch — fall back
+///    to the clip-wide baseline, which is exactly the previous behaviour.
+///
+///    Everything downstream then works on the *lift above the local baseline*
+///    rather than on raw descent, so the torso-length threshold, the
+///    interpolated crossings, the parabola correction and [BallisticFit] are
+///    untouched. On a clip with a flat ground — every synthetic fixture, and
+///    any athlete who does not travel — a rolling percentile of a flat series
+///    is that same flat value, and nothing moves at all.
+///
+///    Limit, stated plainly: a baseline sampled over a window can only follow a
+///    drift of roughly `liftThreshold / window`, about 60–70 px/s at the
+///    default settings. Faster than that (a camera being carried, a very short
+///    clip of a long run-up) and the ground moves a threshold's worth inside
+///    one window; the detector then mistimes or refuses rather than silently
+///    inventing a number, which is the failure mode we want.
 /// 2. **Airborne = feet measurably above the baseline.** The threshold sits
 ///    [_liftTorsoFraction] of the athlete's own median torso length above the
 ///    baseline. Expressing it against the athlete's pixel size — rather than a
@@ -488,6 +553,21 @@ abstract class PoseJumpDetector {
   /// cluster even when the
   /// athlete is airborne for a third of the sampled clip.
   static const double _groundPercentile = 0.75;
+
+  /// Half-width of the rolling window the ground baseline is estimated over.
+  ///
+  /// A jump lasts a few hundred milliseconds; walking toward the camera drifts
+  /// over seconds. ±0.6 s makes the window 1.2 s, so even a 0.77 s flight — a
+  /// 28" jump, about the best this app will ever see — leaves the grounded
+  /// samples at [_groundPercentile] of the window, while the ground level has
+  /// moved only a fraction of the lift threshold across it.
+  static const double _baselineWindowSeconds = 0.6;
+
+  /// Fewest samples a rolling window must hold before its percentile is
+  /// trusted over the clip-wide baseline. Below this — the first and last few
+  /// samples of a clip, or a stretch the model barely tracked — the local
+  /// estimate would be one or two frames deciding where the floor is.
+  static const int _minBaselineWindowSamples = 8;
 
   /// Airborne threshold, as a fraction of the athlete's median torso length.
   /// The torso is roughly 29 % of standing height, so 0.10 ≈ 3 % of standing
@@ -567,13 +647,33 @@ abstract class PoseJumpDetector {
     final lift = torso * liftTorsoFraction;
     final thresholdY = baseline - lift;
 
+    // Ground level near each sample rather than once for the clip (rule 1).
+    final seconds = [
+      for (final s in detected)
+        s.timestamp.inMicroseconds / Duration.microsecondsPerSecond,
+    ];
+    final localBaseline =
+        _localGroundBaselines(seconds, footDown, lift, baseline);
+    // Aligned with `sorted`, so the diagnostics can be read frame by frame.
+    final alignedBaselines = _alignToSamples(sorted, detected, localBaseline);
+
+    // Foot height *relative to the ground under it*: 0 while standing,
+    // negative while airborne (descent grows downward). Everything from here
+    // down is the arithmetic that used to run on `footDown` against a single
+    // `baseline`, with the ground pinned to zero instead.
+    final relative = [
+      for (var i = 0; i < footDown.length; i++) footDown[i] - localBaseline[i],
+    ];
+    const groundLevel = 0.0;
+    final relativeThreshold = groundLevel - lift;
+
     // Contiguous runs of detected samples whose feet are above the threshold.
     // Runs are built over the *detected* samples only, so an isolated frame
     // where the model lost the athlete does not chop a real flight in two.
     final runs = <_Run>[];
     int? start;
     for (var i = 0; i < detected.length; i++) {
-      final airborne = footDown[i] < thresholdY;
+      final airborne = relative[i] < relativeThreshold;
       if (airborne && start == null) {
         start = i;
       } else if (!airborne && start != null) {
@@ -602,6 +702,7 @@ abstract class PoseJumpDetector {
         bodyAxis: axis,
         axisSampleCount: axisSampleCount,
         groundBaselineY: baseline,
+        localGroundBaselines: alignedBaselines,
         thresholdY: thresholdY,
         liftThresholdPixels: lift,
       );
@@ -616,7 +717,7 @@ abstract class PoseJumpDetector {
     double peakLiftOf(_Run r) {
       var peak = 0.0;
       for (var i = r.start; i <= r.end; i++) {
-        final l = baseline - footDown[i];
+        final l = groundLevel - relative[i];
         if (l > peak) peak = l;
       }
       return peak;
@@ -644,6 +745,7 @@ abstract class PoseJumpDetector {
         bodyAxis: axis,
         axisSampleCount: axisSampleCount,
         groundBaselineY: baseline,
+        localGroundBaselines: alignedBaselines,
         thresholdY: thresholdY,
         liftThresholdPixels: lift,
       );
@@ -653,22 +755,24 @@ abstract class PoseJumpDetector {
     // precedes the run; on the landing side it follows it.
     final takeoff = _crossing(
       detected[best.start - 1].timestamp,
-      footDown[best.start - 1],
+      relative[best.start - 1],
       detected[best.start].timestamp,
-      footDown[best.start],
-      thresholdY,
+      relative[best.start],
+      relativeThreshold,
     );
     final landing = _crossing(
       detected[best.end].timestamp,
-      footDown[best.end],
+      relative[best.end],
       detected[best.end + 1].timestamp,
-      footDown[best.end + 1],
-      thresholdY,
+      relative[best.end + 1],
+      relativeThreshold,
     );
+
+    final baselineAtTakeoff = localBaseline[best.start - 1];
 
     var peakLift = 0.0;
     for (var i = best.start; i <= best.end; i++) {
-      final l = baseline - footDown[i];
+      final l = groundLevel - relative[i];
       if (l > peakLift) peakLift = l;
     }
 
@@ -684,6 +788,7 @@ abstract class PoseJumpDetector {
         bodyAxis: axis,
         axisSampleCount: axisSampleCount,
         groundBaselineY: baseline,
+        localGroundBaselines: alignedBaselines,
         thresholdY: thresholdY,
         liftThresholdPixels: lift,
         peakLiftPixels: peakLift,
@@ -703,12 +808,15 @@ abstract class PoseJumpDetector {
     // The threshold-crossing figure below stays as the fallback for a window
     // too short to fit (a parabola needs 4 points to leave any residual to
     // judge it by), and both are reported side by side in diagnostics.
+    //
+    // Fed the *relative* series, so "ground" is 0 — the same curve as before,
+    // shifted by the local baseline. On a flat ground that shift is a constant
+    // and the fit is arithmetically identical to the old one.
     final fit = BallisticFit.fit([
       for (var i = best.start; i <= best.end; i++)
         (
-          seconds: detected[i].timestamp.inMicroseconds /
-              Duration.microsecondsPerSecond,
-          y: footDown[i],
+          seconds: seconds[i],
+          y: relative[i],
         ),
     ]);
     // Only trust the fit when it is actually determined. On a real capture
@@ -723,7 +831,7 @@ abstract class PoseJumpDetector {
         fit.sampleCount >= _minFitSamples &&
         peakLift > 0 &&
         fit.rmsResidualPixels <= peakLift * _maxFitResidualFraction;
-    final fitted = fitUsable ? fit.airborneSeconds(baseline) : null;
+    final fitted = fitUsable ? fit.airborneSeconds(groundLevel) : null;
 
     // T = T_crossing / √(1 − L/H): exact for a parabola, and what the
     // crossing figure needs to undo the bias of a threshold sitting above
@@ -741,6 +849,7 @@ abstract class PoseJumpDetector {
         bodyAxis: axis,
         axisSampleCount: axisSampleCount,
         groundBaselineY: baseline,
+        localGroundBaselines: alignedBaselines,
         thresholdY: thresholdY,
         liftThresholdPixels: lift,
         peakLiftPixels: peakLift,
@@ -772,6 +881,8 @@ abstract class PoseJumpDetector {
       bodyAxis: axis,
       axisSampleCount: axisSampleCount,
       groundBaselineY: baseline,
+      localGroundBaselines: alignedBaselines,
+      localBaselineAtTakeoff: baselineAtTakeoff,
       thresholdY: thresholdY,
       liftThresholdPixels: lift,
       peakLiftPixels: peakLift,
@@ -805,6 +916,91 @@ abstract class PoseJumpDetector {
     final fraction = ((ya - thresholdY) / span).clamp(0.0, 1.0);
     final deltaUs = (tb - ta).inMicroseconds;
     return ta + Duration(microseconds: (deltaUs * fraction).round());
+  }
+
+  /// Ground level near each sample, in the same units as [descents].
+  ///
+  /// Two passes over a rolling ±[_baselineWindowSeconds] window (see rule 1):
+  ///
+  /// 1. [_groundPercentile] of **every** sample in the window. High enough in
+  ///    the cluster that a flight filling most of the window cannot drag it
+  ///    down, which is what makes it safe to run before anything is known about
+  ///    where the flight is — but for the same reason it sits toward the late,
+  ///    lower end of a drifting cluster rather than at the sample's own time.
+  /// 2. The **median of the samples pass 1 called grounded**. With the airborne
+  ///    samples out of the way there is no longer any reason to sit high in the
+  ///    cluster, and a median of a window centred on the sample is unbiased
+  ///    under a linear drift — the estimate lands on the ground level at *this*
+  ///    sample's time rather than somewhere in the window's future.
+  ///
+  /// A window with fewer than [_minBaselineWindowSamples] usable samples keeps
+  /// the previous pass's answer (and, in pass 1, [globalBaseline]): the ends of
+  /// a clip and sparsely tracked stretches degrade to exactly the clip-wide
+  /// behaviour rather than letting one or two frames place the floor.
+  static List<double> _localGroundBaselines(
+    List<double> seconds,
+    List<double> descents,
+    double lift,
+    double globalBaseline,
+  ) {
+    final coarse = _rollingPercentile(
+      seconds,
+      descents,
+      null,
+      _groundPercentile,
+      List<double>.filled(descents.length, globalBaseline),
+    );
+    final grounded = [
+      for (var i = 0; i < descents.length; i++) coarse[i] - descents[i] <= lift,
+    ];
+    return _rollingPercentile(seconds, descents, grounded, 0.5, coarse);
+  }
+
+  /// [percentile] of the values within ±[_baselineWindowSeconds] of each
+  /// sample, restricted to the ones [include] allows. Falls back per index to
+  /// [fallback] when the window is too thin to be worth trusting.
+  static List<double> _rollingPercentile(
+    List<double> seconds,
+    List<double> values,
+    List<bool>? include,
+    double percentile,
+    List<double> fallback,
+  ) {
+    final out = <double>[];
+    final window = <double>[];
+    for (var i = 0; i < values.length; i++) {
+      window.clear();
+      for (var j = 0; j < values.length; j++) {
+        if ((seconds[j] - seconds[i]).abs() > _baselineWindowSeconds) continue;
+        if (include != null && !include[j]) continue;
+        window.add(values[j]);
+      }
+      out.add(window.length >= _minBaselineWindowSamples
+          ? _percentile(window, percentile)
+          : fallback[i]);
+    }
+    return out;
+  }
+
+  /// Spreads a per-*detected*-sample series back over every sample, so the
+  /// diagnostics line up frame by frame with [PoseJumpDiagnostics.samples].
+  /// Null wherever the model found no athlete.
+  static List<double?> _alignToSamples(
+    List<PoseSample> all,
+    List<PoseSample> detected,
+    List<double> values,
+  ) {
+    final out = <double?>[];
+    var next = 0;
+    for (final s in all) {
+      if (next < detected.length && identical(detected[next], s)) {
+        out.add(values[next]);
+        next++;
+      } else {
+        out.add(null);
+      }
+    }
+    return out;
   }
 
   /// Fewest frames carrying a torso before an axis is derived from them at all.

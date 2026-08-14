@@ -161,6 +161,23 @@ class _PoseSection extends StatelessWidget {
 
   const _PoseSection({required this.pose, required this.isReported});
 
+  /// `ms:lift` for every frame, lift being how far the foot sat above the
+  /// *local* ground baseline — the quantity the airborne threshold is applied
+  /// to. `—` where there was no pose, hence no baseline.
+  static String _liftSeries(PoseJumpDiagnostics pose) {
+    final parts = <String>[];
+    for (var i = 0; i < pose.samples.length; i++) {
+      final sample = pose.samples[i];
+      final ms = sample.timestamp.inMilliseconds;
+      final base = pose.localGroundBaselines[i];
+      final foot = sample.footDescent(pose.bodyAxis);
+      parts.add(base == null || foot == null
+          ? '$ms:—'
+          : '$ms:${(base - foot).round()}');
+    }
+    return parts.join('  ');
+  }
+
   @override
   Widget build(BuildContext context) {
     const mono = TextStyle(
@@ -186,9 +203,29 @@ class _PoseSection extends StatelessWidget {
       );
       lines.add(
         'torso ${pose.torsoPixels.toStringAsFixed(1)}px · '
-        'ground ${pose.groundBaselineY.toStringAsFixed(1)} · '
+        'ground ${pose.groundBaselineY.toStringAsFixed(1)} (clip-wide) · '
         'lift threshold ${pose.liftThresholdPixels.toStringAsFixed(1)}px',
       );
+      // The timing is measured against a *rolling* ground level, because an
+      // athlete walking toward the camera drifts down the frame by more than
+      // the jump lifts them. When that spread is large and the clip-wide
+      // number sits away from both ends of it, this line is the whole story.
+      final local = [
+        for (final b in pose.localGroundBaselines)
+          if (b != null) b,
+      ];
+      if (local.isNotEmpty) {
+        final low = local.reduce((a, b) => a < b ? a : b);
+        final high = local.reduce((a, b) => a > b ? a : b);
+        final atTakeoff = pose.localBaselineAtTakeoff;
+        final takeoffNote = atTakeoff == null
+            ? ''
+            : ' · at takeoff ${atTakeoff.toStringAsFixed(1)}';
+        lines.add(
+          'local ground ${low.toStringAsFixed(1)}–${high.toStringAsFixed(1)} '
+          '(drift ${(high - low).toStringAsFixed(1)}px)$takeoffNote',
+        );
+      }
     }
     if (pose.peakLiftPixels > 0) {
       lines.add('peak foot lift ${pose.peakLiftPixels.toStringAsFixed(1)}px');
@@ -245,6 +282,20 @@ class _PoseSection extends StatelessWidget {
             ].join('  '),
             style: mono,
           ),
+        ],
+        // The same frames as lift *above the local ground*, which is what the
+        // run detection actually thresholds. Reading the two rows together
+        // shows whether a frame was called airborne because the foot rose or
+        // because the floor under it moved.
+        if (pose.localGroundBaselines.length == pose.samples.length &&
+            pose.localGroundBaselines.any((b) => b != null)) ...[
+          const SizedBox(height: 4),
+          const Text(
+            'lift above the local ground baseline, per frame',
+            style: TextStyle(color: DunkColors.textTertiary, fontSize: 11),
+          ),
+          const SizedBox(height: 4),
+          Text(_liftSeries(pose), style: mono),
         ],
       ],
     );
