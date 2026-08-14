@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _groundY = 900.0;
 const _torso = 200.0;
+const _footX = 500.0;
 
 /// Builds a synthetic clip of a jump with a *known* flight time.
 ///
@@ -25,6 +26,8 @@ List<PoseSample> _jumpClip({
   int stepMs = 40,
   double peakLiftPixels = 270,
   bool Function(int index)? dropDetection,
+  bool landmarks = false,
+  double Function(int t)? shoulderXOffset,
 }) {
   final samples = <PoseSample>[];
   final totalMs = leadInMs + flightMs + leadOutMs;
@@ -43,16 +46,90 @@ List<PoseSample> _jumpClip({
     }
 
     final dropped = dropDetection?.call(index) ?? false;
+    if (dropped) {
+      samples.add(PoseSample(timestamp: Duration(milliseconds: t)));
+      continue;
+    }
+
+    // Upright body geometry hung off the foot: hips 340 px above it, shoulders
+    // a torso (200 px) above those, so the hip→shoulder up-vector is exactly
+    // (0, −1) and `torsoPixels` is exactly the landmark distance.
+    final hipY = footY - 340;
+    final shoulderY = hipY - _torso;
+    final shoulderDx = shoulderXOffset?.call(t) ?? 0.0;
     samples.add(
       PoseSample(
         timestamp: Duration(milliseconds: t),
-        footY: dropped ? null : footY,
-        torsoPixels: dropped ? null : _torso,
+        footY: footY,
+        foot: landmarks ? PosePoint(_footX, footY) : null,
+        torsoPixels: _torso,
+        leftHip: landmarks ? PosePoint(_footX - 30, hipY) : null,
+        rightHip: landmarks ? PosePoint(_footX + 30, hipY) : null,
+        leftShoulder:
+            landmarks ? PosePoint(_footX - 30 + shoulderDx, shoulderY) : null,
+        rightShoulder:
+            landmarks ? PosePoint(_footX + 30 + shoulderDx, shoulderY) : null,
       ),
     );
   }
   return samples;
 }
+
+/// Rotates every coordinate of a landmark clip by [degrees] about [pivot].
+///
+/// This is what an unapplied rotation flag does to the frames handed to the
+/// pose model: nothing about the jump changes, only the coordinate system it
+/// is expressed in. The pivot is deliberately away from the origin, so the
+/// clip is translated as well as rotated and nothing can pass by accident.
+///
+/// `footY` is carried across as the rotated point's y — i.e. the number a
+/// detector reading image y would see, which is no longer a height at all.
+List<PoseSample> _rotateClip(
+  List<PoseSample> clip,
+  double degrees, {
+  double pivotX = 960,
+  double pivotY = 540,
+}) {
+  final radians = degrees * math.pi / 180;
+  final cos = math.cos(radians);
+  final sin = math.sin(radians);
+
+  PosePoint? turn(PosePoint? p) {
+    if (p == null) return null;
+    final dx = p.x - pivotX;
+    final dy = p.y - pivotY;
+    return PosePoint(
+      pivotX + dx * cos - dy * sin,
+      pivotY + dx * sin + dy * cos,
+    );
+  }
+
+  return [
+    for (final s in clip)
+      PoseSample(
+        timestamp: s.timestamp,
+        footY: turn(s.foot)?.y,
+        foot: turn(s.foot),
+        // A distance, so no rotation can change it.
+        torsoPixels: s.foot == null ? null : s.torsoPixels,
+        leftHip: turn(s.leftHip),
+        rightHip: turn(s.rightHip),
+        leftShoulder: turn(s.leftShoulder),
+        rightShoulder: turn(s.rightShoulder),
+      ),
+  ];
+}
+
+/// Strips a clip back to the scalar `footY` the detector used to read, keeping
+/// nothing it could infer an up-axis from.
+List<PoseSample> _scalarOnly(List<PoseSample> clip) => [
+      for (final s in clip)
+        PoseSample(
+          timestamp: s.timestamp,
+          footY: s.footY,
+          torsoPixels: s.torsoPixels,
+        ),
+    ];
 
 List<PoseSample> _standingClip({int count = 40, int stepMs = 40}) {
   return [
@@ -290,6 +367,134 @@ void main() {
         PoseJumpDetector.detect(samples)!.airborneSeconds,
         PoseJumpDetector.detectWithDiagnostics(samples).result!.airborneSeconds,
       );
+    });
+  });
+
+  // The bug this group exists for: a real camera clip with an unmistakable
+  // jump came back `noAirborneWindow`. `ffprobe` on it: 1920x1080,
+  // rotation=-90 — an iPhone portrait recording, stored landscape with a
+  // rotation flag. Players apply the flag; the frame extractor need not, so
+  // the pose model saw the athlete lying on his side, and a vertical jump
+  // moved the feet almost entirely *horizontally* in image coordinates. The
+  // fix is to measure along the athlete's own up-axis, which also survives a
+  // camera propped at an angle — something reading the rotation flag would
+  // not.
+  group('frame orientation', () {
+    test('the upright case still resolves to the image vertical', () {
+      final d = PoseJumpDetector.detectWithDiagnostics(_jumpClip(landmarks: true));
+
+      expect(d.rejection, PoseDetectionRejection.none);
+      expect(d.bodyAxis.isImageVertical, isTrue);
+      expect(d.bodyAxis.tiltDegrees, closeTo(0, 1e-9));
+      expect(d.axisSampleCount, greaterThan(0));
+      // Identical to the scalar-only clip: adding landmarks cannot move the
+      // answer on an upright frame.
+      expect(
+        d.correctedSeconds,
+        closeTo(
+          PoseJumpDetector.detectWithDiagnostics(_jumpClip()).correctedSeconds!,
+          1e-9,
+        ),
+      );
+    });
+
+    test('a foot that rises reads as a *smaller* descent', () {
+      // The sign convention, pinned. Image y grows downward and so does the
+      // projected descent, so lift = baseline − descent must be positive at
+      // the apex and zero on the ground.
+      final d = PoseJumpDetector.detectWithDiagnostics(_jumpClip(landmarks: true));
+      final samples = d.samples.where((s) => s.isDetected).toList();
+
+      final grounded = samples.first.footDescent(d.bodyAxis)!;
+      final apex = samples
+          .map((s) => s.footDescent(d.bodyAxis)!)
+          .reduce((a, b) => a < b ? a : b);
+
+      expect(apex, lessThan(grounded));
+      expect(grounded - apex, closeTo(270, 1));
+      expect(d.groundBaselineY, closeTo(grounded, 1));
+      expect(d.peakLiftPixels, closeTo(270, 5));
+    });
+
+    test('the same jump rotated 90° measures the same flight time', () {
+      final upright =
+          PoseJumpDetector.detectWithDiagnostics(_jumpClip(landmarks: true));
+      final sideways = PoseJumpDetector.detectWithDiagnostics(
+        _rotateClip(_jumpClip(landmarks: true), 90),
+      );
+
+      expect(sideways.rejection, PoseDetectionRejection.none);
+      expect(sideways.bodyAxis.tiltDegrees, closeTo(90, 1e-6));
+      expect(sideways.correctedSeconds, closeTo(upright.correctedSeconds!, 1e-4));
+      expect(
+        sideways.result!.airborneSeconds,
+        closeTo(upright.result!.airborneSeconds, 1e-3),
+      );
+      expect(sideways.result!.verticalInches, inInclusiveRange(28, 30));
+    });
+
+    test('that 90° clip is exactly what image y rejects', () {
+      // Same rotated clip with the foot *point* and the torso landmarks
+      // stripped, leaving only the image y the old detector read. This is the
+      // field report, reproduced: the feet appear to stay at one height, so
+      // there is no airborne window to find.
+      final d = PoseJumpDetector.detectWithDiagnostics(
+        _scalarOnly(_rotateClip(_jumpClip(landmarks: true), 90)),
+      );
+
+      expect(d.rejection, PoseDetectionRejection.noAirborneWindow);
+      expect(d.result, isNull);
+    });
+
+    test('an arbitrary 20° camera tilt measures the same flight time', () {
+      // A tilted tripod, not a metadata flag — which is why the fix is the
+      // pose axis rather than reading the rotation tag.
+      final upright =
+          PoseJumpDetector.detectWithDiagnostics(_jumpClip(landmarks: true));
+      final tilted = PoseJumpDetector.detectWithDiagnostics(
+        _rotateClip(_jumpClip(landmarks: true), 20),
+      );
+
+      expect(tilted.rejection, PoseDetectionRejection.none);
+      expect(tilted.bodyAxis.tiltDegrees, closeTo(20, 1e-6));
+      expect(tilted.correctedSeconds, closeTo(upright.correctedSeconds!, 1e-4));
+    });
+
+    test('an upside-down frame is measured, not inverted', () {
+      // 180°: a rising foot now has a *larger* image y. Anything still reading
+      // image y as height would call the whole clip grounded.
+      final upright =
+          PoseJumpDetector.detectWithDiagnostics(_jumpClip(landmarks: true));
+      final flipped = PoseJumpDetector.detectWithDiagnostics(
+        _rotateClip(_jumpClip(landmarks: true), 180),
+      );
+
+      expect(flipped.rejection, PoseDetectionRejection.none);
+      expect(flipped.bodyAxis.tiltDegrees.abs(), closeTo(180, 1e-6));
+      expect(flipped.correctedSeconds, closeTo(upright.correctedSeconds!, 1e-4));
+    });
+
+    test('the axis comes from the grounded frames, not the airborne ones', () {
+      // The athlete tucks and leans hard in flight. A per-frame axis — or one
+      // averaged over the whole clip without regard to ground contact — would
+      // fold that tilt into the very measurement it is meant to stabilise.
+      final leaning = _jumpClip(
+        landmarks: true,
+        shoulderXOffset: (t) => (t > 800 && t < 1570) ? 150.0 : 0.0,
+      );
+
+      final d = PoseJumpDetector.detectWithDiagnostics(leaning);
+
+      expect(d.rejection, PoseDetectionRejection.none);
+      expect(d.bodyAxis.isImageVertical, isTrue);
+      expect(d.correctedSeconds, closeTo(0.770, 0.02));
+    });
+
+    test('a series with no torso keeps the image vertical, unchanged', () {
+      final d = PoseJumpDetector.detectWithDiagnostics(_jumpClip());
+
+      expect(d.bodyAxis.isImageVertical, isTrue);
+      expect(d.axisSampleCount, 0);
     });
   });
 

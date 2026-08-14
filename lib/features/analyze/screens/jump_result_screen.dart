@@ -264,9 +264,19 @@ class _PoseSection extends StatelessWidget {
           '(${pose.missingCount} missed)',
     ];
     if (pose.detectedCount > 0) {
+      // Which way the detector thought "up" was. Frames come out of the
+      // extractor in whatever orientation the file stores them (an iPhone
+      // portrait clip is stored landscape with a rotation flag), so a real
+      // device report needs to say this rather than leave it to be guessed.
+      lines.add(
+        pose.bodyAxis.isImageVertical
+            ? 'up axis: image vertical (assumed — no torso to measure)'
+            : 'up axis: ${pose.bodyAxis.tiltDegrees.toStringAsFixed(1)}° from '
+                'image up, from ${pose.axisSampleCount} grounded frames',
+      );
       lines.add(
         'torso ${pose.torsoPixels.toStringAsFixed(1)}px · '
-        'ground y ${pose.groundBaselineY.toStringAsFixed(1)} · '
+        'ground ${pose.groundBaselineY.toStringAsFixed(1)} · '
         'lift threshold ${pose.liftThresholdPixels.toStringAsFixed(1)}px',
       );
     }
@@ -313,7 +323,7 @@ class _PoseSection extends StatelessWidget {
         if (pose.samples.isNotEmpty) ...[
           const SizedBox(height: 4),
           const Text(
-            'foot y per frame (— = no pose)',
+            'foot height down the up axis, per frame (— = no pose)',
             style: TextStyle(color: DunkColors.textTertiary, fontSize: 11),
           ),
           const SizedBox(height: 4),
@@ -321,7 +331,7 @@ class _PoseSection extends StatelessWidget {
             [
               for (final s in pose.samples)
                 '${s.timestamp.inMilliseconds}:'
-                    '${s.footY == null ? '—' : s.footY!.round()}',
+                    '${s.footDescent(pose.bodyAxis)?.round() ?? '—'}',
             ].join('  '),
             style: mono,
           ),

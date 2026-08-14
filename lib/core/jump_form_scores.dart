@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'pose_jump_detector.dart';
 
 /// Whether the athlete left the floor off one foot or two.
@@ -104,6 +102,26 @@ class JumpFormScores {
 /// quantities are in seconds, which are already absolute. Angles are ratios of
 /// pixel distances, so they are invariant too.
 ///
+/// ## Frame orientation
+///
+/// Every "height" here — foot lift, hip drop, ankle and hip asymmetry, arm
+/// raise — used to be a difference of image *y* coordinates, which is only the
+/// athlete's vertical when the frames handed to the pose model happen to be
+/// upright. Phone clips routinely are not (see [BodyAxis]). So each of those
+/// is now a **descent along [BodyAxis]**, the same axis the detector timed the
+/// jump with, handed in by [fromDiagnostics]. [BodyAxis.image] is the default
+/// and reproduces the previous arithmetic exactly, so a caller with no axis
+/// loses nothing.
+///
+/// One consequence is worth stating plainly: the torso-lean term of Control is
+/// then measured against the athlete's *own standing* torso direction rather
+/// than the image's vertical. An athlete who leans the same amount for the
+/// whole clip is indistinguishable from a camera tilted by that amount — there
+/// is no third landmark to break the tie — and measuring the jump is worth
+/// more than measuring the camera. What the term still catches is what it was
+/// always meant to catch: leaning *during the jump* relative to how the
+/// athlete stands.
+///
 /// ## When a score is absent
 ///
 /// Each metric needs particular landmarks over a particular slice of the clip.
@@ -176,13 +194,17 @@ abstract class JumpFormScoring {
   //
   // Three independent observations, averaged over whichever are available:
   //
-  //  * mean |left ankle y − right ankle y|, in torso lengths: 0.05 or less
-  //    scores 100, 0.35 or more scores 0.
-  //  * mean |left hip y − right hip y|, in torso lengths: 0.03 or less scores
-  //    100, 0.20 or more scores 0. Tighter than the ankles because the pelvis
-  //    should stay level even when the legs do not.
-  //  * mean deviation of the shoulder-midpoint→hip-midpoint line from
-  //    vertical: 5° or less scores 100, 28° or more scores 0.
+  //  * mean left/right ankle height difference *along the body axis*, in torso
+  //    lengths: 0.05 or less scores 100, 0.35 or more scores 0.
+  //  * mean left/right hip height difference along the same axis, in torso
+  //    lengths: 0.03 or less scores 100, 0.20 or more scores 0. Tighter than
+  //    the ankles because the pelvis should stay level even when the legs do
+  //    not.
+  //  * mean deviation of the shoulder-midpoint→hip-midpoint line from the body
+  //    axis: 5° or less scores 100, 28° or more scores 0. With the default
+  //    image axis that is deviation from the frame's vertical, exactly as
+  //    before; with a pose-derived axis it is deviation from how the athlete
+  //    stands (see "Frame orientation" above).
   //
   // On a **one-foot takeoff the ankle term is dropped**, because scissoring
   // the legs is the technique, not a fault — scoring it as asymmetry would
@@ -262,21 +284,25 @@ abstract class JumpFormScoring {
       landing: measurement.landing,
       groundBaselineY: diagnostics.groundBaselineY,
       torsoPixels: diagnostics.torsoPixels,
+      axis: diagnostics.bodyAxis,
     );
   }
 
   /// Scores the jump bounded by [takeoff]/[landing] from the landmark series
   /// in [samples].
   ///
-  /// [groundBaselineY] and [torsoPixels] come from the detector that found
-  /// that window, so the ground threshold used here is the same one the
-  /// timing used.
+  /// [groundBaselineY], [torsoPixels] and [axis] come from the detector that
+  /// found that window, so the ground threshold used here is the same one the
+  /// timing used, measured in the same coordinates. [groundBaselineY] is a
+  /// descent along [axis], not an image y, whenever [axis] is not
+  /// [BodyAxis.image].
   static JumpFormScores compute({
     required List<PoseSample> samples,
     required Duration takeoff,
     required Duration landing,
     required double groundBaselineY,
     required double torsoPixels,
+    BodyAxis axis = BodyAxis.image,
   }) {
     final tracked = [...samples.where((s) => s.isDetected)]
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
@@ -295,26 +321,28 @@ abstract class JumpFormScoring {
     final thresholdY =
         groundBaselineY - torsoPixels * PoseJumpDetector.liftTorsoFraction;
 
-    final takeoffType = _takeoffType(tracked, thresholdY, takeoffSeconds);
+    final takeoffType = _takeoffType(tracked, axis, thresholdY, takeoffSeconds);
     final plantSeconds =
-        _approachPlantSeconds(tracked, thresholdY, takeoffSeconds);
+        _approachPlantSeconds(tracked, axis, thresholdY, takeoffSeconds);
 
     return JumpFormScores(
-      bounce: _bounce(tracked, thresholdY, takeoffSeconds),
+      bounce: _bounce(tracked, axis, thresholdY, takeoffSeconds),
       power: _power(
         tracked,
+        axis,
         torsoPixels,
         takeoffSeconds,
         approachPlantSeconds: plantSeconds,
       ),
       control: _control(
         tracked,
+        axis,
         torsoPixels,
         takeoffSeconds,
         landingSeconds,
         takeoffType,
       ),
-      form: _form(tracked, torsoPixels, takeoffSeconds),
+      form: _form(tracked, axis, torsoPixels, takeoffSeconds),
       takeoffType: takeoffType,
     );
   }
@@ -327,6 +355,7 @@ abstract class JumpFormScoring {
   /// to know that as much as [_bounce] does.
   static double? _approachPlantSeconds(
     List<PoseSample> tracked,
+    BodyAxis axis,
     double thresholdY,
     double takeoffSeconds,
   ) {
@@ -339,7 +368,7 @@ abstract class JumpFormScoring {
 
     int? lastGrounded;
     for (var i = before.length - 1; i >= 0; i--) {
-      if (before[i].footY! >= thresholdY) {
+      if (before[i].footDescent(axis)! >= thresholdY) {
         lastGrounded = i;
         break;
       }
@@ -348,7 +377,7 @@ abstract class JumpFormScoring {
 
     int? lastAirborne;
     for (var i = lastGrounded - 1; i >= 0; i--) {
-      if (before[i].footY! < thresholdY) {
+      if (before[i].footDescent(axis)! < thresholdY) {
         lastAirborne = i;
         break;
       }
@@ -358,12 +387,14 @@ abstract class JumpFormScoring {
     return _crossingSeconds(
       before[lastAirborne],
       before[lastAirborne + 1],
+      axis,
       thresholdY,
     );
   }
 
   static FormScore _bounce(
     List<PoseSample> tracked,
+    BodyAxis axis,
     double thresholdY,
     double takeoffSeconds,
   ) {
@@ -391,7 +422,7 @@ abstract class JumpFormScoring {
     // mistaken for the plant.
     int? lastGrounded;
     for (var i = before.length - 1; i >= 0; i--) {
-      if (before[i].footY! >= thresholdY) {
+      if (before[i].footDescent(axis)! >= thresholdY) {
         lastGrounded = i;
         break;
       }
@@ -399,7 +430,7 @@ abstract class JumpFormScoring {
     int? lastAirborne;
     if (lastGrounded != null) {
       for (var i = lastGrounded - 1; i >= 0; i--) {
-        if (before[i].footY! < thresholdY) {
+        if (before[i].footDescent(axis)! < thresholdY) {
           lastAirborne = i;
           break;
         }
@@ -415,6 +446,7 @@ abstract class JumpFormScoring {
     final plant = _crossingSeconds(
       before[lastAirborne],
       before[lastAirborne + 1],
+      axis,
       thresholdY,
     );
     final contact = takeoffSeconds - plant;
@@ -440,6 +472,7 @@ abstract class JumpFormScoring {
 
   static FormScore _power(
     List<PoseSample> tracked,
+    BodyAxis axis,
     double torsoPixels,
     double takeoffSeconds, {
     double? approachPlantSeconds,
@@ -458,7 +491,7 @@ abstract class JumpFormScoring {
     for (final s in tracked) {
       final t = _seconds(s.timestamp);
       if (t > takeoffSeconds || t < windowStart) continue;
-      final y = _midY(s.leftHip, s.rightHip);
+      final y = _midDescent(s.leftHip, s.rightHip, axis);
       if (y != null) hips.add((t: t, y: y));
     }
     if (hips.length < 4) {
@@ -468,7 +501,7 @@ abstract class JumpFormScoring {
       );
     }
 
-    // Lowest hip position = largest y (image coordinates grow downward).
+    // Lowest hip position = largest descent along the body axis.
     var lowIndex = 0;
     for (var i = 1; i < hips.length; i++) {
       if (hips[i].y > hips[lowIndex].y) lowIndex = i;
@@ -577,6 +610,7 @@ abstract class JumpFormScoring {
 
   static FormScore _control(
     List<PoseSample> tracked,
+    BodyAxis axis,
     double torsoPixels,
     double takeoffSeconds,
     double landingSeconds,
@@ -595,24 +629,28 @@ abstract class JumpFormScoring {
       final la = s.leftAnkle;
       final ra = s.rightAnkle;
       if (la != null && ra != null) {
-        ankleGaps.add((la.y - ra.y).abs() / torsoPixels);
+        ankleGaps.add(
+          (axis.descentOf(la) - axis.descentOf(ra)).abs() / torsoPixels,
+        );
       }
 
       final lh = s.leftHip;
       final rh = s.rightHip;
       if (lh != null && rh != null) {
-        hipGaps.add((lh.y - rh.y).abs() / torsoPixels);
+        hipGaps.add(
+          (axis.descentOf(lh) - axis.descentOf(rh)).abs() / torsoPixels,
+        );
       }
 
       final ls = s.leftShoulder;
       final rs = s.rightShoulder;
       if (ls != null && rs != null && lh != null && rh != null) {
+        // Shoulder-mid → hip-mid, i.e. the torso pointing *down* the body, and
+        // the angle it makes with the axis's own down direction.
         final dx = (lh.x + rh.x) / 2 - (ls.x + rs.x) / 2;
         final dy = (lh.y + rh.y) / 2 - (ls.y + rs.y) / 2;
         if (dx != 0 || dy != 0) {
-          leanDegrees.add(
-            math.atan2(dx.abs(), dy.abs()) * 180 / math.pi,
-          );
+          leanDegrees.add(axis.acuteAngleDegrees(dx, dy));
         }
       }
     }
@@ -664,6 +702,7 @@ abstract class JumpFormScoring {
 
   static FormScore _form(
     List<PoseSample> tracked,
+    BodyAxis axis,
     double torsoPixels,
     double takeoffSeconds,
   ) {
@@ -676,8 +715,8 @@ abstract class JumpFormScoring {
           t > takeoffSeconds + _armWindowTrailSeconds) {
         continue;
       }
-      final wrist = _midY(s.leftWrist, s.rightWrist);
-      final hip = _midY(s.leftHip, s.rightHip);
+      final wrist = _midDescent(s.leftWrist, s.rightWrist, axis);
+      final hip = _midDescent(s.leftHip, s.rightHip, axis);
       if (wrist == null || hip == null) continue;
       raise.add((t: t, v: (hip - wrist) / torsoPixels));
     }
@@ -727,18 +766,21 @@ abstract class JumpFormScoring {
 
   static TakeoffType? _takeoffType(
     List<PoseSample> tracked,
+    BodyAxis axis,
     double thresholdY,
     double takeoffSeconds,
   ) {
     final left = _ankleLiftSeconds(
       tracked,
       (s) => s.leftAnkle,
+      axis,
       thresholdY,
       takeoffSeconds,
     );
     final right = _ankleLiftSeconds(
       tracked,
       (s) => s.rightAnkle,
+      axis,
       thresholdY,
       takeoffSeconds,
     );
@@ -759,6 +801,7 @@ abstract class JumpFormScoring {
   static double? _ankleLiftSeconds(
     List<PoseSample> tracked,
     PosePoint? Function(PoseSample) pick,
+    BodyAxis axis,
     double thresholdY,
     double takeoffSeconds,
   ) {
@@ -770,7 +813,7 @@ abstract class JumpFormScoring {
         continue;
       }
       final p = pick(s);
-      if (p != null) series.add((t: t, y: p.y));
+      if (p != null) series.add((t: t, y: axis.descentOf(p)));
     }
 
     double? best;
@@ -825,10 +868,12 @@ abstract class JumpFormScoring {
     return (zeroHigh - value) / (zeroHigh - fullHigh) * 100;
   }
 
-  /// Mean y of two landmarks, or the one that was found, or null.
-  static double? _midY(PosePoint? a, PosePoint? b) {
-    if (a != null && b != null) return (a.y + b.y) / 2;
-    return a?.y ?? b?.y;
+  /// Descent of the midpoint of two landmarks along [axis], or of the one that
+  /// was found, or null. With [BodyAxis.image] this is the mean image y, as it
+  /// always was.
+  static double? _midDescent(PosePoint? a, PosePoint? b, BodyAxis axis) {
+    final mid = PosePoint.mid(a, b);
+    return mid == null ? null : axis.descentOf(mid);
   }
 
   static double _mean(List<double> values) =>
@@ -849,10 +894,11 @@ abstract class JumpFormScoring {
   static double _crossingSeconds(
     PoseSample a,
     PoseSample b,
+    BodyAxis axis,
     double thresholdY,
   ) {
-    final ya = a.footY!;
-    final yb = b.footY!;
+    final ya = a.footDescent(axis)!;
+    final yb = b.footDescent(axis)!;
     final ta = _seconds(a.timestamp);
     final tb = _seconds(b.timestamp);
     final span = yb - ya;

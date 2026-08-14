@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:path_provider/path_provider.dart';
@@ -198,13 +199,22 @@ Future<List<PoseSample>> _sampleRange(
 
 /// Reduces one frame's poses to a [PoseSample].
 ///
-/// - `footY`: the *lower* of the two feet, i.e. the larger y (image
-///   coordinates grow downward). Heel and foot-index landmarks are preferred
-///   over the ankle when confident, because they sit at the actual
-///   ground-contact point; the ankle is the fallback.
-/// - `torsoPixels`: shoulder-midpoint to hip-midpoint. Rigid through a jump,
-///   unlike anything that includes the legs (which tuck mid-flight), so it
-///   tracks only how far the athlete is from the camera.
+/// - `foot` / `footY`: the *lower* of the two feet. Heel and foot-index
+///   landmarks are preferred over the ankle when confident, because they sit at
+///   the actual ground-contact point; the ankle is the fallback. "Lower" is
+///   judged along **this frame's own torso direction**, not along image y: on a
+///   phone clip whose rotation flag was never applied the athlete lies sideways,
+///   and image y then picks whichever foot happens to be leftmost. That per
+///   frame direction only decides *which* foot to take — a discrete choice
+///   between two landmarks — while the measurement itself is projected onto the
+///   clip-wide axis `PoseJumpDetector` derives from the grounded frames.
+///   `footY` is kept alongside the point for series that only read the scalar.
+/// - `torsoPixels`: shoulder-midpoint to hip-midpoint, as a **full 2-D
+///   distance**. Rigid through a jump, unlike anything that includes the legs
+///   (which tuck mid-flight), so it tracks only how far the athlete is from the
+///   camera. This used to be the difference of the two y coordinates, which
+///   collapses to nearly zero on a sideways frame and took the whole scale
+///   reference down with it.
 /// - the individual ankle/knee/hip/shoulder/wrist landmarks, which the form
 ///   scores (`core/jump_form_scores.dart`) need and the timing does not. Each
 ///   goes through the same [_minLikelihood] gate independently, so a frame can
@@ -227,12 +237,13 @@ PoseSample _toSample(Duration timestamp, List<Pose> poses) {
   }
   if (best == null) return PoseSample(timestamp: timestamp);
 
-  final footY = _footY(best);
-  if (footY == null) return PoseSample(timestamp: timestamp);
+  final foot = _foot(best);
+  if (foot == null) return PoseSample(timestamp: timestamp);
 
   return PoseSample(
     timestamp: timestamp,
-    footY: footY,
+    footY: foot.y,
+    foot: foot,
     torsoPixels: bestTorso,
     leftAnkle: _point(best, PoseLandmarkType.leftAnkle),
     rightAnkle: _point(best, PoseLandmarkType.rightAnkle),
@@ -256,56 +267,73 @@ PosePoint? _point(Pose pose, PoseLandmarkType type) {
   return PosePoint(landmark.x, landmark.y);
 }
 
+/// Shoulder-midpoint to hip-midpoint, as a 2-D distance so it survives a frame
+/// the athlete appears sideways in.
 double? _torsoPixels(Pose pose) {
-  final shoulderY = _midY(
+  final shoulder = _mid(
     pose,
     PoseLandmarkType.leftShoulder,
     PoseLandmarkType.rightShoulder,
   );
-  final hipY = _midY(pose, PoseLandmarkType.leftHip, PoseLandmarkType.rightHip);
-  if (shoulderY == null || hipY == null) return null;
-  final torso = (hipY - shoulderY).abs();
+  final hip = _mid(pose, PoseLandmarkType.leftHip, PoseLandmarkType.rightHip);
+  if (shoulder == null || hip == null) return null;
+  final dx = hip.x - shoulder.x;
+  final dy = hip.y - shoulder.y;
+  final torso = math.sqrt(dx * dx + dy * dy);
   return torso > 0 ? torso : null;
 }
 
-/// Mean y of two confident landmarks, or the single confident one, or null.
-double? _midY(Pose pose, PoseLandmarkType a, PoseLandmarkType b) {
-  final ya = _landmarkY(pose, a);
-  final yb = _landmarkY(pose, b);
-  if (ya != null && yb != null) return (ya + yb) / 2;
-  return ya ?? yb;
+/// This frame's torso direction, pointing from the hips toward the shoulders.
+/// Used only to decide which foot is the lower one; the measurement itself
+/// runs on the clip-wide axis (see `core/pose_jump_detector.dart`).
+({double x, double y})? _torsoUp(Pose pose) {
+  final shoulder = _mid(
+    pose,
+    PoseLandmarkType.leftShoulder,
+    PoseLandmarkType.rightShoulder,
+  );
+  final hip = _mid(pose, PoseLandmarkType.leftHip, PoseLandmarkType.rightHip);
+  if (shoulder == null || hip == null) return null;
+  final x = shoulder.x - hip.x;
+  final y = shoulder.y - hip.y;
+  if (x == 0 && y == 0) return null;
+  return (x: x, y: y);
 }
 
-/// Largest y (lowest point on screen) among the confident foot landmarks of
-/// either leg — heel and foot index first, ankle as the fallback.
-double? _footY(Pose pose) {
+/// Midpoint of two confident landmarks, or the single confident one, or null.
+PosePoint? _mid(Pose pose, PoseLandmarkType a, PoseLandmarkType b) =>
+    PosePoint.mid(_point(pose, a), _point(pose, b));
+
+/// Lowest confident foot landmark of either leg — heel and foot index first,
+/// ankle as the fallback.
+///
+/// "Lowest" means furthest *down the athlete's own torso direction* when that
+/// is available, and furthest down the image otherwise. On an upright frame the
+/// two agree; on a sideways one only the former picks the right foot.
+PosePoint? _foot(Pose pose) {
+  final up = _torsoUp(pose);
+  double descent(PosePoint p) =>
+      up == null ? p.y : -(p.x * up.x + p.y * up.y);
+
   const candidates = [
     PoseLandmarkType.leftHeel,
     PoseLandmarkType.rightHeel,
     PoseLandmarkType.leftFootIndex,
     PoseLandmarkType.rightFootIndex,
   ];
-
-  double? lowest;
-  for (final type in candidates) {
-    final y = _landmarkY(pose, type);
-    if (y != null && (lowest == null || y > lowest)) lowest = y;
-  }
-  if (lowest != null) return lowest;
-
   const ankles = [PoseLandmarkType.leftAnkle, PoseLandmarkType.rightAnkle];
-  for (final type in ankles) {
-    final y = _landmarkY(pose, type);
-    if (y != null && (lowest == null || y > lowest)) lowest = y;
-  }
-  return lowest;
-}
 
-double? _landmarkY(Pose pose, PoseLandmarkType type) {
-  final landmark = pose.landmarks[type];
-  if (landmark == null) return null;
-  if (landmark.likelihood < _minLikelihood) return null;
-  return landmark.y;
+  PosePoint? lowestOf(List<PoseLandmarkType> types) {
+    PosePoint? lowest;
+    for (final type in types) {
+      final p = _point(pose, type);
+      if (p == null) continue;
+      if (lowest == null || descent(p) > descent(lowest)) lowest = p;
+    }
+    return lowest;
+  }
+
+  return lowestOf(candidates) ?? lowestOf(ankles);
 }
 
 Future<Duration> _videoDuration(File video) async {

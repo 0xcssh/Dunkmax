@@ -15,9 +15,100 @@ class PosePoint {
 
   const PosePoint(this.x, this.y);
 
+  /// Midpoint of two landmarks, or whichever single one was found, or null.
+  ///
+  /// The single-landmark fallback matches [PoseSample]'s rule: a landmark the
+  /// model was not confident about is absent, and the other side of a pair is
+  /// a better answer than nothing. It is not an invented position.
+  static PosePoint? mid(PosePoint? a, PosePoint? b) {
+    if (a != null && b != null) {
+      return PosePoint((a.x + b.x) / 2, (a.y + b.y) / 2);
+    }
+    return a ?? b;
+  }
+
   @override
   String toString() =>
       'PosePoint(${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)})';
+}
+
+/// Which way is *up* for the athlete, in image coordinates.
+///
+/// ## Why the image's own vertical is not good enough
+///
+/// The detector used to read image `y` as height. That silently assumes the
+/// frames handed to the pose model are upright, and on a phone they are not:
+/// an iPhone portrait recording is stored **landscape with a rotation flag**
+/// (`ffprobe` on a rejected real clip: `1920x1080`, `rotation=-90`). Players
+/// apply the flag; a frame extractor need not. If the pose model sees the raw
+/// stored frame, the athlete is lying on their side — and a vertical jump then
+/// moves the feet almost entirely *horizontally* in image coordinates, leaving
+/// `y` nearly unchanged. That is exactly how a plainly visible jump came back
+/// as `noAirborneWindow`.
+///
+/// Reading the rotation flag and rotating the frames would fix that one case
+/// and nothing else: it depends on how each of the frame extractor and the
+/// pose model already handle orientation (neither verifiable off-device), and
+/// it still fails on a camera propped at an angle. Measuring along the
+/// athlete's own up-axis fixes both, and needs no metadata at all.
+///
+/// ## Convention
+///
+/// [upX]/[upY] are a unit vector pointing from the athlete's hips toward their
+/// shoulders. Image y grows *downward*, so the upright case is `(0, -1)` —
+/// see [image]. Every measurement below is expressed as a **descent**: how far
+/// down the axis a point sits, so that larger still means lower, exactly as
+/// raw image y did. With [image] that arithmetic is the identity, which is why
+/// nothing downstream had to change its sign conventions.
+class BodyAxis {
+  /// Unit vector, in image coordinates, pointing along the athlete's spine
+  /// from hips to shoulders.
+  final double upX;
+  final double upY;
+
+  const BodyAxis._(this.upX, this.upY);
+
+  /// The frame's own vertical — what the detector assumed before this existed,
+  /// and still the fallback when the pose gives no torso to measure against.
+  static const image = BodyAxis._(0.0, -1.0);
+
+  /// Normalises an up-vector into an axis. Null when it has no usable length
+  /// (a collapsed torso, or landmarks that landed on top of each other).
+  static BodyAxis? fromUpVector(double x, double y) {
+    final length = math.sqrt(x * x + y * y);
+    if (!length.isFinite || length < 1e-9) return null;
+    return BodyAxis._(x / length, y / length);
+  }
+
+  /// How far *down* this axis the point ([x], [y]) sits, in pixels.
+  ///
+  /// Same sense as raw image y — bigger is lower — so a ground baseline is
+  /// still a high percentile and a foot that rises still produces a smaller
+  /// number. The zero point is arbitrary (it moves with the frame origin),
+  /// which is fine: every use of it is a *difference* against the baseline.
+  double descent(double x, double y) => -(x * upX + y * upY);
+
+  double descentOf(PosePoint p) => descent(p.x, p.y);
+
+  /// Acute angle, in degrees, between the vector ([x], [y]) and this axis.
+  /// Used for the torso-lean term of the form scores.
+  double acuteAngleDegrees(double x, double y) {
+    final along = descent(x, y).abs();
+    final across = (y * upX - x * upY).abs();
+    return math.atan2(across, along) * 180 / math.pi;
+  }
+
+  /// True when this is the frame's own vertical, i.e. no rotation was inferred.
+  bool get isImageVertical => upX == 0.0 && upY == -1.0;
+
+  /// How far this axis is rotated from image-up, in degrees, clockwise
+  /// positive. 0 on an upright frame, ±90 on a phone clip whose rotation flag
+  /// was never applied. Reported in the developer-facing diagnostics.
+  double get tiltDegrees => math.atan2(upX, -upY) * 180 / math.pi;
+
+  @override
+  String toString() =>
+      'BodyAxis(${upX.toStringAsFixed(3)}, ${upY.toStringAsFixed(3)})';
 }
 
 /// One sampled instant of a jump clip, as seen by an on-device pose model.
@@ -36,10 +127,27 @@ class PoseSample {
 
   /// Lowest tracked foot/ankle y (i.e. the *largest* y of the two feet — the
   /// one nearer the ground). Null when no pose was detected.
+  ///
+  /// Kept as the scalar it always was, but it is only the whole story on an
+  /// upright frame. Prefer [foot] and [footDescent]; see [BodyAxis].
   final double? footY;
+
+  /// The ground-contact landmark [footY] was read from, as a full point.
+  ///
+  /// This is what lets the detector measure along the athlete's own up-axis
+  /// rather than the image's (see [BodyAxis]). Null on a series that only ever
+  /// carried the scalar — older fixtures and the pinned real-device capture —
+  /// and a series like that keeps the image's vertical, unchanged.
+  final PosePoint? foot;
 
   /// Shoulder-midpoint to hip-midpoint distance, in pixels: the athlete's own
   /// scale reference. Null when no pose was detected.
+  ///
+  /// This must be the **full 2-D distance** between the two midpoints, not the
+  /// difference of their y coordinates. On a frame whose rotation flag was
+  /// never applied the athlete lies sideways and a y-only torso collapses to
+  /// nearly zero, which took the scale reference — and with it the threshold
+  /// every distance is judged against — down with it.
   ///
   /// The torso is used rather than a full head-to-ankle span because the legs
   /// tuck in mid-flight, which would make a leg-inclusive "body height" shrink
@@ -56,8 +164,9 @@ class PoseSample {
   /// position is fabricated data, and a zeroed one would read as "pinned to
   /// the top-left corner of the frame".
   ///
-  /// [footY] and [torsoPixels] above stay the detector's only inputs; these
-  /// are additive and nothing in the timing rule reads them.
+  /// The timing rule reads only [foot]/[footY], [torsoPixels] and — via
+  /// [torsoUpVector] — the shoulders and hips, which are what [BodyAxis] is
+  /// derived from. The knees, wrists and ankles are for the form scores alone.
   final PosePoint? leftAnkle;
   final PosePoint? rightAnkle;
   final PosePoint? leftKnee;
@@ -72,6 +181,7 @@ class PoseSample {
   const PoseSample({
     required this.timestamp,
     this.footY,
+    this.foot,
     this.torsoPixels,
     this.leftAnkle,
     this.rightAnkle,
@@ -87,6 +197,36 @@ class PoseSample {
 
   /// True when the pose model actually found the athlete in this frame.
   bool get isDetected => footY != null && torsoPixels != null;
+
+  /// Midpoint of the two shoulders, or the one that was found, or null.
+  PosePoint? get shoulderMid => PosePoint.mid(leftShoulder, rightShoulder);
+
+  /// Midpoint of the two hips, or the one that was found, or null.
+  PosePoint? get hipMid => PosePoint.mid(leftHip, rightHip);
+
+  /// Vector from the hip midpoint to the shoulder midpoint — this frame's
+  /// reading of which way the athlete is standing. Null when either midpoint
+  /// is missing. Not normalised, and not to be used on its own: a single
+  /// frame's torso tilts through the jump, which is why [BodyAxis] is derived
+  /// from a robust average over the *grounded* frames instead.
+  ({double x, double y})? get torsoUpVector {
+    final s = shoulderMid;
+    final h = hipMid;
+    if (s == null || h == null) return null;
+    return (x: s.x - h.x, y: s.y - h.y);
+  }
+
+  /// This frame's foot position measured *down* [axis], in pixels.
+  ///
+  /// Falls back to raw [footY] when no [foot] point was captured, which is
+  /// exact for [BodyAxis.image] and only ever reached for that axis — a series
+  /// missing foot points is never allowed a tilted axis (see
+  /// `PoseJumpDetector._resolveAxis`). Null when nothing was detected.
+  double? footDescent(BodyAxis axis) {
+    final f = foot;
+    if (f != null) return axis.descentOf(f);
+    return footY;
+  }
 }
 
 /// Why [PoseJumpDetector] declined to report a measurement. Surfaced in the
@@ -121,10 +261,20 @@ class PoseJumpDiagnostics {
   /// every distance below is expressed against.
   final double torsoPixels;
 
-  /// Ground level: the robust high percentile of [PoseSample.footY].
+  /// Which way the detector decided "up" was for this athlete. [BodyAxis.image]
+  /// means it fell back to the frame's own vertical — see [BodyAxis].
+  final BodyAxis bodyAxis;
+
+  /// How many grounded frames the axis was averaged over. 0 when the axis is
+  /// the image default.
+  final int axisSampleCount;
+
+  /// Ground level: the robust high percentile of the foot's descent along
+  /// [bodyAxis] (which is raw [PoseSample.footY] when that axis is the image's
+  /// own vertical).
   final double groundBaselineY;
 
-  /// The airborne threshold, in image coordinates (above the baseline, so
+  /// The airborne threshold, along [bodyAxis] (above the baseline, so
   /// numerically *smaller* than it).
   final double thresholdY;
 
@@ -172,6 +322,8 @@ class PoseJumpDiagnostics {
     required this.sampleCount,
     required this.detectedCount,
     required this.torsoPixels,
+    this.bodyAxis = BodyAxis.image,
+    this.axisSampleCount = 0,
     required this.groundBaselineY,
     required this.thresholdY,
     required this.liftThresholdPixels,
@@ -213,6 +365,8 @@ class PoseJumpDiagnostics {
     required List<PoseSample> samples,
     required int detectedCount,
     double torsoPixels = 0,
+    BodyAxis bodyAxis = BodyAxis.image,
+    int axisSampleCount = 0,
     double groundBaselineY = 0,
     double thresholdY = 0,
     double liftThresholdPixels = 0,
@@ -226,6 +380,8 @@ class PoseJumpDiagnostics {
       sampleCount: samples.length,
       detectedCount: detectedCount,
       torsoPixels: torsoPixels,
+      bodyAxis: bodyAxis,
+      axisSampleCount: axisSampleCount,
       groundBaselineY: groundBaselineY,
       thresholdY: thresholdY,
       liftThresholdPixels: liftThresholdPixels,
@@ -259,12 +415,22 @@ class PoseJumpDiagnostics {
 ///
 /// ## The rule
 ///
-/// 1. **Ground baseline.** While the athlete is on the ground, `footY` sits in
-///    a tight cluster. The baseline is the [_groundPercentile] percentile of
-///    the detected `footY` values — a high percentile because y grows
-///    downward, so "on the ground" means "large y". A percentile, not the max:
-///    one bad frame (a mis-fit landmark snapping to the bottom of the image)
-///    destroys a max, and the whole measurement rides on this number.
+/// 0. **"Up" is the athlete's up, not the image's.** Every height below is a
+///    *descent along [BodyAxis]* — the athlete's own hip-to-shoulder direction,
+///    taken as a robust average over the frames in which they are on the
+///    ground. Image y is only the right answer when the frames happen to be
+///    upright, and phone-camera clips routinely are not (see [BodyAxis] for
+///    the clip that proved it). The axis is averaged over the **grounded**
+///    frames rather than computed per frame because the torso tilts in flight,
+///    and a per-frame axis would feed that tilt straight back into the
+///    measurement it exists to stabilise. On an upright frame the axis is
+///    exactly `(0, -1)` and every formula below is arithmetically unchanged.
+/// 1. **Ground baseline.** While the athlete is on the ground, the foot's
+///    descent sits in a tight cluster. The baseline is the [_groundPercentile]
+///    percentile of the detected descents — a high percentile because descent
+///    grows downward, so "on the ground" means "large". A percentile, not the
+///    max: one bad frame (a mis-fit landmark snapping to the bottom of the
+///    image) destroys a max, and the whole measurement rides on this number.
 /// 2. **Airborne = feet measurably above the baseline.** The threshold sits
 ///    [_liftTorsoFraction] of the athlete's own median torso length above the
 ///    baseline. Expressing it against the athlete's pixel size — rather than a
@@ -317,8 +483,9 @@ abstract class PoseJumpDetector {
   /// and landing; a gap before or after is simply footage of something else.
   static const double maxWindowMissingFraction = 0.4;
 
-  /// Percentile of `footY` taken as ground level. High, because y grows
-  /// downward. 0.75 sits safely inside the ground cluster even when the
+  /// Percentile of the foot's descent along [BodyAxis] taken as ground level.
+  /// High, because descent grows downward. 0.75 sits safely inside the ground
+  /// cluster even when the
   /// athlete is airborne for a third of the sampled clip.
   static const double _groundPercentile = 0.75;
 
@@ -387,10 +554,16 @@ abstract class PoseJumpDetector {
       );
     }
 
-    final baseline = _percentile(
-      detected.map((s) => s.footY!).toList(),
-      _groundPercentile,
-    );
+    // Which way is up for *this athlete*, before any height is measured.
+    final resolved = _resolveAxis(detected, torso);
+    final axis = resolved.axis;
+    final axisSampleCount = resolved.frameCount;
+
+    // Every height below is a descent along that axis. On an upright frame
+    // this list is exactly the raw `footY` series.
+    final footDown = [for (final s in detected) s.footDescent(axis)!];
+
+    final baseline = _percentile(footDown, _groundPercentile);
     final lift = torso * liftTorsoFraction;
     final thresholdY = baseline - lift;
 
@@ -400,7 +573,7 @@ abstract class PoseJumpDetector {
     final runs = <_Run>[];
     int? start;
     for (var i = 0; i < detected.length; i++) {
-      final airborne = detected[i].footY! < thresholdY;
+      final airborne = footDown[i] < thresholdY;
       if (airborne && start == null) {
         start = i;
       } else if (!airborne && start != null) {
@@ -426,6 +599,8 @@ abstract class PoseJumpDetector {
         samples: sorted,
         detectedCount: detected.length,
         torsoPixels: torso,
+        bodyAxis: axis,
+        axisSampleCount: axisSampleCount,
         groundBaselineY: baseline,
         thresholdY: thresholdY,
         liftThresholdPixels: lift,
@@ -441,7 +616,7 @@ abstract class PoseJumpDetector {
     double peakLiftOf(_Run r) {
       var peak = 0.0;
       for (var i = r.start; i <= r.end; i++) {
-        final l = baseline - detected[i].footY!;
+        final l = baseline - footDown[i];
         if (l > peak) peak = l;
       }
       return peak;
@@ -466,6 +641,8 @@ abstract class PoseJumpDetector {
         samples: sorted,
         detectedCount: detected.length,
         torsoPixels: torso,
+        bodyAxis: axis,
+        axisSampleCount: axisSampleCount,
         groundBaselineY: baseline,
         thresholdY: thresholdY,
         liftThresholdPixels: lift,
@@ -475,19 +652,23 @@ abstract class PoseJumpDetector {
     // Interpolated threshold crossings. On the takeoff side the ground sample
     // precedes the run; on the landing side it follows it.
     final takeoff = _crossing(
-      detected[best.start - 1],
-      detected[best.start],
+      detected[best.start - 1].timestamp,
+      footDown[best.start - 1],
+      detected[best.start].timestamp,
+      footDown[best.start],
       thresholdY,
     );
     final landing = _crossing(
-      detected[best.end],
-      detected[best.end + 1],
+      detected[best.end].timestamp,
+      footDown[best.end],
+      detected[best.end + 1].timestamp,
+      footDown[best.end + 1],
       thresholdY,
     );
 
     var peakLift = 0.0;
     for (var i = best.start; i <= best.end; i++) {
-      final l = baseline - detected[i].footY!;
+      final l = baseline - footDown[i];
       if (l > peakLift) peakLift = l;
     }
 
@@ -500,6 +681,8 @@ abstract class PoseJumpDetector {
         samples: sorted,
         detectedCount: detected.length,
         torsoPixels: torso,
+        bodyAxis: axis,
+        axisSampleCount: axisSampleCount,
         groundBaselineY: baseline,
         thresholdY: thresholdY,
         liftThresholdPixels: lift,
@@ -525,7 +708,7 @@ abstract class PoseJumpDetector {
         (
           seconds: detected[i].timestamp.inMicroseconds /
               Duration.microsecondsPerSecond,
-          y: detected[i].footY!,
+          y: footDown[i],
         ),
     ]);
     // Only trust the fit when it is actually determined. On a real capture
@@ -555,6 +738,8 @@ abstract class PoseJumpDetector {
         samples: sorted,
         detectedCount: detected.length,
         torsoPixels: torso,
+        bodyAxis: axis,
+        axisSampleCount: axisSampleCount,
         groundBaselineY: baseline,
         thresholdY: thresholdY,
         liftThresholdPixels: lift,
@@ -584,6 +769,8 @@ abstract class PoseJumpDetector {
       sampleCount: sorted.length,
       detectedCount: detected.length,
       torsoPixels: torso,
+      bodyAxis: axis,
+      axisSampleCount: axisSampleCount,
       groundBaselineY: baseline,
       thresholdY: thresholdY,
       liftThresholdPixels: lift,
@@ -603,17 +790,96 @@ abstract class PoseJumpDetector {
     );
   }
 
-  /// Instant between [a] and [b] (in that time order) where the interpolated
-  /// `footY` line crosses [thresholdY]. Falls back to the later sample if the
-  /// two share a value, which would make the line horizontal.
-  static Duration _crossing(PoseSample a, PoseSample b, double thresholdY) {
-    final ya = a.footY!;
-    final yb = b.footY!;
+  /// Instant between two samples (in that time order) where the interpolated
+  /// foot-descent line crosses [thresholdY]. Falls back to the later sample if
+  /// the two share a value, which would make the line horizontal.
+  static Duration _crossing(
+    Duration ta,
+    double ya,
+    Duration tb,
+    double yb,
+    double thresholdY,
+  ) {
     final span = ya - yb;
-    if (span == 0) return b.timestamp;
+    if (span == 0) return tb;
     final fraction = ((ya - thresholdY) / span).clamp(0.0, 1.0);
-    final deltaUs = (b.timestamp - a.timestamp).inMicroseconds;
-    return a.timestamp + Duration(microseconds: (deltaUs * fraction).round());
+    final deltaUs = (tb - ta).inMicroseconds;
+    return ta + Duration(microseconds: (deltaUs * fraction).round());
+  }
+
+  /// Fewest frames carrying a torso before an axis is derived from them at all.
+  /// Below this the "robust average" would just be one frame's tilt.
+  static const int _minAxisSamples = 3;
+
+  /// Which way "up" is for the athlete in this series.
+  ///
+  /// Two passes, because the grounded frames cannot be identified until a
+  /// baseline exists and the baseline cannot be placed until an axis exists:
+  /// a provisional axis over every detected frame places a provisional
+  /// baseline, and the axis is then re-derived over the frames that baseline
+  /// calls grounded. The refinement is what keeps the in-flight torso tilt out
+  /// of the axis; the provisional pass only has to be good enough to tell
+  /// ground from air, which it is, because flight is a minority of any clip.
+  ///
+  /// Falls back to [BodyAxis.image] — the previous behaviour, exactly — when
+  /// the series carries no foot *points*, or too few torsos to average. A
+  /// series without foot points must never get a tilted axis: the two would be
+  /// measured in different coordinate systems.
+  ///
+  /// Returns the axis *and* how many frames it was averaged over (0 for the
+  /// image fallback, so the diagnostics can say "inferred" versus "assumed").
+  static ({BodyAxis axis, int frameCount}) _resolveAxis(
+    List<PoseSample> detected,
+    double torso,
+  ) {
+    final fallback = (axis: BodyAxis.image, frameCount: 0);
+
+    for (final s in detected) {
+      if (s.foot == null) return fallback;
+    }
+
+    final provisional = _medianAxis(detected);
+    if (provisional == null) return fallback;
+
+    final baseline = _percentile(
+      [for (final s in detected) s.footDescent(provisional.axis)!],
+      _groundPercentile,
+    );
+    final threshold = baseline - torso * liftTorsoFraction;
+    final grounded = [
+      for (final s in detected)
+        if (s.footDescent(provisional.axis)! >= threshold) s,
+    ];
+
+    return _medianAxis(grounded) ?? provisional;
+  }
+
+  /// Componentwise median of the per-frame torso directions, renormalised.
+  ///
+  /// A median rather than a mean so one frame whose shoulder or hip landmark
+  /// snapped cannot swing the axis, and componentwise rather than an angular
+  /// median so there is no ±180° wrap to handle. When every frame agrees — the
+  /// synthetic case — it returns that exact direction.
+  static ({BodyAxis axis, int frameCount})? _medianAxis(
+    List<PoseSample> samples,
+  ) {
+    final xs = <double>[];
+    final ys = <double>[];
+    for (final s in samples) {
+      final v = s.torsoUpVector;
+      if (v == null) continue;
+      final length = math.sqrt(v.x * v.x + v.y * v.y);
+      if (!length.isFinite || length < 1e-9) continue;
+      xs.add(v.x / length);
+      ys.add(v.y / length);
+    }
+    if (xs.length < _minAxisSamples) return null;
+    final axis = BodyAxis.fromUpVector(
+      _percentile(xs, 0.5),
+      _percentile(ys, 0.5),
+    );
+    if (axis == null) return null;
+    return (axis: axis, frameCount: xs.length);
   }
 
   /// Linear-interpolation-free percentile: sorts a copy and picks the nearest
