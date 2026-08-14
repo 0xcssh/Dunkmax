@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/flight_time.dart';
-import '../../../core/jump_auto_detector.dart';
 import '../../../core/jump_feedback.dart';
 import '../../../core/jump_form_scores.dart';
 import '../../../core/jump_result.dart';
 import '../../../core/jump_trend.dart';
 import '../../../core/models/video_attempt_type.dart';
-import '../../../core/pose_jump_detector.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../shared/widgets/primary_button.dart';
