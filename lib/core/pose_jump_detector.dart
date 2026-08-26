@@ -470,18 +470,21 @@ class PoseJumpDiagnostics {
 ///    jump must be bounded by ground on both sides correctly threw it away. The
 ///    guard was right; the global baseline was wrong.
 ///
-///    So the baseline is estimated **near each sample**, over a rolling
-///    ±[_baselineWindowSeconds] window — wide enough that a flight (a few
-///    hundred ms) cannot outvote the grounded samples in it, narrow enough that
-///    a walk-in drift barely moves inside it. Two passes, for the same reason
+///    So the baseline is estimated **near each sample**, over the nearest
+///    [_baselineWindowSamples] samples in time — wide enough that a flight (a
+///    few hundred ms) cannot outvote the grounded samples in it, narrow enough
+///    that a walk-in drift barely moves inside it. A fixed *count* rather than
+///    a span of seconds, because the frame budget is fixed: a long clip is
+///    sampled coarsely, and a span that held nine samples in the middle held
+///    four at the ends, where falling back to the clip-wide value made the
+///    floor jump mid-clip by more than the lift threshold. Two passes, for the same reason
 ///    the body axis takes two (`_resolveAxis`): the first uses
 ///    [_groundPercentile] over every sample in the window, which tolerates a
 ///    long flight but sits high in the cluster and so lags a drift; the second
 ///    takes the **median of just the samples the first pass called grounded**,
 ///    which is unbiased under a linear drift because the window is centred on
-///    the sample. Windows holding fewer than [_minBaselineWindowSamples]
-///    samples — the ends of a clip, or a sparsely tracked stretch — fall back
-///    to the clip-wide baseline, which is exactly the previous behaviour.
+///    the sample. A clip with fewer than [_minBaselineSamples] usable samples
+///    falls back to the clip-wide baseline, which is the previous behaviour.
 ///
 ///    Everything downstream then works on the *lift above the local baseline*
 ///    rather than on raw descent, so the torso-length threshold, the
@@ -561,13 +564,21 @@ abstract class PoseJumpDetector {
   /// 28" jump, about the best this app will ever see — leaves the grounded
   /// samples at [_groundPercentile] of the window, while the ground level has
   /// moved only a fraction of the lift threshold across it.
-  static const double _baselineWindowSeconds = 0.6;
+  /// How many samples the rolling ground estimate draws on.
+  ///
+  /// A count rather than a span of seconds — see [_localGroundBaselines].
+  /// Fifteen is wide enough that a flight (a handful of samples in the coarse
+  /// pass, more in the dense one) can never be the majority, and narrow enough
+  /// to still follow a walk toward the camera.
+  static const int _baselineWindowSamples = 15;
 
   /// Fewest samples a rolling window must hold before its percentile is
   /// trusted over the clip-wide baseline. Below this — the first and last few
   /// samples of a clip, or a stretch the model barely tracked — the local
   /// estimate would be one or two frames deciding where the floor is.
-  static const int _minBaselineWindowSamples = 8;
+  /// Below this there is not enough of anything to place a floor locally, and
+  /// the clip-wide baseline is used instead.
+  static const int _minBaselineSamples = 8;
 
   /// Airborne threshold, as a fraction of the athlete's median torso length.
   /// The torso is roughly 29 % of standing height, so 0.10 ≈ 3 % of standing
@@ -920,7 +931,7 @@ abstract class PoseJumpDetector {
 
   /// Ground level near each sample, in the same units as [descents].
   ///
-  /// Two passes over a rolling ±[_baselineWindowSeconds] window (see rule 1):
+  /// Two passes over a rolling window of nearby samples (see rule 1):
   ///
   /// 1. [_groundPercentile] of **every** sample in the window. High enough in
   ///    the cluster that a flight filling most of the window cannot drag it
@@ -933,10 +944,22 @@ abstract class PoseJumpDetector {
   ///    under a linear drift — the estimate lands on the ground level at *this*
   ///    sample's time rather than somewhere in the window's future.
   ///
-  /// A window with fewer than [_minBaselineWindowSamples] usable samples keeps
-  /// the previous pass's answer (and, in pass 1, [globalBaseline]): the ends of
-  /// a clip and sparsely tracked stretches degrade to exactly the clip-wide
-  /// behaviour rather than letting one or two frames place the floor.
+  /// The window is the **nearest [_baselineWindowSamples] samples in time**,
+  /// not a fixed span of seconds.
+  ///
+  /// A span was tried first and broke long clips. The frame budget is fixed,
+  /// so a longer clip is sampled more coarsely: an 8-second clip steps about
+  /// 130 ms, which puts only nine samples in a ±0.6 s span — and four or five
+  /// near the ends, where the span is truncated. Falling back to the clip-wide
+  /// baseline there meant the floor *jumped* between local and global partway
+  /// through the clip, by far more than the lift threshold on a drifting clip,
+  /// which manufactures crossings that are not there and hides ones that are.
+  ///
+  /// A fixed count has no such discontinuity: every sample gets the same
+  /// amount of evidence, the ends simply reach further to one side, and the
+  /// span it covers grows with the sampling step — which is the right
+  /// behaviour, since a coarsely sampled clip is a long one and its drift is
+  /// correspondingly slow.
   static List<double> _localGroundBaselines(
     List<double> seconds,
     List<double> descents,
@@ -956,9 +979,9 @@ abstract class PoseJumpDetector {
     return _rollingPercentile(seconds, descents, grounded, 0.5, coarse);
   }
 
-  /// [percentile] of the values within ±[_baselineWindowSeconds] of each
-  /// sample, restricted to the ones [include] allows. Falls back per index to
-  /// [fallback] when the window is too thin to be worth trusting.
+  /// [percentile] of the nearest [_baselineWindowSamples] values in time,
+  /// restricted to the ones [include] allows. Falls back per index to
+  /// [fallback] only when there is genuinely too little to work with.
   static List<double> _rollingPercentile(
     List<double> seconds,
     List<double> values,
@@ -966,18 +989,30 @@ abstract class PoseJumpDetector {
     double percentile,
     List<double> fallback,
   ) {
+    // Indices this pass may draw on, ordered in time.
+    final usable = <int>[
+      for (var j = 0; j < values.length; j++)
+        if (include == null || include[j]) j,
+    ];
+
     final out = <double>[];
-    final window = <double>[];
     for (var i = 0; i < values.length; i++) {
-      window.clear();
-      for (var j = 0; j < values.length; j++) {
-        if ((seconds[j] - seconds[i]).abs() > _baselineWindowSeconds) continue;
-        if (include != null && !include[j]) continue;
-        window.add(values[j]);
+      if (usable.length < _minBaselineSamples) {
+        out.add(fallback[i]);
+        continue;
       }
-      out.add(window.length >= _minBaselineWindowSamples
-          ? _percentile(window, percentile)
-          : fallback[i]);
+      // Nearest by time, so the ends reach further to one side rather than
+      // thinning out — no index gets a different *kind* of estimate.
+      final byDistance = [...usable]..sort((a, b) =>
+          (seconds[a] - seconds[i]).abs().compareTo(
+              (seconds[b] - seconds[i]).abs()));
+      final take = byDistance.length < _baselineWindowSamples
+          ? byDistance.length
+          : _baselineWindowSamples;
+      out.add(_percentile(
+        [for (var k = 0; k < take; k++) values[byDistance[k]]],
+        percentile,
+      ));
     }
     return out;
   }
