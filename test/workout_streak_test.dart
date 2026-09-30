@@ -54,5 +54,39 @@ void main() {
       ];
       expect(WorkoutStreak.currentStreak(dates, asOf: today), 2);
     });
+
+    test('a streak survives a daylight-saving change', () {
+      // A local day is 23 or 25 hours long at a clock change, so stepping
+      // back by a 24-hour Duration leaves midnight and the streak broke
+      // there. These spans cross the 2026 changes in both Europe (29 Mar,
+      // 25 Oct) and the US (8 Mar, 1 Nov). The regression only bites when the
+      // test machine's own zone observes one of them — CI runs in UTC, where
+      // this is just a month-boundary check — but the dates are built from
+      // calendar fields, so it is correct everywhere.
+      for (final end in [
+        DateTime(2026, 3, 10),
+        DateTime(2026, 3, 31),
+        DateTime(2026, 10, 27),
+        DateTime(2026, 11, 3),
+      ]) {
+        final dates = [
+          for (var i = 0; i < 5; i++)
+            DateTime(end.year, end.month, end.day - i, 18, 30),
+        ];
+        expect(WorkoutStreak.currentStreak(dates, asOf: end), 5,
+            reason: 'streak ending $end');
+      }
+    });
+
+    test('a streak runs back across a month and a year boundary', () {
+      final end = DateTime(2027, 1, 2, 9);
+      final dates = [
+        DateTime(2027, 1, 2),
+        DateTime(2027, 1, 1),
+        DateTime(2026, 12, 31),
+        DateTime(2026, 12, 30),
+      ];
+      expect(WorkoutStreak.currentStreak(dates, asOf: end), 4);
+    });
   });
 }

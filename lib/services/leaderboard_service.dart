@@ -44,19 +44,49 @@ class LeaderboardService {
   /// Used only to highlight the athlete's own row on the board.
   String? get athleteId => _client?.auth.currentUser?.id;
 
-  /// Boots Supabase. A no-op when unconfigured, and bounded by a timeout so a
-  /// dead network can never hold up app startup. Any failure degrades to
-  /// "unavailable" rather than a black screen.
-  Future<void> initialize() async {
-    if (!isConfigured || _initialized || _initFailed) return;
+  Future<void>? _initInFlight;
+
+  /// Boots Supabase. A no-op when unconfigured or already up, and bounded by
+  /// a timeout so a dead network can never hold up app startup. Any failure
+  /// degrades to "unavailable" rather than a black screen.
+  ///
+  /// A failure is **not** sticky: calling this again retries. It used to
+  /// latch, so one bad launch (no signal at startup) left the board
+  /// unavailable until the app was killed, however often it was refreshed.
+  /// Concurrent callers share the attempt already in flight.
+  Future<void> initialize() {
+    if (!isConfigured || _initialized) return Future<void>.value();
+    return _initInFlight ??=
+        _attemptInitialize().whenComplete(() => _initInFlight = null);
+  }
+
+  Future<void> _attemptInitialize() async {
+    // On a retry, an earlier attempt that timed out may have finished behind
+    // us. `Supabase.initialize` must not run twice over a live instance (it
+    // asserts "already initialized"), so adopt the client that is there.
+    if (_initFailed && _hasLiveInstance()) {
+      _initialized = true;
+      _initFailed = false;
+      return;
+    }
     try {
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
       ).timeout(_initTimeout);
       _initialized = true;
+      _initFailed = false;
     } catch (_) {
       _initFailed = true;
+    }
+  }
+
+  bool _hasLiveInstance() {
+    try {
+      Supabase.instance.client;
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

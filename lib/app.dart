@@ -107,7 +107,16 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
     setState(() => _profile = profile);
   }
 
-  void _goToPaywall() => setState(() => _phase = _Phase.paywall);
+  /// Leaves free analysis for the paywall — unless the athlete already holds
+  /// the entitlement (a subscriber retaking onboarding, or one whose purchase
+  /// was restored while they were still in the quiz), who must never be asked
+  /// to buy again. Deliberately reads `isSubscribed`, not [_hasAccess]: an
+  /// unconfigured dev build has access without a purchase and should still
+  /// see the paywall it exists to exercise.
+  void _goToPaywall() {
+    final subscribed = widget.subscriptionService.isSubscribed.value;
+    setState(() => _phase = subscribed ? _Phase.app : _Phase.paywall);
+  }
 
   /// Called by the paywall once it believes the athlete is through. It is
   /// still the entitlement that decides — a tap alone never opens the gate.

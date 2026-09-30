@@ -20,13 +20,28 @@ class LogExerciseScreen extends StatefulWidget {
   final int totalExercises;
   final ValueChanged<LoggedExercise> onLogged;
 
+  /// The athlete asked to leave mid-session. The flow owns the "discard this
+  /// session?" confirmation, so this only reports the tap.
+  final VoidCallback onClose;
+
   const LogExerciseScreen({
     super.key,
     required this.exercise,
     required this.exerciseIndex,
     required this.totalExercises,
     required this.onLogged,
+    required this.onClose,
   });
+
+  /// The rep count a label prescribes, or null when the label is not a rep
+  /// count at all. Catalog labels are free-form: "8 reps", "6-8 reps" and
+  /// "8 reps/leg" are reps (a range prefills its lower bound), while "30 sec"
+  /// and "20m" are a duration and a distance — taking their first number used
+  /// to log a 30-second hold as 30 reps.
+  static String? prefillRepsFor(String repsLabel) => RegExp(
+        r'^\s*(\d+)(?:\s*-\s*\d+)?\s*reps?\b',
+        caseSensitive: false,
+      ).firstMatch(repsLabel)?.group(1);
 
   @override
   State<LogExerciseScreen> createState() => _LogExerciseScreenState();
@@ -41,7 +56,7 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
   void initState() {
     super.initState();
     final prefillReps =
-        RegExp(r'\d+').firstMatch(widget.exercise.repsLabel)?.group(0) ?? '';
+        LogExerciseScreen.prefillRepsFor(widget.exercise.repsLabel) ?? '';
     _repsControllers = List.generate(
       widget.exercise.sets,
       (_) => TextEditingController(text: prefillReps),
@@ -77,8 +92,12 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
       for (var i = 0; i < widget.exercise.sets; i++)
         LoggedSet(
           setNumber: i + 1,
-          reps: int.tryParse(_repsControllers[i].text) ?? 0,
-          weightLbs: double.tryParse(_weightControllers[i].text),
+          reps: int.tryParse(_repsControllers[i].text.trim()) ?? 0,
+          // A French decimal pad types "62,5"; double.tryParse only takes a
+          // point, so the comma used to drop the weight entirely.
+          weightLbs: double.tryParse(
+            _weightControllers[i].text.trim().replaceAll(',', '.'),
+          ),
         ),
     ];
     widget.onLogged(LoggedExercise(
@@ -99,15 +118,28 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              l10n.logExerciseCounter(
-                  widget.exerciseIndex + 1, widget.totalExercises),
-              style: const TextStyle(
-                color: DunkColors.primary,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1,
-                fontSize: 13,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.logExerciseCounter(
+                        widget.exerciseIndex + 1, widget.totalExercises),
+                    style: const TextStyle(
+                      color: DunkColors.primary,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                // The only way out on iOS once the session is under way: the
+                // flow disables the back-swipe so it can't discard silently.
+                IconButton(
+                  onPressed: widget.onClose,
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             _ExerciseTitle(
@@ -127,6 +159,10 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
             Expanded(
               child: ListView.separated(
                 padding: EdgeInsets.zero,
+                // The number pad has no "done" key on iOS: scrolling the
+                // list (or tapping outside a field) is how it goes away.
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 itemCount: widget.exercise.sets,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, i) => _SetRow(
@@ -460,6 +496,7 @@ class _NumberField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       style: const TextStyle(color: Colors.white, fontSize: 15),
       decoration: InputDecoration(
         isDense: true,

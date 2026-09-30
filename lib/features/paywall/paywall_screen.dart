@@ -348,32 +348,38 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       color: DunkColors.textTertiary, fontSize: 11, height: 1.3),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _LegalLink(
-                      label: l10n.paywallRestorePurchases,
-                      onTap: _busy ? null : _restore,
-                    ),
-                    const _LegalDot(),
-                    _LegalLink(
-                      label: l10n.paywallPrivacy,
-                      onTap: () => _openLegal(
-                        title: l10n.paywallPrivacyPolicyTitle,
-                        url: LegalUrls.privacyPolicy,
-                        published: LegalUrls.privacyPolicyPublished,
+                // Scaled down as one unit only when the three links are wider
+                // than the screen (longer French labels on a narrow phone);
+                // centred and untouched otherwise.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _LegalLink(
+                        label: l10n.paywallRestorePurchases,
+                        onTap: _busy ? null : _restore,
                       ),
-                    ),
-                    const _LegalDot(),
-                    _LegalLink(
-                      label: l10n.paywallTerms,
-                      onTap: () => _openLegal(
-                        title: l10n.paywallTermsOfUseTitle,
-                        url: LegalUrls.termsOfUse,
-                        published: LegalUrls.termsOfUsePublished,
+                      const _LegalDot(),
+                      _LegalLink(
+                        label: l10n.paywallPrivacy,
+                        onTap: () => _openLegal(
+                          title: l10n.paywallPrivacyPolicyTitle,
+                          url: LegalUrls.privacyPolicy,
+                          published: LegalUrls.privacyPolicyPublished,
+                        ),
                       ),
-                    ),
-                  ],
+                      const _LegalDot(),
+                      _LegalLink(
+                        label: l10n.paywallTerms,
+                        onTap: () => _openLegal(
+                          title: l10n.paywallTermsOfUseTitle,
+                          url: LegalUrls.termsOfUse,
+                          published: LegalUrls.termsOfUsePublished,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

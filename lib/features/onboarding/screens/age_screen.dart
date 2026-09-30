@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -30,6 +32,10 @@ class AgeScreen extends StatefulWidget {
 class _AgeScreenState extends State<AgeScreen> {
   static const _minAge = 14;
   static const _maxAge = 70;
+
+  /// The shortest the body is ever laid out: the value box and its caption
+  /// plus roughly two wheel rows. A layout figure, not a measurement.
+  static const double _minBodyHeight = 250;
   late int _age = widget.ageYears.clamp(_minAge, _maxAge);
   late final _ctrl = FixedExtentScrollController(initialItem: _age - _minAge);
 
@@ -49,27 +55,49 @@ class _AgeScreenState extends State<AgeScreen> {
       subtitle: l10n.savedToAthleteProfile,
       onBack: widget.onBack,
       onContinue: widget.onContinue,
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 22),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: DunkColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: DunkColors.primary.withValues(alpha: 0.7)),
+      // Laid out in the space the scaffold gives the body, never in less than
+      // [_minBodyHeight]: below that the body scrolls instead of shrinking
+      // further. With room to spare nothing here differs from a plain Column.
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: math.max(constraints.maxHeight, _minBodyHeight),
             ),
-            child: Text('$_age',
-                style: const TextStyle(
-                    fontSize: 52, fontWeight: FontWeight.w800, color: Colors.white)),
+            child: _buildBody(l10n),
           ),
-          const SizedBox(height: 8),
-          Text(l10n.ageUnitLabel,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(AppLocalizations l10n) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 22),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: DunkColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: DunkColors.primary.withValues(alpha: 0.7)),
+          ),
+          child: Text('$_age',
               style: const TextStyle(
-                  color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
-          const SizedBox(height: 18),
-          SizedBox(
+                  fontSize: 52, fontWeight: FontWeight.w800, color: Colors.white)),
+        ),
+        const SizedBox(height: 8),
+        Text(l10n.ageUnitLabel,
+            style: const TextStyle(
+                color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
+        const SizedBox(height: 18),
+        // Flexible, so on a very short screen (320x568) the wheel gives up
+        // height instead of painting over the Continue button. With room to
+        // spare it is exactly 160 tall, as before.
+        Flexible(
+          child: SizedBox(
             height: 160,
             child: ShaderMask(
               shaderCallback: (rect) => const LinearGradient(
@@ -96,14 +124,15 @@ class _AgeScreenState extends State<AgeScreen> {
                   childCount: _maxAge - _minAge + 1,
                   builder: (context, i) => Center(
                     child: Text(l10n.ageOption(_minAge + i),
-                        style: const TextStyle(fontSize: 22, color: Colors.white)),
+                        style: const TextStyle(
+                            fontSize: 22, color: Colors.white)),
                   ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

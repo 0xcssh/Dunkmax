@@ -95,15 +95,29 @@ class SubscriptionService {
   /// The single question `app.dart` asks: may this athlete use the app?
   bool get hasAccess => isSubscribed.value || allowsUnconfiguredAccess;
 
-  /// Boots RevenueCat. A no-op when unconfigured, and bounded by a timeout so
-  /// a dead network can never hold up app startup.
-  Future<void> initialize() async {
-    if (!isConfigured || _initialized || _initFailed) return;
+  Future<void>? _initInFlight;
+
+  /// Boots RevenueCat. A no-op when unconfigured or already up, and bounded
+  /// by a timeout so a dead network can never hold up app startup.
+  ///
+  /// A failure is **not** sticky: calling this again retries, exactly as in
+  /// `leaderboard_service.dart`. It used to latch, so one bad launch (no
+  /// signal at startup) left the paywall's "Try again" and Restore Purchases
+  /// dead until the app was killed. [fetchOffer] and [restore] call it first
+  /// for that reason. Concurrent callers share the attempt already in flight.
+  Future<void> initialize() {
+    if (!isConfigured || _initialized) return Future<void>.value();
+    return _initInFlight ??=
+        _attemptInitialize().whenComplete(() => _initInFlight = null);
+  }
+
+  Future<void> _attemptInitialize() async {
     try {
       await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.info);
       await Purchases.configure(PurchasesConfiguration(apiKey))
           .timeout(_initTimeout);
       _initialized = true;
+      _initFailed = false;
     } catch (_) {
       _initFailed = true;
       return;
@@ -139,6 +153,8 @@ class SubscriptionService {
   /// or when the fetch failed — the paywall then shows an honest unavailable
   /// state instead of placeholder pricing.
   Future<SubscriptionOffer?> fetchOffer() async {
+    // Retries a failed startup init; a no-op once the SDK is up.
+    await initialize();
     if (!isAvailable) return null;
     try {
       final offerings = await Purchases.getOfferings().timeout(_storeTimeout);
@@ -193,6 +209,8 @@ class SubscriptionService {
   /// Restores a subscription bought on another device or after a reinstall.
   /// Returns whether the athlete holds [entitlementId] afterwards.
   Future<bool> restore() async {
+    // Retries a failed startup init; a no-op once the SDK is up.
+    await initialize();
     if (!isAvailable) return false;
     try {
       final info = await Purchases.restorePurchases().timeout(_storeTimeout);

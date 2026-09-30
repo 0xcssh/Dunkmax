@@ -36,16 +36,26 @@ class HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completedForProgram = sessionStore.sessions
-        .where((s) => s.programId == program.id)
-        .length;
+    final programSessions =
+        sessionStore.sessions.where((s) => s.programId == program.id).toList();
+    final completedForProgram = programSessions.length;
     final currentSessionNumber =
         (completedForProgram + 1).clamp(1, program.totalSessions);
     final isProgramComplete = completedForProgram >= program.totalSessions;
-    // Progressed, not the authored base — otherwise Home would advertise
-    // week 1's set counts while the Train tab hands out week 4's.
+    final todayDate = _dateOnly(DateTime.now());
+    // The same call, fed the same "already trained today?" fact, as the Train
+    // tab — so the two can't disagree. Without it Home kept offering a full
+    // START SESSION hero right after a session while Train showed a rest day.
+    // The prescription it resolves is the progressed one, not the authored
+    // base — otherwise Home would advertise week 1's set counts while the
+    // Train tab hands out week 4's.
     final schedule = TrainingSchedule(program);
-    final today = schedule.prescriptionForSession(currentSessionNumber);
+    final plan = schedule.today(
+      completedSessions: completedForProgram,
+      restToday: programSessions
+          .any((s) => _dateOnly(s.completedAt) == todayDate),
+    );
+    final today = plan.day;
     final streak = WorkoutStreak.currentStreak(
       sessionStore.sessions.map((s) => s.completedAt).toList(),
     );
@@ -54,6 +64,11 @@ class HomeTab extends StatelessWidget {
     final completedDaySet = sessionStore.sessions
         .map((s) => _dateOnly(s.completedAt))
         .toSet();
+    // The day the athlete started training. A day before it was never
+    // "missed" — there was nothing to miss yet.
+    final firstLoggedDay = completedDaySet.isEmpty
+        ? null
+        : completedDaySet.reduce((a, b) => a.isBefore(b) ? a : b);
 
     return SafeArea(
       child: ListView(
@@ -64,7 +79,9 @@ class HomeTab extends StatelessWidget {
           _DayStrip(
             currentSessionNumber: currentSessionNumber,
             totalSessions: program.totalSessions,
+            todayDate: todayDate,
             completedDaySet: completedDaySet,
+            firstLoggedDay: firstLoggedDay,
             isProgramComplete: isProgramComplete,
           ),
           const SizedBox(height: 16),
@@ -74,6 +91,7 @@ class HomeTab extends StatelessWidget {
             currentSessionNumber: currentSessionNumber,
             totalSessions: program.totalSessions,
             isProgramComplete: isProgramComplete,
+            isRestDay: plan.isRestDay,
             onStartTraining: onStartTraining,
           ),
           const SizedBox(height: 16),
@@ -173,23 +191,33 @@ class _HeaderRow extends StatelessWidget {
 class _DayStrip extends StatelessWidget {
   final int currentSessionNumber;
   final int totalSessions;
+  final DateTime todayDate;
   final Set<DateTime> completedDaySet;
+
+  /// Date of the first session ever logged, or null before any.
+  final DateTime? firstLoggedDay;
   final bool isProgramComplete;
 
   const _DayStrip({
     required this.currentSessionNumber,
     required this.totalSessions,
+    required this.todayDate,
     required this.completedDaySet,
+    required this.firstLoggedDay,
     required this.isProgramComplete,
   });
 
   @override
   Widget build(BuildContext context) {
-    final todayDate = _dateOnly(DateTime.now());
+    // Calendar arithmetic rather than `add(Duration(days: n))`: across a
+    // daylight-saving change a day is 23 or 25 hours, so a Duration step
+    // leaves midnight and the date stops matching `completedDaySet` (or
+    // repeats / skips a day). The constructor normalises out-of-range days.
     final dates = List.generate(
       5,
-      (i) => todayDate.add(Duration(days: i - 2)),
+      (i) => DateTime(todayDate.year, todayDate.month, todayDate.day + i - 2),
     );
+    final first = firstLoggedDay;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,17 +253,24 @@ class _DayStrip extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
+        // Flexed, not fixed-width: five 60pt cards overflowed a 320pt screen.
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            for (final date in dates)
-              _DayCard(
-                date: date,
-                isToday: date == todayDate,
-                isPast: date.isBefore(todayDate),
-                wasCompleted: completedDaySet.contains(date),
-                isProgramComplete: isProgramComplete,
+            for (var i = 0; i < dates.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                child: _DayCard(
+                  date: dates[i],
+                  isToday: dates[i] == todayDate,
+                  isPast: dates[i].isBefore(todayDate),
+                  wasCompleted: completedDaySet.contains(dates[i]),
+                  // Only a day the athlete was already training by can have
+                  // been missed.
+                  countsAsMissed: first != null && !dates[i].isBefore(first),
+                  isProgramComplete: isProgramComplete,
+                ),
               ),
+            ],
           ],
         ),
       ],
@@ -248,6 +283,10 @@ class _DayCard extends StatelessWidget {
   final bool isToday;
   final bool isPast;
   final bool wasCompleted;
+
+  /// Whether an untrained past day is drawn as missed (red). False for days
+  /// before the athlete's first logged session, which stay neutral.
+  final bool countsAsMissed;
   final bool isProgramComplete;
 
   const _DayCard({
@@ -255,6 +294,7 @@ class _DayCard extends StatelessWidget {
     required this.isToday,
     required this.isPast,
     required this.wasCompleted,
+    required this.countsAsMissed,
     required this.isProgramComplete,
   });
 
@@ -283,6 +323,9 @@ class _DayCard extends StatelessWidget {
       if (wasCompleted) {
         bg = DunkColors.surface;
         statusIcon = const Icon(Icons.check_circle, color: DunkColors.accentGreen, size: 22);
+      } else if (!countsAsMissed) {
+        bg = DunkColors.surface;
+        statusIcon = const Icon(Icons.remove, color: DunkColors.textTertiary, size: 20);
       } else {
         bg = Colors.red.withValues(alpha: 0.12);
         statusIcon = Container(
@@ -305,7 +348,6 @@ class _DayCard extends StatelessWidget {
     }
 
     return Container(
-      width: 60,
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         gradient: isToday ? DunkColors.primaryGradient : null,
@@ -349,6 +391,11 @@ class _HeroCard extends StatelessWidget {
   final int currentSessionNumber;
   final int totalSessions;
   final bool isProgramComplete;
+
+  /// A session was already logged today: the card goes muted and recommends
+  /// recovery, exactly as the Train tab does. [today] is then the *next*
+  /// session, still reachable through TRAIN ANYWAY.
+  final bool isRestDay;
   final VoidCallback onStartTraining;
 
   const _HeroCard({
@@ -357,6 +404,7 @@ class _HeroCard extends StatelessWidget {
     required this.currentSessionNumber,
     required this.totalSessions,
     required this.isProgramComplete,
+    required this.isRestDay,
     required this.onStartTraining,
   });
 
@@ -377,19 +425,37 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     // `today.focus` comes from the untranslated program catalog.
-    final headline = isProgramComplete
-        ? l10n.homeProgramComplete
-        : l10n.homeFocusDay(today.focus.toUpperCase());
-    final ctaLabel = isProgramComplete
-        ? l10n.homeCtaViewTrain
-        : l10n.homeCtaStartSession;
+    // A finished program outranks the rest state (the schedule never flags a
+    // rest day once the program is complete, this just keeps it explicit).
+    final resting = isRestDay && !isProgramComplete;
+    final String headline;
+    final String body;
+    final String ctaLabel;
+    if (isProgramComplete) {
+      headline = l10n.homeProgramComplete;
+      body = l10n.homeProgramCompleteBody;
+      ctaLabel = l10n.homeCtaViewTrain;
+    } else if (resting) {
+      // The Train tab's own rest-day strings, so both tabs say the same thing.
+      headline = l10n.trainRestDayTitle;
+      body = l10n.trainRestDaySubtitle;
+      ctaLabel = l10n.trainCtaTrainAnyway;
+    } else {
+      headline = l10n.homeFocusDay(today.focus.toUpperCase());
+      body = l10n.homeWeekSession(
+          weekNumber, currentSessionNumber, totalSessions);
+      ctaLabel = l10n.homeCtaStartSession;
+    }
+    final secondary = resting ? DunkColors.textSecondary : Colors.white70;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: DunkColors.primaryGradient,
+        gradient: resting ? null : DunkColors.primaryGradient,
+        color: resting ? DunkColors.surface : null,
         borderRadius: BorderRadius.circular(24),
+        border: resting ? Border.all(color: DunkColors.stroke) : null,
       ),
       child: Column(
         children: [
@@ -397,12 +463,16 @@ class _HeroCard extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: resting
+                  ? DunkColors.surfaceRaised
+                  : Colors.white.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isProgramComplete ? Icons.emoji_events : _focusIcon,
-              color: Colors.white,
+              isProgramComplete
+                  ? Icons.emoji_events
+                  : (resting ? Icons.nightlight_round : _focusIcon),
+              color: resting ? DunkColors.primary : Colors.white,
               size: 28,
             ),
           ),
@@ -419,27 +489,34 @@ class _HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            isProgramComplete
-                ? l10n.homeProgramCompleteBody
-                : l10n.homeWeekSession(
-                    weekNumber, currentSessionNumber, totalSessions),
+            body,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+            style: TextStyle(color: secondary, fontSize: 14),
           ),
           if (!isProgramComplete) ...[
             const SizedBox(height: 6),
             Text(
-              today.warmUp,
+              resting
+                  ? l10n.trainUpNext(today.focus.toUpperCase())
+                  : today.warmUp,
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              style: TextStyle(color: secondary, fontSize: 13),
             ),
           ],
           const SizedBox(height: 20),
           Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            color: resting ? Colors.transparent : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              // Muted like Train's TRAIN ANYWAY: recovery is recommended,
+              // not enforced, so the button stays but stops shouting.
+              side: resting
+                  ? BorderSide(
+                      color: DunkColors.primary.withValues(alpha: 0.5))
+                  : BorderSide.none,
+            ),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: onStartTraining,
@@ -447,13 +524,19 @@ class _HeroCard extends StatelessWidget {
                 height: 52,
                 width: double.infinity,
                 alignment: Alignment.center,
-                child: Text(
-                  ctaLabel,
-                  style: const TextStyle(
-                    color: DunkColors.primaryDeep,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    letterSpacing: 0.5,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    ctaLabel,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color:
+                          resting ? DunkColors.primary : DunkColors.primaryDeep,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ),

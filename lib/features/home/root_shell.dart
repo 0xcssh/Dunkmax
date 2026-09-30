@@ -398,13 +398,22 @@ class _BarItem extends StatelessWidget {
                 child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: active ? DunkColors.primary : DunkColors.textTertiary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
+              // One line, scaled down if it must: a long label (French
+              // "CLASSEMENT") otherwise wraps and pushes its tab taller than
+              // its neighbours.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    color:
+                        active ? DunkColors.primary : DunkColors.textTertiary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],

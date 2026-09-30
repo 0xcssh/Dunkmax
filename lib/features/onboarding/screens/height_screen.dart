@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -29,6 +31,10 @@ class HeightScreen extends StatefulWidget {
 
 class _HeightScreenState extends State<HeightScreen> {
   static const _minFeet = 4;
+
+  /// The shortest the body is ever laid out: the value box and its caption
+  /// plus roughly two wheel rows. A layout figure, not a measurement.
+  static const double _minBodyHeight = 250;
   late int _feet = (widget.heightInches ~/ 12).clamp(_minFeet, 7);
   late int _inches = widget.heightInches % 12;
 
@@ -54,16 +60,38 @@ class _HeightScreenState extends State<HeightScreen> {
       subtitle: l10n.heightSubtitle,
       onBack: widget.onBack,
       onContinue: widget.onContinue,
-      child: Column(
-        children: [
-          _ValueBox(
-              child: Text(l10n.heightValue(_feet, _inches), style: _bigStyle)),
-          const SizedBox(height: 8),
-          Text(l10n.heightUnitLabel,
-              style: const TextStyle(
-                  color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
-          const SizedBox(height: 18),
-          SizedBox(
+      // Laid out in the space the scaffold gives the body, never in less than
+      // [_minBodyHeight]: below that the body scrolls instead of shrinking
+      // further. With room to spare nothing here differs from a plain Column.
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: math.max(constraints.maxHeight, _minBodyHeight),
+            ),
+            child: _buildBody(l10n),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(AppLocalizations l10n) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ValueBox(
+            child: Text(l10n.heightValue(_feet, _inches), style: _bigStyle)),
+        const SizedBox(height: 8),
+        Text(l10n.heightUnitLabel,
+            style: const TextStyle(
+                color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
+        const SizedBox(height: 18),
+        // Flexible, so on a short screen (320x568) the wheels give up height
+        // instead of painting over the Continue button. With room to spare
+        // they are exactly 160 tall, as before.
+        Flexible(
+          child: SizedBox(
             height: 160,
             child: Row(
               children: [
@@ -92,8 +120,8 @@ class _HeightScreenState extends State<HeightScreen> {
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

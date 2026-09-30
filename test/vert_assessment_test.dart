@@ -45,6 +45,12 @@ void main() {
       final a = VertAssessment(heightInches: 73, ageYears: 25, hops: HopsLevel.dunkConsistently);
       expect(a.canAlreadyDunk, isTrue);
       expect(a.gapInches, 0);
+      expect(a.marginInches, 2); // 31 today - 29 needed
+    });
+
+    test('margin is zero while there is still a gap', () {
+      final a = VertAssessment(heightInches: 73, ageYears: 25, hops: HopsLevel.touchRim);
+      expect(a.marginInches, 0);
     });
   });
 

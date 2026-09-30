@@ -97,6 +97,10 @@ class _FeedTabState extends State<FeedTab> {
 
     if (mounted) setState(() => _state = _BoardState.loading);
 
+    // A no-op once the backend is up; otherwise this is the retry that lets
+    // a pull-to-refresh recover from an init that failed at launch.
+    await service.initialize();
+
     // Reconcile before reading: the Analyze flow deliberately knows nothing
     // about the backend, so the athlete's personal best is pushed from here,
     // whenever the board is opened or pulled. `submitBest` only writes an

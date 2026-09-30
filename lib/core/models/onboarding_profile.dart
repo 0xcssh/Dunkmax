@@ -104,36 +104,42 @@ class OnboardingProfile {
 
   String toJson() => jsonEncode(toMap());
 
+  /// A stored value read as a storage key. Anything that is not a string —
+  /// absent, or the wrong type in a corrupt payload — becomes the empty key,
+  /// which no enum recognises. Never a cast: this runs during startup, and a
+  /// `TypeError` there would crash every launch until the app is reinstalled.
+  static String _key(Object? value) => value is String ? value : '';
+
   static OnboardingProfile? fromMap(Map<String, dynamic> map) {
-    final experience =
-        ExperienceLevel.fromStorageKey(map['experience'] as String? ?? '');
-    final position =
-        CourtPosition.fromStorageKey(map['position'] as String? ?? '');
+    final experience = ExperienceLevel.fromStorageKey(_key(map['experience']));
+    final position = CourtPosition.fromStorageKey(_key(map['position']));
     final daysPerWeek = map['daysPerWeek'];
     if (experience == null || position == null || daysPerWeek is! int) {
       return null;
     }
     final goals = <DunkGoal>{};
-    for (final raw in (map['goals'] as List? ?? const [])) {
-      final goal = DunkGoal.fromStorageKey(raw as String);
-      if (goal != null) goals.add(goal);
+    final rawGoals = map['goals'];
+    if (rawGoals is List) {
+      for (final raw in rawGoals) {
+        final goal = DunkGoal.fromStorageKey(_key(raw));
+        if (goal != null) goals.add(goal);
+      }
     }
     return OnboardingProfile(
       goals: goals,
       experience: experience,
       position: position,
       daysPerWeek: daysPerWeek,
-      trainingLocation: TrainingLocation.fromStorageKey(
-              map['trainingLocation'] as String? ?? '') ??
-          TrainingLocation.both,
-      hopsLevel: HopsLevel.fromStorageKey(map['hopsLevel'] as String? ?? '') ??
+      trainingLocation:
+          TrainingLocation.fromStorageKey(_key(map['trainingLocation'])) ??
+              TrainingLocation.both,
+      hopsLevel: HopsLevel.fromStorageKey(_key(map['hopsLevel'])) ??
           HopsLevel.touchRim,
       heightInches: map['heightInches'] is int ? map['heightInches'] as int : 70,
       weightLbs: map['weightLbs'] is int ? map['weightLbs'] as int : 175,
       ageYears: map['ageYears'] is int ? map['ageYears'] as int : 25,
-      commitment:
-          CommitmentLevel.fromStorageKey(map['commitment'] as String? ?? '') ??
-              CommitmentLevel.very,
+      commitment: CommitmentLevel.fromStorageKey(_key(map['commitment'])) ??
+          CommitmentLevel.very,
       standingReachInches: map['standingReachInches'] is int
           ? map['standingReachInches'] as int
           : null,

@@ -12,17 +12,26 @@ abstract class WorkoutStreak {
 
     var cursor = today;
     if (!days.contains(cursor)) {
-      cursor = cursor.subtract(const Duration(days: 1));
+      cursor = _previousDay(cursor);
       if (!days.contains(cursor)) return 0;
     }
 
     var streak = 0;
     while (days.contains(cursor)) {
       streak++;
-      cursor = cursor.subtract(const Duration(days: 1));
+      cursor = _previousDay(cursor);
     }
     return streak;
   }
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  /// Calendar arithmetic, not `subtract(Duration(days: 1))`: a local day is
+  /// 23 or 25 hours long across a daylight-saving change, so stepping back 24
+  /// hours from midnight lands at 23:00 or 01:00 — no longer a midnight, so
+  /// it never matches a [_dateOnly] value and the streak breaks (or skips a
+  /// day) at the clock change. The constructor normalises day 0 to the last
+  /// day of the previous month.
+  static DateTime _previousDay(DateTime d) =>
+      DateTime(d.year, d.month, d.day - 1);
 }

@@ -60,6 +60,7 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
     super.initState();
     _canShare = _fileExists();
     _controller = VideoPlayerController.file(widget.videoFile);
+    _controller.addListener(_onPlaybackChanged);
     _controller.initialize().then((_) {
       if (!mounted) return;
       setState(() => _ready = true);
@@ -72,8 +73,46 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
 
   @override
   void dispose() {
+    _controller.removeListener(_onPlaybackChanged);
     _controller.dispose();
     super.dispose();
+  }
+
+  /// What the overlay icon was last drawn from. The controller notifies on
+  /// every position tick, so the screen only rebuilds when one of these
+  /// actually flips.
+  bool _wasPlaying = false;
+  bool _wasAtEnd = false;
+
+  bool get _atEnd {
+    final value = _controller.value;
+    return value.isInitialized &&
+        value.duration > Duration.zero &&
+        value.position >= value.duration;
+  }
+
+  /// Without this nothing rebuilt when the clip ran out: the player stopped
+  /// on its last frame with no play affordance, looking frozen.
+  void _onPlaybackChanged() {
+    if (!mounted) return;
+    final playing = _controller.value.isPlaying;
+    final atEnd = _atEnd;
+    if (playing == _wasPlaying && atEnd == _wasAtEnd) return;
+    setState(() {
+      _wasPlaying = playing;
+      _wasAtEnd = atEnd;
+    });
+  }
+
+  Future<void> _togglePlayback() async {
+    if (_controller.value.isPlaying) {
+      await _controller.pause();
+      return;
+    }
+    // A finished clip has to be rewound first; play() at the end is a no-op
+    // on iOS.
+    if (_atEnd) await _controller.seekTo(Duration.zero);
+    await _controller.play();
   }
 
   bool _fileExists() {
@@ -162,15 +201,17 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
                     child: AspectRatio(
                       aspectRatio: _controller.value.aspectRatio,
                       child: GestureDetector(
-                        onTap: () => setState(() {
-                          _controller.value.isPlaying ? _controller.pause() : _controller.play();
-                        }),
+                        onTap: _togglePlayback,
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
                             VideoPlayer(_controller),
                             if (!_controller.value.isPlaying)
-                              const Icon(Icons.play_circle_fill, color: Colors.white70, size: 64),
+                              Icon(
+                                _atEnd ? Icons.replay_circle_filled : Icons.play_circle_fill,
+                                color: Colors.white70,
+                                size: 64,
+                              ),
                           ],
                         ),
                       ),

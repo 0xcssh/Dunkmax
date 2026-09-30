@@ -5,6 +5,7 @@ import '../../core/models/workout_session.dart';
 import '../../core/training_schedule.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/workout_session_store.dart';
+import '../../theme/app_theme.dart';
 import 'screens/log_exercise_screen.dart';
 import 'screens/session_complete_screen.dart';
 import 'screens/warmup_screen.dart';
@@ -61,19 +62,83 @@ class _SessionFlowState extends State<SessionFlow> {
     });
   }
 
+  /// True from the first tap on SAVE & FINISH. Without it a double tap saved
+  /// the session twice and popped two routes.
+  bool _saving = false;
+
+  bool _confirmingDiscard = false;
+
   Future<void> _saveAndFinish() async {
-    await widget.sessionStore.addSession(WorkoutSession(
-      programId: widget.program.id,
-      sessionNumber: widget.sessionNumber,
-      completedAt: DateTime.now(),
-      exercises: _logged,
-    ));
+    if (_saving) return;
+    _saving = true;
+    try {
+      await widget.sessionStore.addSession(WorkoutSession(
+        programId: widget.program.id,
+        sessionNumber: widget.sessionNumber,
+        completedAt: DateTime.now(),
+        exercises: _logged,
+      ));
+    } catch (_) {
+      // Let the athlete try again rather than leaving the button dead.
+      _saving = false;
+      rethrow;
+    }
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
 
+  /// Leaving is free during the warm-up — nothing has been logged yet. Past
+  /// it, a stray back gesture would silently throw the whole session away, so
+  /// every exit (system back, the log screen's close icon) asks first.
+  bool get _canLeaveFreely => _step == _Step.warmup;
+
+  Future<void> _confirmDiscard() async {
+    if (_saving || _confirmingDiscard) return;
+    _confirmingDiscard = true;
+    final l10n = AppLocalizations.of(context);
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: DunkColors.surface,
+        title: Text(l10n.sessionDiscardTitle,
+            style: const TextStyle(color: Colors.white)),
+        content: Text(
+          l10n.sessionDiscardBody,
+          style: const TextStyle(color: DunkColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.sessionDiscardKeep,
+                style: const TextStyle(color: DunkColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.sessionDiscardConfirm,
+                style: const TextStyle(color: DunkColors.primary)),
+          ),
+        ],
+      ),
+    );
+    _confirmingDiscard = false;
+    if (discard != true || !mounted || _saving) return;
+    Navigator.of(context).pop(false);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // `canPop: false` also switches off the iOS back-swipe for this route,
+    // which is why the log screen carries its own close icon.
+    return PopScope(
+      canPop: _canLeaveFreely,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmDiscard();
+      },
+      child: _buildStep(context),
+    );
+  }
+
+  Widget _buildStep(BuildContext context) {
     return Scaffold(
       body: switch (_step) {
         _Step.warmup => WarmupScreen(
@@ -99,6 +164,7 @@ class _SessionFlowState extends State<SessionFlow> {
             exerciseIndex: _exerciseIndex,
             totalExercises: _day.exercises.length,
             onLogged: _onExerciseLogged,
+            onClose: _confirmDiscard,
           ),
         _Step.complete => SessionCompleteScreen(
             loggedExercises: _logged,

@@ -93,16 +93,25 @@ class PlanRevealScreen extends StatelessWidget {
                                   fontSize: 22,
                                   fontWeight: FontWeight.w900)),
                           const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              _Badge(l10n.planBadgeDays(profile.daysPerWeek)),
-                              const SizedBox(width: 8),
-                              // Location titles live in the untranslated
-                              // core/models/training_location.dart.
-                              _Badge(profile.trainingLocation.title.toUpperCase()),
-                              const SizedBox(width: 8),
-                              _Badge(l10n.planBadgeWeeks(program.weeks)),
-                            ],
+                          // Scaled down as one unit only when the three
+                          // badges are wider than the card (longer French
+                          // labels on a narrow phone); untouched otherwise.
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _Badge(l10n.planBadgeDays(profile.daysPerWeek)),
+                                const SizedBox(width: 8),
+                                // Location titles live in the untranslated
+                                // core/models/training_location.dart.
+                                _Badge(profile.trainingLocation.title
+                                    .toUpperCase()),
+                                const SizedBox(width: 8),
+                                _Badge(l10n.planBadgeWeeks(program.weeks)),
+                              ],
+                            ),
                           ),
                         ],
                       ),

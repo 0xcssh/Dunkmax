@@ -110,6 +110,10 @@ class VertAssessment {
 
   bool get canAlreadyDunk => estimatedCurrentVert >= requiredVert;
 
+  /// Inches of vertical beyond what the dunk needs (0 while there is still a
+  /// gap). The mirror of [gapInches], for the athlete who already clears it.
+  int get marginInches => math.max(0, estimatedCurrentVert - requiredVert);
+
   /// Rough ceiling of vertical gain over a full 12-week block, biased by age
   /// (younger athletes carry more upside). Heuristic, tunable from feedback.
   int get maxGainInches {

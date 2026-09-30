@@ -70,14 +70,24 @@ class GapScreen extends StatelessWidget {
                             letterSpacing: 1,
                             fontSize: 13)),
                     const SizedBox(height: 8),
-                    Text(l10n.gapTitle, style: DunkTheme.onboardingTitle),
+                    // An athlete already estimated to clear the dunk has no
+                    // gap: the headline, the meter's middle figure and the
+                    // CTA all say so rather than selling a "-0" shortfall.
+                    Text(a.canAlreadyDunk ? l10n.gapTitleCanDunk : l10n.gapTitle,
+                        style: DunkTheme.onboardingTitle),
                     const SizedBox(height: 12),
                     Text(
-                      l10n.gapIntro(
-                        heightLabel,
-                        a.estimatedCurrentVert,
-                        a.requiredVert,
-                      ),
+                      a.canAlreadyDunk
+                          ? l10n.gapIntroCanDunk(
+                              heightLabel,
+                              a.estimatedCurrentVert,
+                              a.requiredVert,
+                            )
+                          : l10n.gapIntro(
+                              heightLabel,
+                              a.estimatedCurrentVert,
+                              a.requiredVert,
+                            ),
                       style: DunkTheme.onboardingSubtitle,
                     ),
                     const SizedBox(height: 24),
@@ -115,7 +125,10 @@ class GapScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              PrimaryButton(label: l10n.gapCta, onPressed: onContinue),
+              PrimaryButton(
+                label: a.canAlreadyDunk ? l10n.gapCtaCanDunk : l10n.gapCta,
+                onPressed: onContinue,
+              ),
             ],
           ),
         ),
@@ -191,6 +204,18 @@ class _GapMeter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // The middle figure is the gap — or, once there is none, the inches to
+    // spare. A margin of exactly zero reads as a plain 0" gap, not "+0".
+    final margin = assessment.marginInches;
+    final showMargin = assessment.canAlreadyDunk && margin > 0;
+    final String middleValue;
+    if (showMargin) {
+      middleValue = l10n.inchesMargin(margin);
+    } else if (assessment.canAlreadyDunk) {
+      middleValue = l10n.inches(0);
+    } else {
+      middleValue = l10n.inchesGap(assessment.gapInches);
+    }
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -207,8 +232,8 @@ class _GapMeter extends StatelessWidget {
               color: Colors.white),
           const Icon(Icons.arrow_forward, color: DunkColors.textTertiary),
           _Big(
-              value: l10n.inchesGap(assessment.gapInches),
-              label: l10n.gapMeterGap,
+              value: middleValue,
+              label: showMargin ? l10n.gapMeterMargin : l10n.gapMeterGap,
               color: DunkColors.primary),
           const Icon(Icons.arrow_forward, color: DunkColors.textTertiary),
           _Big(
@@ -229,15 +254,26 @@ class _Big extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value,
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: color)),
-        const SizedBox(height: 4),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 10, color: DunkColors.textSecondary, letterSpacing: 0.5)),
-      ],
+    // Flexible + scale-down: three of these share one row, and a long caption
+    // (the French for "today") or a two-digit figure on a 375pt screen must
+    // shrink to fit rather than overflow. At full size nothing changes.
+    return Flexible(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          children: [
+            Text(value,
+                style: TextStyle(
+                    fontSize: 26, fontWeight: FontWeight.w800, color: color)),
+            const SizedBox(height: 4),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 10,
+                    color: DunkColors.textSecondary,
+                    letterSpacing: 0.5)),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -257,9 +293,17 @@ class _SummaryGrid extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(k, style: const TextStyle(color: DunkColors.textSecondary, fontSize: 15)),
-                Text(v,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 12),
+                // Flexible so a long value (a hops label, a goal title) wraps
+                // under itself instead of overflowing the row.
+                Flexible(
+                  child: Text(v,
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                ),
               ],
             ),
           ),
