@@ -222,10 +222,13 @@ differentiator.
   2. a longer range gets a sparse **scan** (150 ms step, stretching to at
      most 240 ms on very long clips — never wider than a flight) whose only
      job is to say *where* the jump is: `JumpSamplingPlan.jumpCandidates`
-     ranks samples by how far the feet stand above the **median of their own
-     ±1.5 s neighbourhood** (drift-proof, works off a single airborne sample),
-     then a dense 33 ms pass over ~2.5 s around the best candidate is measured
-     **on its own**;
+     ranks samples by how far the feet stand above the **floor's envelope**
+     (`PoseJumpDetector.groundEnvelope`, below — drift-proof, works off a
+     single airborne sample), then a dense 33 ms pass over ~2.5 s around each
+     candidate in turn is measured **on its own** until one measures. (Ranking
+     against the median of a ±1.5 s neighbourhood was tried first; a run-up
+     toward the camera out-scored the jump, because the frames at the top of a
+     slope stand "above" a neighbourhood full of later, lower ones.)
   3. if the athlete's trim cannot be measured and the clip has more footage
      either side, one retry a second wider — a trim cut into the takeoff or
      landing is the commonest way to lose a good jump.
@@ -240,6 +243,31 @@ differentiator.
   a seeded 300-clip sweep (length, athlete size, drift, noise). **Extend that
   sweep before touching any constant here** — it is the only thing standing
   between this code and the next ping-pong.
+- **A far-away athlete is re-found in a crop** (`core/athlete_track.dart`,
+  pure + tested; the crop itself is `PoseFrameExtractor._retryInCrop`). A pose
+  model finds the person first, on the frame shrunk to ~224 px, and only then
+  the joints. An athlete who runs five metres from the phone before jumping is
+  ~170 px of a 1138 px frame — ~30 px to the person-finder — and is not found
+  at all, *in exactly the frames that hold the jump* (65 of 121 on the clip
+  that showed it). More input resolution does not help; that stage downsizes
+  regardless. So a frame the whole-frame pass finds nobody in is cropped to a
+  square around where the athlete was last seen (nearest sighting in time,
+  ≤ 1 s old, 2.2x their landmark extent, ≥ 160 px), scaled to 512 px and run
+  again; landmarks are mapped back into frame coordinates. Measured on that
+  clip: 121 of 121 frames. **The whole-frame pass always goes first and is
+  untouched**, so this can only turn a missing frame into a found one, and any
+  exception in it leaves a plain missing detection. DETECTION DETAILS reports
+  how many frames were recovered this way. Device-unverified at the time of
+  writing: the crop uses `dart:ui` (decode → `drawImageRect` → PNG) and was
+  validated off-device with MediaPipe's BlazePose, the same model family.
+- **Reproducing a device failure without the device** — the recipe that found
+  the two bugs above, worth more than another round of guessing: `ffmpeg`
+  the clip to 640 px frames, run MediaPipe's `pose_landmarker_heavy` over them
+  in a throwaway Python venv applying the app's own gate (likelihood ≥ 0.5,
+  lowest heel/foot-index along the torso), dump `PoseSample` rows, and feed
+  them to `JumpAnalysisPipeline.run` from a test.
+  `test/fixtures/run_up_away_capture.dart` is one such clip, kept as a
+  fixture; `test/run_up_capture_test.dart` shows the sampler shim.
 - **The detector** (`core/pose_jump_detector.dart`, pure + tested) finds
   takeoff and landing from where the **feet** actually are: a ground
   baseline crossed at a threshold expressed in **torso lengths** so it
@@ -253,7 +281,19 @@ differentiator.
   second one is physics, not tuning — gravity fixes how far a foot falls away
   from the apex in a given time, and 15 samples at 20 ms reach exactly one
   lift-threshold below it whatever the jump height, so the apex read as
-  "ground" and a clean jump came back `liftTooSmall`. Pass 2 places the
+  "ground" and a clean jump came back `liftTooSmall`. That percentile lags a
+  floor that is moving, so it is capped by the **ground envelope**
+  (`groundEnvelope`): feet cannot go below the floor, so the floor is the
+  lower envelope of the foot trace — a morphological closing (rolling max then
+  rolling min of descent, ±0.6 s) that fills in anything as brief as a flight
+  or a stride and leaves a slope exactly where it is. It exists because of a
+  run-up *along the camera axis*: on the pinned capture the floor slid 160 px
+  in under a second against a 45 px jump, every stride of the run-up read as
+  airborne, and the detector **timed the run-up and reported a vertical for
+  it**. The envelope may only lower the percentile's estimate (it rides the
+  noise crest, so on a still floor the percentile wins and nothing changes),
+  and it declines within 0.6 s of either end of the series, where a clip that
+  starts or ends mid-air would otherwise be read as ground. Pass 2 places the
   floor: a **straight line between the median of the 7 grounded samples
   before and the 7 after** (`_bridgedGround`). That is what the ground does
   under a jump — an athlete who takes off moving toward the camera lands
@@ -262,9 +302,9 @@ differentiator.
   the nearest grounded samples, whichever side) made the floor a **step** in
   mid-flight, which is not a parabola and quietly corrupted the fit. A side
   with fewer than 3 grounded samples is ignored (one stray detection must not
-  anchor a line). Known limit: pass 1 follows a drift of roughly
-  `liftThreshold / 0.17 s`; faster than that and the detector refuses rather
-  than inventing a number.
+  anchor a line). Known limit: within 0.6 s of the ends of the measured series
+  only the percentile is available, which follows a drift of roughly
+  `liftThreshold / 0.17 s`.
   Because a threshold sitting above the ground clips the window short at both
   ends, the raw duration is corrected via the flight parabola
   (`T = T_raw / √(1 − L/H)`), and `BallisticFit` fits the whole arc. **The fit

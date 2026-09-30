@@ -101,6 +101,18 @@ class DetectionDetailsCardState extends State<DetectionDetailsCard> {
                       ),
                     ),
                   ],
+                  if (widget.analysis.recoveredInCrop > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'athlete re-found in a close-up crop on '
+                      '${widget.analysis.recoveredInCrop} frames',
+                      style: const TextStyle(
+                        color: DunkColors.textTertiary,
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _PoseSection(pose: p, isReported: p.result != null),
                 ],

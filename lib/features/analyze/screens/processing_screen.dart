@@ -26,7 +26,17 @@ class JumpAnalysis {
   /// whether or not it could be measured.
   final String? error;
 
-  const JumpAnalysis({required this.pose, this.scores, this.error});
+  /// Frames in which the athlete was only found by cropping around where they
+  /// were last seen (`core/athlete_track.dart`). Developer-facing: a high
+  /// count says the athlete was small in frame, not that anything went wrong.
+  final int recoveredInCrop;
+
+  const JumpAnalysis({
+    required this.pose,
+    this.scores,
+    this.error,
+    this.recoveredInCrop = 0,
+  });
 
   static const empty = JumpAnalysis(pose: PoseJumpDiagnostics.empty);
 
@@ -135,6 +145,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       analysis = JumpAnalysis(
         pose: pose,
         scores: JumpFormScoring.fromDiagnostics(pose),
+        recoveredInCrop: extractor.recoveredInCrop,
         error: pose.rejection == PoseDetectionRejection.unreadable
             ? 'decoded 0 of ${extractor.requested} frames'
                 '${lastError == null ? '' : ' · $lastError'}'

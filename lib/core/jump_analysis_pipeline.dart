@@ -62,12 +62,12 @@ abstract class JumpSamplingPlan {
   static const int leadInMs = 1400;
   static const int leadOutMs = 1100;
 
-  /// Neighbourhood a scan sample's foot height is compared against when
-  /// looking for the jump (see [jumpCandidates]).
-  static const int prominenceHalfWindowMs = 1500;
+  /// Two high scan samples closer together than this are the same candidate
+  /// (see [jumpCandidates]).
+  static const int candidateSpacingMs = 1000;
 
   /// Most places in the clip the dense pass will be pointed at.
-  static const int maxCandidates = 3;
+  static const int maxCandidates = 4;
 
   /// How far past the athlete's trim the pipeline reaches on its second
   /// attempt (see [JumpAnalysisPipeline.run]).
@@ -117,20 +117,24 @@ abstract class JumpSamplingPlan {
   ///
   /// The scan's own verdict is not enough to go on. It is sparse, and the
   /// detector's ground estimate needs fifteen samples — seconds of clip at
-  /// this step — so an athlete walking toward the camera can drift further
-  /// than a jump lifts them inside one estimate, and a perfectly good jump
-  /// reads as no airborne window (or a window in the wrong place). It can also
-  /// land a single sample in a short hop, which is not a window at all.
+  /// this step — so its floor can be well off under an athlete who is
+  /// travelling, and a perfectly good jump reads as no airborne window (or a
+  /// window in the wrong place). It can also land a single sample in a short
+  /// hop, which is not a window at all.
   ///
   /// Neither matters for *finding* the jump. The candidates are the samples
-  /// whose feet stand furthest above their own neighbours: each sample against
-  /// the median of the samples within [prominenceHalfWindowMs] of it. A flight
-  /// is always a minority of that neighbourhood, so the median is the floor at
-  /// that moment, and being centred it cancels a steady drift. Anything clear
-  /// of the airborne threshold is worth a dense look, highest first — "analyse
-  /// my jump" means the best one in the clip. The scan's own window, when it
-  /// has one somewhere else, goes last. The dense pass, not this, decides
-  /// whether any of them is a jump.
+  /// whose feet stand furthest above the floor's envelope
+  /// ([PoseJumpDetector.groundEnvelope]): the lower envelope of the foot
+  /// trace, which fills in anything as brief as a flight and leaves a slope
+  /// exactly where it is. That last part is the point. Comparing each sample
+  /// with the median of its neighbours was tried first, and a run-up toward
+  /// the camera beat the jump at its own game: the frames at the top of the
+  /// slope stand 80 px "above" a neighbourhood full of later, lower ones.
+  ///
+  /// Anything clear of the airborne threshold is worth a dense look, highest
+  /// first — "analyse my jump" means the best one in the clip. The scan's own
+  /// window, when it has one somewhere else, goes last. The dense pass, not
+  /// this, decides whether any of them is a jump.
   static List<Duration> jumpCandidates(PoseJumpDiagnostics scan) {
     final candidates = <Duration>[];
     bool isFarFromAll(Duration t, int milliseconds) => candidates
@@ -144,19 +148,19 @@ abstract class JumpSamplingPlan {
       final axis = scan.bodyAxis;
       final threshold = _median([for (final s in detected) s.torsoPixels!]) *
           PoseJumpDetector.liftTorsoFraction;
-      final times = [for (final s in detected) s.timestamp.inMilliseconds];
       final feet = [for (final s in detected) s.footDescent(axis)!];
+      final floor = PoseJumpDetector.groundEnvelope(
+        [
+          for (final s in detected)
+            s.timestamp.inMicroseconds / Duration.microsecondsPerSecond,
+        ],
+        feet,
+        fullWindowOnly: false,
+      );
 
       final peaks = <({Duration at, double lift})>[];
       for (var i = 0; i < detected.length; i++) {
-        final around = <double>[
-          for (var j = 0; j < detected.length; j++)
-            if (j != i &&
-                (times[j] - times[i]).abs() <= prominenceHalfWindowMs)
-              feet[j],
-        ];
-        if (around.length < 4) continue;
-        final lift = _median(around) - feet[i];
+        final lift = floor[i]! - feet[i];
         if (lift > threshold) {
           peaks.add((at: detected[i].timestamp, lift: lift));
         }
@@ -165,7 +169,7 @@ abstract class JumpSamplingPlan {
       for (final peak in peaks) {
         if (candidates.length >= maxCandidates - 1) break;
         // Neighbouring samples of one flight are one candidate.
-        if (isFarFromAll(peak.at, prominenceHalfWindowMs)) {
+        if (isFarFromAll(peak.at, candidateSpacingMs)) {
           candidates.add(peak.at);
         }
       }

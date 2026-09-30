@@ -1001,11 +1001,94 @@ abstract class PoseJumpDetector {
       List<double>.filled(descents.length, globalBaseline),
       minHalfSpanSeconds: _baselineMinHalfSpanSeconds,
     );
+    // The percentile lags a floor that is moving; the envelope does not. The
+    // lower of the two is the tighter bound on where the ground is.
+    final envelope = groundEnvelope(seconds, descents);
+    for (var i = 0; i < coarse.length; i++) {
+      final e = envelope[i];
+      if (e != null && e < coarse[i]) coarse[i] = e;
+    }
     final grounded = <int>[
       for (var i = 0; i < descents.length; i++)
         if (coarse[i] - descents[i] <= lift) i,
     ];
     return _bridgedGround(seconds, descents, grounded, coarse);
+  }
+
+  /// Half-width of the window [_groundEnvelope] closes over. Twice this has to
+  /// exceed the longest plausible flight ([FlightTime.maxAirborneSeconds]),
+  /// or the flight itself would be read as floor.
+  static const double _envelopeHalfSpanSeconds = 0.6;
+
+  /// Where the floor is under an athlete who is **running toward or away from
+  /// the camera**, null wherever there is not a full window of clip either
+  /// side to judge it from.
+  ///
+  /// A run-up along the camera's line of sight slides the feet up or down the
+  /// frame far faster than the rolling percentile can follow — on the clip
+  /// pinned in `test/fixtures/run_up_away_capture.dart`, 160 px in under a
+  /// second against a 45 px jump. The percentile sits at the *late* end of
+  /// such a slide, so every stride of the run-up read as tens of pixels
+  /// airborne, and the detector timed the run-up (a "flight" bounded by
+  /// standing at one end and the real takeoff at the other) instead of the
+  /// jump. It reported a number for it, which is worse than refusing.
+  ///
+  /// Feet cannot go *below* the floor, so the floor is the lower envelope of
+  /// the foot trace — the upper envelope of descent. That is a morphological
+  /// closing: a rolling maximum, then a rolling minimum of that, over the same
+  /// window. Anything narrower than the window that dips toward the top of the
+  /// frame — a flight, a running stride — is filled in; a slope is left
+  /// exactly where it is, however steep. It reads a little low by the landmark
+  /// jitter (it follows the noise's crest), which is why it is only allowed to
+  /// *lower* the percentile's estimate, never replace it: on a floor that is
+  /// not moving the percentile wins and nothing changes.
+  ///
+  /// Within a window's reach of either end of the series there may be no floor
+  /// in view on that side — the clip can start or end mid-air — and an
+  /// envelope built from one side would call that flight "ground". So there it
+  /// declines, and the percentile stands alone as before. ([fullWindowOnly]
+  /// false lifts that restriction, for a caller that only wants to know where
+  /// to look — `JumpSamplingPlan.jumpCandidates` — and will verify what it
+  /// finds.)
+  static List<double?> groundEnvelope(
+    List<double> seconds,
+    List<double> descents, {
+    bool fullWindowOnly = true,
+  }) {
+    final n = descents.length;
+    if (n == 0) return const [];
+    final first = seconds.first;
+    final last = seconds.last;
+
+    List<double> rolling(List<double> values, bool takeMax) {
+      final out = <double>[];
+      var from = 0;
+      var to = 0;
+      for (var i = 0; i < n; i++) {
+        while (seconds[from] < seconds[i] - _envelopeHalfSpanSeconds) {
+          from++;
+        }
+        while (to < n && seconds[to] <= seconds[i] + _envelopeHalfSpanSeconds) {
+          to++;
+        }
+        var best = values[from];
+        for (var j = from + 1; j < to; j++) {
+          if (takeMax ? values[j] > best : values[j] < best) best = values[j];
+        }
+        out.add(best);
+      }
+      return out;
+    }
+
+    final closed = rolling(rolling(descents, true), false);
+    return [
+      for (var i = 0; i < n; i++)
+        (!fullWindowOnly ||
+                (seconds[i] - first >= _envelopeHalfSpanSeconds &&
+                    last - seconds[i] >= _envelopeHalfSpanSeconds))
+            ? closed[i]
+            : null,
+    ];
   }
 
   /// Grounded samples taken from each side of a sample when bridging the floor
