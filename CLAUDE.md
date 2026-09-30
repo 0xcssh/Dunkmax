@@ -39,7 +39,7 @@ analysis — those need the device.
 
 ```bash
 flutter pub get
-flutter analyze --no-fatal-infos   # matches CI
+flutter analyze --no-fatal-infos   # matches CI (CI pins Flutter 3.47.1)
 flutter test                       # core unit tests + a widget smoke test
 flutter run -d chrome              # live web preview locally
 ```
@@ -162,17 +162,17 @@ lib/
                          (core/leaderboard.dart); the community board is
                          honestly locked (no backend, no accounts)
     analyze/             Source (record/pick video) → trim to one jump →
-                         processing beat → result dashboard (flight-time vert);
-                         when nothing can be measured the athlete gets the
-                         detector's reason and how to fix the clip — never a
-                         request to mark the frames by hand (screens/
-                         unmeasured_screen.dart); a valid result is persisted
-                         to JumpLogStore.
+                         processing (real frame-count progress) → result
+                         dashboard (flight-time vert); when nothing can be
+                         measured the athlete gets the detector's reason and
+                         how to fix the clip — never a request to mark the
+                         frames by hand (screens/unmeasured_screen.dart); a
+                         valid result is persisted to JumpLogStore.
                          The trim range (core/trim_range.dart, pure + tested)
-                         is a *range selection*, never a re-encode: it is
-                         passed into both frame samplers, which spend a fixed
-                         frame budget, so a narrower range = more samples
-                         inside the flight (and no multi-jump case)
+                         is a *range selection*, never a re-encode. It says
+                         *which* jump; it no longer buys accuracy — the
+                         measurement always comes from the same dense series
+                         (core/jump_analysis_pipeline.dart)
     train/               SessionFlow: warm-up → per-exercise set/reps/lbs
                          logging (one screen per exercise) → summary, then
                          persists a WorkoutSession via WorkoutSessionStore.
@@ -191,65 +191,93 @@ test/                    Core unit tests + app smoke test
 logic goes in `core/` (pure, tested); UI and side effects stay thin.**
 `core/` has zero Flutter imports.
 
-## The signature feature: AI jump analysis (v1 flight-time built; pose TODO)
+## The signature feature: AI jump analysis (one pipeline: body tracking)
 
 Filming a jump → estimated vertical + scores + coaching is the app's whole
 differentiator.
 
-- **Vertical (headline number) = flight-time method — BUILT.** Physics:
-  airborne height `h = g·t²/8` (g = 9.81 m/s² ≈ 386.09 in/s²), pure and
-  tested in `core/flight_time.dart`. `core/models/jump_measurement.dart`
-  turns a takeoff/landing timestamp pair into airborne time + validity
-  (rejects implausible marks); `core/jump_result.dart` folds that into the
-  same `VertAssessment` dunk-gap math the onboarding screens use, so the
-  Analyze result reads consistently with the rest of the app.
-  **v1 marks takeoff/landing manually** — the athlete scrubs the clip in
-  `features/analyze/screens/mark_jump_screen.dart` (`video_player`) and taps
-  "Mark takeoff" / "Mark landing" — rather than automatic frame detection
-  (that needs real motion analysis on decoded frames, unproven without a
-  device to test on; manual marking ships a real, reliable measurement now).
-  Video capture/import is `image_picker` (`features/analyze/screens/
-  source_screen.dart`, camera or gallery, max 10s).
-- **Pose tracking is now the primary detector** (`core/pose_jump_detector.dart`,
-  pure + tested; `features/analyze/pose_extraction.dart` is the ML Kit glue).
-  It samples frames, runs `google_mlkit_pose_detection`, and finds takeoff
-  and landing from where the **feet** actually are: a ground baseline (75th
-  percentile of foot height — robust to one snapped landmark, unlike a
-  min/max), crossed at a threshold expressed in **torso lengths** so it
+- **Vertical (headline number) = flight-time method.** Physics: airborne
+  height `h = g·t²/8` (g = 9.81 m/s² ≈ 386.09 in/s²), pure and tested in
+  `core/flight_time.dart`. `core/models/jump_measurement.dart` turns a
+  takeoff/landing timestamp pair into airborne time + validity;
+  `core/jump_result.dart` folds that into the same `VertAssessment` dunk-gap
+  math the onboarding screens use. Video capture/import is `image_picker`
+  (`features/analyze/screens/source_screen.dart`, camera or gallery; the 10 s
+  cap only binds the camera — a gallery clip can be any length).
+- **There is ONE way a clip becomes a number**
+  (`core/jump_analysis_pipeline.dart`, pure + tested with a synthetic
+  athlete; `features/analyze/pose_extraction.dart` is the ML Kit glue, a
+  `PoseFrameExtractor` that only turns timestamps into landmarks). No
+  motion-energy fallback, no manual marking, no second opinion — when body
+  tracking cannot measure the clip the athlete gets the reason
+  (`unmeasured_screen.dart`).
+  **The rule that shapes it: clip length must never reach the measurement.**
+  The sampler used to spend a fixed *number* of frames across whatever range
+  it was handed, so the step between samples was a function of clip length
+  (30 ms on a 1 s trim, 130 ms on an 8 s clip) and every detector constant
+  was implicitly tuned to one regime — each fix for long clips broke short
+  ones and the reverse (that is the "too short errors, then too long errors"
+  ping-pong of the two commits before this design). Now:
+  1. a range ≤ ~3.3 s is sampled whole, one sample per 33 ms;
+  2. a longer range gets a sparse **scan** (150 ms step, stretching to at
+     most 240 ms on very long clips — never wider than a flight) whose only
+     job is to say *where* the jump is: `JumpSamplingPlan.jumpCandidates`
+     ranks samples by how far the feet stand above the **median of their own
+     ±1.5 s neighbourhood** (drift-proof, works off a single airborne sample),
+     then a dense 33 ms pass over ~2.5 s around the best candidate is measured
+     **on its own**;
+  3. if the athlete's trim cannot be measured and the clip has more footage
+     either side, one retry a second wider — a trim cut into the takeoff or
+     landing is the commonest way to lose a good jump.
+  A scan-only window is deliberately never reported as the answer (its
+  crossings are interpolated across 150 ms+ gaps; a seeded sweep caught it
+  0.6 s off on a flight of under a second). A clip whose frames cannot be decoded
+  is `PoseDetectionRejection.unreadable`, with the plugin's error in DETECTION
+  DETAILS — it used to surface as "clip too short", because a thrown
+  extraction fell back to an empty diagnostics object whose default rejection
+  was `tooFewSamples`.
+  `test/jump_analysis_pipeline_test.dart` runs the same jump at 1.2 s–30 s and
+  a seeded 300-clip sweep (length, athlete size, drift, noise). **Extend that
+  sweep before touching any constant here** — it is the only thing standing
+  between this code and the next ping-pong.
+- **The detector** (`core/pose_jump_detector.dart`, pure + tested) finds
+  takeoff and landing from where the **feet** actually are: a ground
+  baseline crossed at a threshold expressed in **torso lengths** so it
   survives the camera moving nearer or further. Crossings are interpolated
   between samples.
-  **That baseline is local in time, not one number for the clip.** An athlete
-  walking toward the camera grows in frame, so their standing foot position
-  slides down the image over seconds — on the capture that forced this, by
-  116 px while the jump lifted them only 87 px, which put the *early standing*
-  frames 55 px "airborne" against the clip-wide 987 px baseline and produced
-  `noAirborneWindow` on a perfectly tracked jump (60/60 frames, upright). So
-  the baseline is a rolling ±0.6 s estimate, in two passes for the same reason
-  the body axis takes two: pass 1 is the 75th percentile over every sample in
-  the window (tolerant of a flight filling most of it, but it lags a drift),
-  pass 2 the **median of just the samples pass 1 called grounded** (unbiased
-  under a linear drift, because the window is centred on the sample). Windows
-  holding fewer than 8 samples — clip ends, sparsely tracked stretches — fall
-  back to the clip-wide baseline, so a tightly trimmed clip degrades to the
-  old behaviour, and a flat floor gives a flat rolling baseline, i.e. no
-  change at all (which is why every pre-existing test still passes untouched).
-  Everything downstream reads *lift above the local baseline*, so the torso
-  threshold, the interpolated crossings, the parabola correction and
-  `BallisticFit` are unchanged. Known limit, documented rather than papered
-  over: a window can only follow a drift of roughly `liftThreshold / window`,
-  about 60–70 px/s here; faster than that and the detector mistimes or refuses
-  rather than inventing a number.
-  Because a threshold sitting above the ground clips the window
-  short at both ends, the raw duration is corrected via the flight parabola
-  (`T = T_raw / √(1 − L/H)`, with lift `L` chosen and apex lift `H`
-  observed) — which is also why the exact threshold value isn't critical.
-  Falls back to the motion-energy detector, then to manual marking; it
-  returns null rather than guess when too many frames have no pose, when two
-  comparable airborne windows exist (a double jump), or when the window is
-  implausible. **Requires iOS 15.5** — the CI workflows pin the deployment
-  target via `tool/set_ios_deployment_target.py` because `ios/` is
-  regenerated by `flutter create` and CocoaPods otherwise fails on an
-  incompatible platform.
+  **The baseline is local in time, in two passes.** Pass 1 classifies:
+  the 75th percentile of foot height over a rolling window of the nearest 15
+  samples, **widened until it also spans ±0.35 s**. Both halves of that rule
+  were learnt from a failure: a span alone held four samples at a 130 ms
+  step; a count alone sits entirely *inside* the flight at a fine step. That
+  second one is physics, not tuning — gravity fixes how far a foot falls away
+  from the apex in a given time, and 15 samples at 20 ms reach exactly one
+  lift-threshold below it whatever the jump height, so the apex read as
+  "ground" and a clean jump came back `liftTooSmall`. Pass 2 places the
+  floor: a **straight line between the median of the 7 grounded samples
+  before and the 7 after** (`_bridgedGround`). That is what the ground does
+  under a jump — an athlete who takes off moving toward the camera lands
+  nearer to it, so the floor under the landing is further down the frame (44 px
+  on the pinned walk-in capture, half the jump). The previous rule (median of
+  the nearest grounded samples, whichever side) made the floor a **step** in
+  mid-flight, which is not a parabola and quietly corrupted the fit. A side
+  with fewer than 3 grounded samples is ignored (one stray detection must not
+  anchor a line). Known limit: pass 1 follows a drift of roughly
+  `liftThreshold / 0.17 s`; faster than that and the detector refuses rather
+  than inventing a number.
+  Because a threshold sitting above the ground clips the window short at both
+  ends, the raw duration is corrected via the flight parabola
+  (`T = T_raw / √(1 − L/H)`), and `BallisticFit` fits the whole arc. **The fit
+  is only reported where the corrected crossings agree with it within 12 %**:
+  the crossings' error is bounded by the sample step, the fit extrapolates and
+  is unbounded on a small hop (the sweep produced 0.58 s for a 0.35 s flight
+  with a healthy-looking residual).
+  It returns no measurement rather than guess when too few frames have a
+  pose, when the athlete is lost inside the flight, or when the window is
+  implausible; several jumps in one clip → the highest. **Requires
+  iOS 15.5** — the CI workflows pin the deployment target via
+  `tool/set_ios_deployment_target.py` because `ios/` is regenerated by
+  `flutter create` and CocoaPods otherwise fails on an incompatible platform.
 - **"Up" is the athlete's up, not the image's (`BodyAxis`).** A real camera
   clip with an obvious jump was rejected `noAirborneWindow`. `ffprobe`:
   `1920x1080, rotation=-90` — an iPhone portrait recording, **stored landscape
@@ -284,34 +312,20 @@ differentiator.
   DETAILS. Pinned by tests that rotate a passing synthetic jump by 90°, 180°
   and 20° and demand the same flight time — plus one that strips the same
   rotated clip back to image y and shows it rejecting, i.e. the field bug.
-- **SETTLED (measured, not guessed): whole-frame motion energy cannot
-  isolate a subject that occupies a small part of the frame.** A real clip
-  was traced frame by frame with ffmpeg: takeoff 0.558s, landing ~1.32s →
-  0.77s hang → **28–29"**, which is exactly what the reference app reported
-  and what our detector missed entirely. On that clip the athlete's own
-  motion measured 0.013 while UI transitions in the same footage hit 0.30 —
-  the jump was *quieter than the noise*. Raising the sampling resolution
-  from 32px to 96px changed the athlete's energy from 0.012 to 0.012:
-  frame-difference energy is a ratio of moving area to total area, so it is
-  **scale-invariant** and more pixels buy nothing. There is no threshold
-  tweak that fixes this class of clip — only tracking the body does, i.e.
-  the pose detection already planned below. Stop tuning the heuristic.
-- **Open question: where the flight window really starts and ends.** The
-  physics is exact; the error is entirely in the takeoff/landing instants.
-  Motion energy during flight tracks the body's vertical speed — max at
-  takeoff, ~zero at the apex, max again at landing — so the signal traces a
-  **V**, and how wide you call that V moves the answer by several inches.
-  Three defensible readings exist (`core/jump_auto_detector.dart`,
-  `JumpEstimates`): the **outer bound** (samples just outside the quiet run —
-  what currently feeds the reported number), the **interpolated threshold
-  crossing** (kills sample-step quantisation, worth several inches on its
-  own, but inherits whatever bias the threshold has), and **apex symmetry**
-  (twice apex→landing, using only the sharp landing impact and the fact that
-  flight is symmetric about the apex). All three are computed and shown in
-  the result screen's DETECTION DETAILS card, in seconds *and* inches.
-  **Do not blind-tune this again** — an earlier blind two-pass "refinement"
-  turned a 20" reading into a bogus 50" and had to be reverted. Pick the
-  winner from a real clip whose true vertical is known, then promote it.
+- **SETTLED, and now deleted: whole-frame motion energy cannot isolate a
+  subject that occupies a small part of the frame.** A real clip was traced
+  frame by frame with ffmpeg (takeoff 0.558 s, landing ~1.32 s → 0.77 s →
+  **28–29"**); on it the athlete's own motion measured 0.013 while UI
+  transitions in the same footage hit 0.30, and sampling at 96 px instead of
+  32 px moved that 0.012 → 0.012 — frame-difference energy is a ratio of
+  moving area to total area, so it is **scale-invariant**. That detector
+  (`jump_auto_detector.dart`, `motion_extraction.dart`, the `image`
+  dependency) reported 8" for that jump and has been removed rather than kept
+  as a fallback. Do not bring it back.
+- **Do not blind-tune the timing.** An earlier two-pass "refinement" that
+  re-derived its threshold from a window holding almost nothing but flight
+  turned a 20" reading into 50". The dense pass is safe from that only because
+  it carries ~1 s of ground either side of the flight; keep it that way.
 - **The 4 scores (Bounce/Power/Control/Form) = BUILT**, in
   `core/jump_form_scores.dart` (pure, tested). `PoseSample` now also carries
   the individual ankle/knee/hip/shoulder/wrist landmarks (as `PosePoint`,
@@ -361,13 +375,12 @@ differentiator.
   reaching, and the tips fall back to the general pool (which is also what a
   manually marked jump gets, since `scores` is optional); and there is no
   comparison to other athletes anywhere.
-- **Not yet wired: Camera + Photo Library Info.plist permission strings.**
-  `ios/` is gitignored and regenerated by `flutter create` in CI (see
-  above), so there's nowhere to commit `NSCameraUsageDescription` /
-  `NSPhotoLibraryUsageDescription` yet. Add them (a CI patch step, or
-  un-ignore `ios/Runner/Info.plist` once real iOS config lands) before
-  testing Analyze on a real device — without them iOS kills the app on
-  camera/library access instead of showing a permission prompt.
+- **Info.plist permission strings are patched in CI.** `ios/` is gitignored
+  and regenerated by `flutter create`, so `ci.yml` and `ios-release.yml` add
+  `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`,
+  `NSPhotoLibraryUsageDescription` and `NSPhotoLibraryAddUsageDescription`
+  with PlistBuddy after the scaffold step. A new permission means a new line
+  in **both** workflows — without it iOS kills the app instead of prompting.
 
 Physics lives in `core/` (pure, tested); camera/video-player glue stays thin
 in `features/analyze/`.
@@ -523,8 +536,8 @@ Built & CI-green:
   Every drill has an authored guide (`core/exercise_library.dart`) reachable
   from its name, and the **training-location answer is honoured**: a home-only
   athlete is never prescribed a box, bench or loaded drill.
-- **Analyze** tab functional (flight-time vert measurement, see below);
-  results persist to `JumpLogStore`.
+- **Analyze** tab functional (one body-tracking pipeline, flight-time vert,
+  see above); results persist to `JumpLogStore`.
 - **Progress** tab functional: workouts completed (X/total), day streak
   (`WorkoutStreak`, counts across all programs — a habit metric, not
   program-scoped), current vertical + trend since first test
@@ -543,7 +556,7 @@ Built & CI-green:
 
 TODO (rough priority):
 - [x] **Analyze tab v1** — record/import video → trim → automatic pose
-      detection (manual marking only as the last fallback) → processing beat
+      detection (no fallback method, no manual marking) → processing
       → results: EST. VERT via flight-time, gap-to-dunk, and **real
       Bounce/Power/Control/Form scores** from the same pose pass
       (`core/jump_form_scores.dart`), each absent-with-a-reason when the clip
@@ -680,4 +693,4 @@ TODO (rough priority):
 | RevenueCat | App-side wired; dashboard/account not created yet. Entitlement id `pro`; secret `REVENUECAT_API_KEY` → `--dart-define`. See `docs/revenuecat-setup.md` |
 | Subscriptions | Yearly + weekly, each in a trial / no-trial pair (cascade); 3-day trial; price TBD. Not created in App Store Connect yet |
 | Legal URLs | `lib/core/legal_urls.dart`. Terms = Apple's standard EULA (real). Privacy = `.invalid` placeholder, **must be published before submission** |
-| Permissions | Camera + Photo Library — code (`image_picker`) is wired, but the Info.plist usage-description strings aren't committed yet (see Analyze section above) |
+| Permissions | Camera, Microphone, Photo Library (read + add) — usage strings patched into Info.plist by both iOS workflows |

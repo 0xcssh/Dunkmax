@@ -3,42 +3,13 @@ import 'dart:math' as math;
 
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../../core/pose_jump_detector.dart';
 
-/// How many frames the clip is sampled at, at most.
-///
-/// Every frame costs a JPEG decode *plus* an ML Kit inference, so this is a
-/// direct trade of processing seconds against temporal resolution — and
-/// temporal resolution is what the whole feature's accuracy rides on. 60
-/// frames over a typical 2–3 s jump clip is a ~40–50 ms step, which after
-/// [PoseJumpDetector]'s between-sample interpolation leaves quantisation well
-/// below the millisecond scale that matters. On a modern phone that is a few
-/// seconds of work, which the processing screen already covers honestly.
-const _maxFrames = 60;
-
-/// Never sample finer than this. Below ~30 ms we would be asking the decoder
-/// for frames that a 30 fps clip does not contain, paying full inference cost
-/// for duplicates.
-const _minStepMs = 30;
-
-/// Second-pass budget, spent entirely inside the located jump. Fitting the
-/// flight parabola is only as good as the number of airborne samples it has
-/// to work with, and this is where they come from.
-const _refineFrames = 40;
-const _refineMinStepMs = 15;
-
-/// How far either side of the coarse window the dense pass reaches, so the
-/// refined series still contains ground frames on both sides of the flight.
-const _refinePaddingMs = 200;
-
 /// Frame width handed to ML Kit. The pose model needs enough pixels to resolve
 /// ankles on a full-body subject; 640 px is comfortably enough while keeping
-/// the decode cheap. (Unlike the motion-energy path, resolution genuinely
-/// matters here — that path measured a ratio of moving area to total area and
-/// was therefore scale-invariant; landmark localisation is not.)
+/// the decode cheap.
 const _frameWidth = 640;
 
 /// Lowest landmark confidence accepted. ML Kit reports a likelihood per
@@ -46,155 +17,128 @@ const _frameWidth = 640;
 /// exactly the kind of fabricated data this project refuses to act on.
 const _minLikelihood = 0.5;
 
-/// Samples still frames across the clip, runs on-device pose detection on each
-/// and reduces every frame to the two numbers [PoseJumpDetector] needs: where
-/// the athlete's lower foot was, and how big the athlete is in that frame.
+/// Decodes frames of one clip and reduces each to a [PoseSample].
 ///
-/// Thin plugin glue by design — the detection rule itself is pure and tested
-/// in `core/pose_jump_detector.dart`. Frames where no athlete was found (or
-/// where the needed landmarks were low-confidence) come back as a sample with
-/// null measurements, never as a zero: "not found" must not read as "at the
-/// very top of the frame".
+/// Thin plugin glue by design. *Which* frames to look at is decided by
+/// `core/jump_analysis_pipeline.dart` and *what they mean* by
+/// `core/pose_jump_detector.dart`, both pure and tested; this only turns a
+/// timestamp into landmarks. One pose model and one scratch directory are held
+/// for the whole analysis rather than rebuilt per pass.
 ///
-/// [rangeStart]/[rangeEnd] restrict the *coarse* pass to the slice the athlete
-/// trimmed to (see `core/trim_range.dart`), which is what makes trimming worth
-/// doing: the frame budget is fixed, so a narrower range spends more of it
-/// inside the flight. The dense second pass then runs unchanged within that
-/// slice. Timestamps stay on the **original clip's** timeline throughout —
-/// they are later used to pull a thumbnail out of the original file, so
-/// rebasing them to zero would silently grab the wrong frame.
-Future<List<PoseSample>> extractPoseSamples(
-  File video, {
-  Duration? rangeStart,
-  Duration? rangeEnd,
-}) async {
-  final duration = await _videoDuration(video);
-  if (duration <= Duration.zero) return const [];
-  final totalMs = duration.inMilliseconds;
+/// Timestamps are on the **original clip's** timeline throughout — they are
+/// later used to pull a thumbnail out of the original file, so rebasing them
+/// to zero would silently grab the wrong frame.
+class PoseFrameExtractor {
+  final File video;
 
-  final fromMs = (rangeStart?.inMilliseconds ?? 0).clamp(0, totalMs);
-  final toMs = (rangeEnd?.inMilliseconds ?? totalMs).clamp(fromMs, totalMs);
-  if (toMs <= fromMs) return const [];
+  /// Called after every frame, decoded or not, so the processing screen can
+  /// show real progress.
+  final void Function()? onFrame;
 
-  // Pass 1: spread across the selected range, to place the ground baseline
-  // and find roughly where the jump is.
-  final coarse = await _sampleRange(video, fromMs: fromMs, toMs: toMs);
-  final located = PoseJumpDetector.detectWithDiagnostics(coarse).result;
-  if (located == null) return coarse;
+  PoseFrameExtractor(this.video, {this.onFrame});
 
-  // Pass 2: spend the remaining budget inside the jump. Fitting the flight
-  // parabola needs several airborne points to pin its curvature, and a pass
-  // spread over the whole clip leaves only a handful — on a real capture it
-  // left four, 132 ms apart, and the fit came out 6" long.
-  //
-  // The two passes are then merged and handed to the detector *together*, so
-  // the baseline is still drawn from the clip-wide standing frames. That is
-  // the difference from an earlier two-pass attempt that re-derived its
-  // threshold from the narrow window alone and turned a 20" reading into 50".
-  final padMs = _refinePaddingMs;
-  final dense = await _sampleRange(
-    video,
-    fromMs: (located.takeoff.inMilliseconds - padMs).clamp(fromMs, toMs),
-    toMs: (located.landing.inMilliseconds + padMs).clamp(fromMs, toMs),
-    maxFrames: _refineFrames,
-    minStepMs: _refineMinStepMs,
-  );
+  PoseDetector? _detector;
+  Directory? _workDir;
+  var _frameIndex = 0;
 
-  final byTime = <int, PoseSample>{
-    for (final s in coarse) s.timestamp.inMilliseconds: s,
-    for (final s in dense) s.timestamp.inMilliseconds: s,
-  };
-  final merged = byTime.values.toList()
-    ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-  return merged;
-}
+  /// Frames asked for, and how many of those could not even be decoded.
+  var requested = 0;
+  var undecoded = 0;
 
-/// Samples [maxFrames] evenly spaced frames between [fromMs] and [toMs] and
-/// reduces each to a [PoseSample].
-Future<List<PoseSample>> _sampleRange(
-  File video, {
-  required int fromMs,
-  required int toMs,
-  int maxFrames = _maxFrames,
-  int minStepMs = _minStepMs,
-}) async {
-  final totalMs = toMs - fromMs;
-  if (totalMs <= 0) return const [];
+  /// The last decode or inference error, for the developer-facing details.
+  Object? lastError;
 
-  var frameCount = maxFrames;
-  if (totalMs ~/ minStepMs < frameCount) {
-    frameCount = totalMs ~/ minStepMs;
-  }
-  if (frameCount < 2) return const [];
-  final stepMs = totalMs / frameCount;
+  /// One [PoseSample] per timestamp, in order.
+  ///
+  /// A frame where no athlete was found (or where the needed landmarks were
+  /// low-confidence) comes back as a sample with null measurements, never as a
+  /// zero: "not found" must not read as "at the very top of the frame". A
+  /// frame that could not be decoded is reported the same way, so the
+  /// detector's missing-frame guards can see it rather than the series
+  /// silently getting shorter — but when *no* frame of a pass decodes, the
+  /// list comes back empty, which the pipeline reports as an unreadable clip
+  /// instead of as an athlete who was never in shot.
+  Future<List<PoseSample>> sample(List<Duration> timestamps) async {
+    if (timestamps.isEmpty) return const [];
+    final detector = _detector ??= PoseDetector(
+      options: PoseDetectorOptions(
+        // Still images, one at a time: the accurate model in single-image mode
+        // is exactly the configuration this pass is. Stream mode would trade
+        // the landmark precision we are here for against a latency we do not
+        // need.
+        model: PoseDetectionModel.accurate,
+        mode: PoseDetectionMode.single,
+      ),
+    );
+    final workDir = _workDir ??= await _createWorkDir();
 
-  final tempDir = await getTemporaryDirectory();
-  final workDir = Directory(
-    '${tempDir.path}/pose_frames_${DateTime.now().millisecondsSinceEpoch}',
-  );
-  await workDir.create(recursive: true);
-
-  final detector = PoseDetector(
-    options: PoseDetectorOptions(
-      // Still images, one at a time: the accurate model in single-image mode
-      // is exactly the configuration this pass is. Stream mode would trade the
-      // landmark precision we are here for against a latency we do not need.
-      model: PoseDetectionModel.accurate,
-      mode: PoseDetectionMode.single,
-    ),
-  );
-
-  final samples = <PoseSample>[];
-  try {
-    for (var i = 0; i < frameCount; i++) {
-      final timeMs =
-          (fromMs + i * stepMs).round().clamp(fromMs, fromMs + totalMs - 1);
+    final samples = <PoseSample>[];
+    var decoded = 0;
+    for (final timestamp in timestamps) {
+      requested++;
       String? framePath;
       try {
         framePath = await VideoThumbnail.thumbnailFile(
           video: video.path,
-          thumbnailPath: '${workDir.path}/frame_${fromMs}_$i.jpg',
+          thumbnailPath: '${workDir.path}/frame_${_frameIndex++}.jpg',
           imageFormat: ImageFormat.JPEG,
           maxWidth: _frameWidth,
           quality: 85,
-          timeMs: timeMs,
+          timeMs: timestamp.inMilliseconds,
         );
         final path = framePath;
         if (path == null) {
-          // Frame could not be decoded — count it as a missing detection so
-          // the detector's "athlete not found often enough" guard can see it,
-          // rather than silently shortening the series.
-          samples.add(PoseSample(timestamp: Duration(milliseconds: timeMs)));
+          undecoded++;
+          samples.add(PoseSample(timestamp: timestamp));
           continue;
         }
-
+        decoded++;
         final poses =
             await detector.processImage(InputImage.fromFilePath(path));
-        samples.add(_toSample(Duration(milliseconds: timeMs), poses));
-      } catch (_) {
+        samples.add(_toSample(timestamp, poses));
+      } catch (error) {
         // One unreadable frame or one failed inference must not sink the
         // whole clip — it is just a missing detection.
-        samples.add(PoseSample(timestamp: Duration(milliseconds: timeMs)));
+        lastError = error;
+        if (framePath == null) undecoded++;
+        samples.add(PoseSample(timestamp: timestamp));
       } finally {
         if (framePath != null) {
           try {
             await File(framePath).delete();
           } catch (_) {
-            // Best-effort cleanup; the directory is removed below anyway.
+            // Best-effort cleanup; the directory is removed in [close].
           }
         }
+        onFrame?.call();
       }
     }
-  } finally {
-    await detector.close();
+    return decoded == 0 ? const [] : samples;
+  }
+
+  Future<Directory> _createWorkDir() async {
+    final tempDir = await getTemporaryDirectory();
+    final dir = Directory(
+      '${tempDir.path}/pose_frames_${DateTime.now().millisecondsSinceEpoch}',
+    );
+    await dir.create(recursive: true);
+    return dir;
+  }
+
+  Future<void> close() async {
     try {
-      await workDir.delete(recursive: true);
+      await _detector?.close();
+    } catch (_) {
+      // Nothing useful to do about a detector that will not close.
+    }
+    _detector = null;
+    try {
+      await _workDir?.delete(recursive: true);
     } catch (_) {
       // Temp dir cleanup is best-effort.
     }
+    _workDir = null;
   }
-
-  return samples;
 }
 
 /// Reduces one frame's poses to a [PoseSample].
@@ -334,12 +278,4 @@ PosePoint? _foot(Pose pose) {
   }
 
   return lowestOf(candidates) ?? lowestOf(ankles);
-}
-
-Future<Duration> _videoDuration(File video) async {
-  final controller = VideoPlayerController.file(video);
-  await controller.initialize();
-  final duration = controller.value.duration;
-  await controller.dispose();
-  return duration;
 }

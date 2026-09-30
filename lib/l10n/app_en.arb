@@ -30,6 +30,13 @@
       "inches": { "type": "int" }
     }
   },
+  "inchesMargin": "+{inches}\"",
+  "@inchesMargin": {
+    "description": "The inches of vertical an athlete has beyond what a dunk needs, shown as the middle EST. MARGIN number on the onboarding gap meter in place of the gap, only when they are estimated to already clear the dunk. The leading plus is part of the design.",
+    "placeholders": {
+      "inches": { "type": "int" }
+    }
+  },
 
   "introPanel1Headline": "SEE YOUR REAL\nVERTICAL",
   "@introPanel1Headline": {
@@ -231,9 +238,22 @@
   "@gapTitle": {
     "description": "Headline of the first onboarding sell screen: how many inches are missing to dunk."
   },
+  "gapTitleCanDunk": "YOU'VE GOT THE VERTICAL.",
+  "@gapTitleCanDunk": {
+    "description": "Headline of the first onboarding sell screen, replacing the 'here's the gap' headline when the athlete's estimated vertical already meets what a dunk needs, so there is no gap to show."
+  },
   "gapIntro": "You're {height}. About {current}\" today. Dunking usually takes ~{target}\".",
   "@gapIntro": {
     "description": "Paragraph under the gap headline. {height} is already formatted like 6'1\"; {current} and {required} are verticals in inches.",
+    "placeholders": {
+      "height": { "type": "String" },
+      "current": { "type": "int" },
+      "target": { "type": "int" }
+    }
+  },
+  "gapIntroCanDunk": "You're {height}. About {current}\" today, and dunking usually takes ~{target}\". From here the plan is about adding margin and consistency.",
+  "@gapIntroCanDunk": {
+    "description": "Paragraph under the gap screen's headline when the athlete's estimated vertical already meets what a dunk needs. {height} is already formatted like 6'1\"; {current} and {target} are verticals in inches.",
     "placeholders": {
       "height": { "type": "String" },
       "current": { "type": "int" },
@@ -261,6 +281,10 @@
   "gapMeterGap": "EST. GAP",
   "@gapMeterGap": {
     "description": "Caption under the middle number of the gap meter (inches still missing)."
+  },
+  "gapMeterMargin": "EST. MARGIN",
+  "@gapMeterMargin": {
+    "description": "Caption under the middle number of the gap meter when the athlete is estimated to already clear the dunk: the inches they have to spare. Replaces the EST. GAP caption. Keep it very short, it sits under a narrow figure."
   },
   "gapMeterDunk": "DUNK",
   "@gapMeterDunk": {
@@ -311,14 +335,18 @@
   "@gapCta": {
     "description": "Button at the bottom of the gap screen, leading to the jump-potential projection."
   },
+  "gapCtaCanDunk": "BUILD MORE MARGIN",
+  "@gapCtaCanDunk": {
+    "description": "Button at the bottom of the gap screen when the athlete is estimated to already clear the dunk (no gap to close). Leads to the jump-potential projection."
+  },
 
   "potentialTitle": "YOUR JUMP POTENTIAL",
   "@potentialTitle": {
     "description": "Headline of the second onboarding sell screen: the projected vertical over eight weeks."
   },
-  "potentialSubtitle": "Projected from your height, hops, and schedule.",
+  "potentialSubtitle": "Projected from your height, hops, and age.",
   "@potentialSubtitle": {
-    "description": "Subtitle of the jump-potential screen."
+    "description": "Subtitle of the jump-potential screen. Names the three inputs the projection really uses: height (for reach), self-reported jumping ability, and age."
   },
   "potentialWeekLabel": "WK {week}",
   "@potentialWeekLabel": {
@@ -971,6 +999,14 @@
   },
   "sessionCompleteCta": "SAVE & FINISH",
   "@sessionCompleteCta": { "description": "Button that persists the session and returns to the Train tab." },
+  "sessionDiscardTitle": "Discard this session?",
+  "@sessionDiscardTitle": { "description": "Title of the confirmation dialog shown when the athlete tries to leave a training session (close icon or system back) after the warm-up, before it has been saved." },
+  "sessionDiscardBody": "Nothing from this session has been saved yet. If you leave now, the sets you logged are lost.",
+  "@sessionDiscardBody": { "description": "Body of the discard-session confirmation dialog." },
+  "sessionDiscardConfirm": "Discard",
+  "@sessionDiscardConfirm": { "description": "Destructive button of the discard-session dialog: leaves the session and throws away what was logged." },
+  "sessionDiscardKeep": "Keep training",
+  "@sessionDiscardKeep": { "description": "Safe button of the discard-session dialog: closes the dialog and returns to the session." },
 
   "exerciseGuideHeader": "EXERCISE GUIDE",
   "@exerciseGuideHeader": { "description": "Header of the full drill guide screen." },
@@ -1149,15 +1185,6 @@
   "@processingStepLocating": { "description": "Second checklist step on the processing screen." },
   "processingStepEstimating": "Estimating your vertical",
   "@processingStepEstimating": { "description": "Third checklist step on the processing screen." },
-  "processingFallbackMotion": "Body tracking couldn't run on this clip — trying frame motion instead.",
-  "@processingFallbackMotion": { "description": "Note on the processing screen when body tracking could not run at all and the weaker frame-motion detector takes over." },
-  "processingFallbackDeclined": "Body tracking couldn't measure this clip ({reason}).",
-  "@processingFallbackDeclined": {
-    "description": "Note on the processing screen when body tracking ran but declined to answer. {reason} is the detector's own verdict, which comes from untranslated core code.",
-    "placeholders": {
-      "reason": { "type": "String" }
-    }
-  },
 
   "unmeasuredTitle": "NO MEASUREMENT",
   "@unmeasuredTitle": { "description": "Heading of the screen shown when the detector declined to measure the clip." },
@@ -1203,6 +1230,12 @@
   "@unmeasuredTooShortHeadline": { "description": "Verdict shown when the clip yielded too few frames to analyse." },
   "unmeasuredTooShortFix1": "Include a moment before the jump and after the landing.",
   "@unmeasuredTooShortFix1": { "description": "Fix suggested when the clip was too short." },
+  "unmeasuredUnreadableHeadline": "We couldn't read this video.",
+  "@unmeasuredUnreadableHeadline": { "description": "Verdict on the no-measurement screen when no frame of the clip could be decoded or analysed at all — a problem with the file, not with the jump." },
+  "unmeasuredUnreadableFix1": "Try again — if it keeps happening, record a new clip with the camera.",
+  "@unmeasuredUnreadableFix1": { "description": "First fix suggested when the clip could not be read at all." },
+  "unmeasuredUnreadableFix2": "Videos saved from other apps sometimes can't be opened; one filmed on this phone will work.",
+  "@unmeasuredUnreadableFix2": { "description": "Second fix suggested when the clip could not be read at all." },
   "unmeasuredGenericHeadline": "We couldn't measure this clip.",
   "@unmeasuredGenericHeadline": { "description": "Verdict shown when the detector reported no specific reason." },
   "unmeasuredGenericFix1": "Trim tightly around a single jump and try again.",

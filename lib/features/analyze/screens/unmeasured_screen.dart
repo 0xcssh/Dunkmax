@@ -98,6 +98,14 @@ class UnmeasuredScreen extends StatelessWidget {
             l10n.unmeasuredImplausibleFix2,
           ],
         );
+      case PoseDetectionRejection.unreadable:
+        return (
+          l10n.unmeasuredUnreadableHeadline,
+          [
+            l10n.unmeasuredUnreadableFix1,
+            l10n.unmeasuredUnreadableFix2,
+          ],
+        );
       case PoseDetectionRejection.tooFewSamples:
         return (
           l10n.unmeasuredTooShortHeadline,
@@ -209,7 +217,6 @@ class UnmeasuredScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 DetectionDetailsCard(
                   analysis: analysis,
-                  method: JumpDetectionMethod.pose,
                   attemptType: attemptType,
                 ),
               ],

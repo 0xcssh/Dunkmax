@@ -10,11 +10,9 @@ import '../../shared/widgets/primary_button.dart';
 
 /// Narrow the clip down to the single jump before it is analysed.
 ///
-/// This is not a cosmetic step. Both frame samplers spend a *fixed* budget of
-/// frames across whatever range they are given, so trimming to one jump buys
-/// temporal resolution exactly where the measurement needs it — inside the
-/// flight — and removes the double-jump case that the pose detector otherwise
-/// (correctly) refuses to answer. Nothing is re-encoded: the chosen
+/// The selection says *which* jump to analyse: the analysis looks inside it
+/// first and only reaches past it when the trim itself cannot be measured
+/// (`core/jump_analysis_pipeline.dart`). Nothing is re-encoded: the chosen
 /// [TrimRange] is passed forward as a range, and the original file is still
 /// what gets saved to the jump log.
 class TrimScreen extends StatefulWidget {

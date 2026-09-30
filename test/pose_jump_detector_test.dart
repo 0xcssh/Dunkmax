@@ -634,8 +634,15 @@ void main() {
       // 348 ms and 380 ms samples and come back down between 759 ms and
       // 791 ms. Those are the two instants a clip-wide baseline could not
       // find at the same time.
+      //
+      // The landing bracket is exactly that pair of samples. It used to be
+      // asserted as 800 ± 30, which was the old step-shaped floor's answer
+      // rather than the data's: the foot is falling at ~1.25 px/ms through
+      // 759 ms and would have reached the landing floor (976 px) by 784 ms
+      // had nothing stopped it, yet it is only at 962 px at 791 ms — so
+      // contact came before 784, not after 791.
       expect(d.crossingTakeoff!.inMilliseconds, closeTo(370, 30));
-      expect(d.crossingLanding!.inMilliseconds, closeTo(800, 30));
+      expect(d.crossingLanding!.inMilliseconds, inInclusiveRange(759, 791));
     });
 
     test('the clip-wide baseline is what calls the first frame airborne', () {

@@ -2,101 +2,68 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/jump_auto_detector.dart';
+import '../../../core/jump_analysis_pipeline.dart';
 import '../../../core/jump_form_scores.dart';
 import '../../../core/models/jump_measurement.dart';
 import '../../../core/pose_jump_detector.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
-import '../motion_extraction.dart';
 import '../pose_extraction.dart';
 
-/// Which of the three ways of finding takeoff/landing produced the number the
-/// athlete is being shown. Surfaced on the result screen so the reading is
-/// never presented as more (or less) authoritative than it is.
-enum JumpDetectionMethod {
-  pose('Body tracking'),
-  motion('Frame motion');
-
-  final String label;
-  const JumpDetectionMethod(this.label);
-}
-
-/// Everything the processing pass produced: the pose pass always, the
-/// motion-energy pass only when the pose pass declined to answer.
+/// Everything the processing pass produced.
 class JumpAnalysis {
+  /// What body tracking saw and decided — the measurement when there is one,
+  /// the reason when there is not.
   final PoseJumpDiagnostics pose;
-  final JumpDetectionDiagnostics motion;
 
   /// The four form scores, from the same landmark series that timed the jump.
-  /// Null when the pose pass produced no airborne window — there is then no
-  /// jump to score, and the result screen says so rather than inventing one.
+  /// Null when no airborne window was found — there is then no jump to score,
+  /// and the result screen says so rather than inventing one.
   final JumpFormScores? scores;
 
-  const JumpAnalysis({
-    required this.pose,
-    required this.motion,
-    this.scores,
-  });
+  /// What went wrong when the clip could not be read at all, verbatim, for
+  /// the developer-facing details card. Null on a clip that was analysed,
+  /// whether or not it could be measured.
+  final String? error;
 
-  static const empty = JumpAnalysis(
-    pose: PoseJumpDiagnostics.empty,
-    motion: JumpDetectionDiagnostics.empty,
-  );
+  const JumpAnalysis({required this.pose, this.scores, this.error});
 
-  /// Pose first, motion energy second, null when neither could answer (the
-  /// caller then shows why, rather than asking the athlete to mark it).
-  JumpMeasurement? get measurement => pose.result ?? motion.result;
+  static const empty = JumpAnalysis(pose: PoseJumpDiagnostics.empty);
 
-  JumpDetectionMethod? get method {
-    if (pose.result != null) return JumpDetectionMethod.pose;
-    if (motion.result != null) return JumpDetectionMethod.motion;
-    return null;
-  }
+  /// Null when the clip could not be measured (the caller then shows why,
+  /// rather than asking the athlete to mark it).
+  JumpMeasurement? get measurement => pose.result;
 
-  bool get hasAnyData => pose.sampleCount > 0 || motion.sampleCount > 0;
+  bool get hasAnyData => pose.sampleCount > 0 || error != null;
 }
 
 /// Finds the jump's takeoff/landing in the recorded clip, then hands the whole
 /// [JumpAnalysis] to [onDetected] so the result screen can say exactly what
 /// was measured and how.
 ///
-/// The pipeline is pose first, motion energy second:
+/// There is one method: body tracking. `core/jump_analysis_pipeline.dart`
+/// decides which frames to look at, `pose_extraction.dart` turns them into
+/// landmarks, `core/pose_jump_detector.dart` times the flight. A whole-frame
+/// motion-energy detector used to sit behind it as a fallback; it was
+/// *measured* to be blind to an athlete who fills a small part of the frame
+/// (see CLAUDE.md) and reported 8" for a 28" jump, so it is gone rather than
+/// kept as a second, worse opinion. When tracking cannot measure the clip
+/// there is no number: the caller shows what the detector declined on and how
+/// to fix the clip.
 ///
-/// 1. **Pose tracking** (`pose_extraction.dart` → `core/pose_jump_detector.dart`)
-///    follows the athlete's feet and times the crossings of a ground baseline.
-///    This is the primary method because whole-frame motion energy was
-///    *measured* to fail on a real clip: it is a ratio of moving area to total
-///    area, so it is scale-invariant, and an athlete occupying a small part of
-///    the frame registered 0.013 against UI transitions at 0.30. Sampling at
-///    96 px instead of 32 px moved that 0.012 → 0.012. See CLAUDE.md.
-/// 2. **Motion energy** (`core/jump_auto_detector.dart`) runs only when the
-///    pose pass could not run at all — no frames decoded, the model
-///    unavailable. It is *not* used when pose ran and declined: that decline
-///    is a considered refusal by the better method, and overriding it with
-///    the weaker one is how a jump measured at 28-29" got reported as 8".
-/// 3. Otherwise there is no number. The caller shows what the detector
-///    declined on and how to fix the clip. Asking the athlete to tap the
-///    takeoff and landing frames themselves used to be the fallback; those
-///    two frames are the dominant error source in this method even for
-///    trained users at 240 fps, so a wrong measurement dressed as the
-///    athlete's own choice is worse than none.
-///
-/// The checklist below tracks the real stages of that pass as they complete —
-/// it is not a decorative animation, and when the fallback engages it says so
-/// rather than quietly pretending the first method worked.
+/// The checklist and the bar track the real work — frames decoded against the
+/// plan's frame budget — not a decorative animation.
 class ProcessingScreen extends StatefulWidget {
   final File video;
   final void Function(JumpAnalysis analysis) onDetected;
 
-  /// The slice of the clip the athlete trimmed to. Both samplers are held to
-  /// it, which is the whole point of the trim step: their frame budget is
-  /// fixed, so a narrower range puts more samples inside the flight — and it
-  /// removes the multi-jump case before the detectors have to refuse it.
-  /// These are on the original clip's timeline, and so are the takeoff and
-  /// landing that come back.
+  /// The slice of the clip the athlete trimmed to, on the original clip's
+  /// timeline — and so are the takeoff and landing that come back. The
+  /// pipeline looks here first and only reaches past it, up to
+  /// [clipDuration], when the trim itself cannot be measured.
   final Duration rangeStart;
   final Duration rangeEnd;
+  final Duration clipDuration;
 
   const ProcessingScreen({
     super.key,
@@ -104,6 +71,7 @@ class ProcessingScreen extends StatefulWidget {
     required this.onDetected,
     required this.rangeStart,
     required this.rangeEnd,
+    required this.clipDuration,
   });
 
   @override
@@ -115,10 +83,10 @@ enum _Phase { tracking, locating, estimating }
 class _ProcessingScreenState extends State<ProcessingScreen> {
   _Phase _phase = _Phase.tracking;
 
-  /// Set only when the pose pass declined and the motion-energy fallback is
-  /// actually running, so the athlete is never told something untrue about
-  /// what the app is doing.
-  String? _fallbackNote;
+  /// Frames decoded so far against the plan's budget for this range.
+  int _framesDone = 0;
+  late final int _frameBudget =
+      JumpSamplingPlan.frameBudget(widget.rangeStart, widget.rangeEnd);
 
   @override
   void initState() {
@@ -126,59 +94,61 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
     _run();
   }
 
+  /// Share of the work done. Held just short of full until the result is in:
+  /// a second, wider attempt (see [JumpAnalysisPipeline.run]) can spend more
+  /// frames than the first one's budget.
+  double get _progress {
+    if (_phase == _Phase.estimating) return 1;
+    if (_frameBudget <= 0) return 0;
+    final fraction = _framesDone / _frameBudget;
+    return fraction > 0.95 ? 0.95 : fraction;
+  }
+
   Future<void> _run() async {
-    var analysis = JumpAnalysis.empty;
+    final extractor = PoseFrameExtractor(
+      widget.video,
+      onFrame: () {
+        if (mounted) setState(() => _framesDone++);
+      },
+    );
+    JumpAnalysis analysis;
     try {
-      if (mounted) setState(() => _phase = _Phase.tracking);
-      final poseSamples = await extractPoseSamples(
-        widget.video,
+      final pose = await JumpAnalysisPipeline.run(
         rangeStart: widget.rangeStart,
         rangeEnd: widget.rangeEnd,
-      );
-
-      if (mounted) setState(() => _phase = _Phase.locating);
-      final pose = PoseJumpDetector.detectWithDiagnostics(poseSamples);
-
-      // A pose pass that *declined* is a considered refusal, not a failure:
-      // it looked at the athlete and found the clip unmeasurable (no clear
-      // window, two comparable jumps, lost mid-flight). Handing that to
-      // frame motion overrides a good judgement with a bad one — on the clip
-      // that motivated this, pose correctly declined and frame motion
-      // confidently answered 8" for a jump measured at 28-29". So motion
-      // energy is now only a safety net for a pose pass that could not run
-      // at all (no frames decoded, the plugin unavailable); when pose ran and
-      // said no, the athlete marks the jump by hand instead.
-      var motion = JumpDetectionDiagnostics.empty;
-      if (pose.result == null && poseSamples.isEmpty) {
-        if (mounted) {
-          setState(() => _fallbackNote =
-              AppLocalizations.of(context).processingFallbackMotion);
-        }
-        final motionSamples = await extractMotionSamples(
-          widget.video,
-          rangeStart: widget.rangeStart,
-          rangeEnd: widget.rangeEnd,
-        );
-        motion = JumpAutoDetector.detectWithDiagnostics(motionSamples);
-      } else if (pose.result == null && mounted) {
-        // The verdict itself comes from the untranslated detector.
-        setState(() => _fallbackNote = AppLocalizations.of(context)
-            .processingFallbackDeclined(pose.rejection.label));
-      }
-
-      // The form scores read the *same* landmark series, so they cost no
-      // extra decoding or inference — only arithmetic. They are computed only
-      // when body tracking actually located the jump: scoring a window the
-      // motion-energy fallback found would mean scoring frames nothing was
-      // tracked in.
-      analysis = JumpAnalysis(
-        pose: pose,
-        motion: motion,
-        scores: JumpFormScoring.fromDiagnostics(pose),
+        clipDuration: widget.clipDuration,
+        sample: extractor.sample,
+        onStage: (stage) {
+          if (!mounted) return;
+          setState(() {
+            _phase = stage == JumpAnalysisStage.scanning
+                ? _Phase.tracking
+                : _Phase.locating;
+          });
+        },
       );
       if (mounted) setState(() => _phase = _Phase.estimating);
-    } catch (_) {
-      analysis = JumpAnalysis.empty;
+
+      // The form scores read the *same* landmark series, so they cost no
+      // extra decoding or inference — only arithmetic.
+      final lastError = extractor.lastError;
+      analysis = JumpAnalysis(
+        pose: pose,
+        scores: JumpFormScoring.fromDiagnostics(pose),
+        error: pose.rejection == PoseDetectionRejection.unreadable
+            ? 'decoded 0 of ${extractor.requested} frames'
+                '${lastError == null ? '' : ' · $lastError'}'
+            : null,
+      );
+    } catch (error) {
+      // The plugin failed outright. That is not a clip that is too short or
+      // an athlete who was out of shot, and it must not be reported as one.
+      analysis = JumpAnalysis(
+        pose: PoseJumpDiagnostics.unreadable,
+        error: '$error',
+      );
+    } finally {
+      await extractor.close();
     }
     if (!mounted) return;
     widget.onDetected(analysis);
@@ -245,24 +215,15 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                 ],
               ),
               const SizedBox(height: 28),
-              TweenAnimationBuilder<double>(
-                tween: Tween<double>(
-                  begin: 0,
-                  end: (_phase.index + 1) / _Phase.values.length,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: _progress,
+                  minHeight: 6,
+                  backgroundColor: DunkColors.surfaceRaised,
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(DunkColors.primary),
                 ),
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-                builder: (context, value, _) {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: value,
-                      minHeight: 6,
-                      backgroundColor: DunkColors.surfaceRaised,
-                      valueColor: const AlwaysStoppedAnimation<Color>(DunkColors.primary),
-                    ),
-                  );
-                },
               ),
               const SizedBox(height: 24),
               Container(
@@ -295,27 +256,6 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                   ],
                 ),
               ),
-              if (_fallbackNote != null) ...[
-                const SizedBox(height: 14),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.info_outline,
-                        color: DunkColors.textTertiary, size: 14),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _fallbackNote!,
-                        style: const TextStyle(
-                          color: DunkColors.textTertiary,
-                          fontSize: 12,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),

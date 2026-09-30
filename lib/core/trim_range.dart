@@ -1,11 +1,10 @@
 /// The slice of a clip the athlete chose to analyse.
 ///
 /// Trimming here is a *range selection*, never an export: no new video file is
-/// ever written. The range is handed to the frame samplers so they spend their
-/// fixed frame budget inside the one jump that matters — a shorter range means
-/// more samples inside the flight, and flight-time accuracy rides directly on
-/// that. It also removes the multi-jump case (which the pose detector rightly
-/// refuses to answer) before it can arise.
+/// ever written. The range tells the analysis *which* jump to look at — it
+/// looks there first, and the multi-jump case is settled before it can arise.
+/// It does not buy accuracy: the measurement is always taken from the same
+/// dense series around the jump (`core/jump_analysis_pipeline.dart`).
 ///
 /// Pure Dart, no Flutter imports — the clamping rules are the part worth
 /// testing, so they live here rather than in the drag handler.

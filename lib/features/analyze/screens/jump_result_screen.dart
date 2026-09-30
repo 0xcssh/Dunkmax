@@ -27,8 +27,6 @@ class JumpResultScreen extends StatelessWidget {
   final JumpTrend? trend;
   final JumpAnalysis analysis;
 
-  /// Which tier of the detection cascade produced [result].
-  final JumpDetectionMethod method;
   final VideoAttemptType attemptType;
   final VoidCallback onAnalyzeAnother;
 
@@ -41,7 +39,6 @@ class JumpResultScreen extends StatelessWidget {
     required this.result,
     required this.trend,
     required this.analysis,
-    required this.method,
     required this.attemptType,
     required this.onAnalyzeAnother,
     this.ctaLabel,
@@ -81,7 +78,6 @@ class JumpResultScreen extends StatelessWidget {
             const SizedBox(height: 16),
             DetectionDetailsCard(
               analysis: analysis,
-              method: method,
               attemptType: attemptType,
             ),
           ],
@@ -410,8 +406,7 @@ class _VertCard extends StatelessWidget {
 /// Every tile is either a measured number with the observation behind it, or
 /// an explicit "not measured here" with the reason — there is no filler. The
 /// whole card falls back to the unavailable state when body tracking never
-/// located the jump (the number above then came from the athlete's own marks
-/// or the motion fallback, and there are no landmarks to score).
+/// produced a landmark series to score.
 ///
 /// Deliberately absent: any "top N % for your height" comparison. That needs
 /// a real user base to compare against, and the app does not have one.

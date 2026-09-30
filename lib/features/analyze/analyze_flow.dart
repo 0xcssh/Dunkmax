@@ -27,18 +27,16 @@ enum _Step { source, trim, processing, unmeasured, result }
 /// find takeoff/landing → the result dashboard. The headline number (EST.
 /// VERT) comes from the pure, tested flight-time core.
 ///
-/// The trim step is load-bearing, not decoration: both frame samplers spend a
-/// fixed budget across whatever range they are handed, so the [TrimRange]
-/// chosen there is passed all the way into [ProcessingScreen] and buys
-/// temporal resolution inside the flight. Nothing is re-encoded — the original
+/// The trim step says *which* jump: the [TrimRange] chosen there is where the
+/// analysis looks first (it only reaches past it when the trim itself cannot
+/// be measured). It no longer buys accuracy — the measurement is always taken
+/// from the same dense series around the jump, however long the range
+/// (`core/jump_analysis_pipeline.dart`). Nothing is re-encoded — the original
 /// file is still what is saved to the jump log.
 ///
-/// Finding the airborne window is a three-tier cascade (see
-/// [ProcessingScreen]): pose tracking first, whole-frame motion energy as a
-/// fallback. When neither can answer there is no number: the athlete is
-/// told what the detector saw and how to fix the clip. Every tier reports
-/// which one it was, so the result screen never presents a fallback reading as
-/// if it came from body tracking.
+/// The airborne window is found one way only — body tracking, see
+/// [ProcessingScreen]. When it cannot answer there is no number: the athlete
+/// is told what the detector saw and how to fix the clip.
 ///
 /// The four Bounce/Power/Control/Form scores are computed in the same pass,
 /// from the same landmark series (`core/jump_form_scores.dart`), and travel to
@@ -76,7 +74,6 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   JumpResult? _result;
   JumpTrend? _trend;
   JumpAnalysis _analysis = JumpAnalysis.empty;
-  JumpDetectionMethod _method = JumpDetectionMethod.pose;
 
   void _onVideoSelected(File video, VideoAttemptType attemptType) {
     setState(() {
@@ -106,13 +103,10 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
       setState(() => _step = _Step.unmeasured);
       return;
     }
-    _finishWithMeasurement(measurement, analysis.method!);
+    _finishWithMeasurement(measurement);
   }
 
-  Future<void> _finishWithMeasurement(
-    JumpMeasurement measurement,
-    JumpDetectionMethod method,
-  ) async {
+  Future<void> _finishWithMeasurement(JumpMeasurement measurement) async {
     final assessment = VertAssessment(
       heightInches: widget.profile.heightInches,
       ageYears: widget.profile.ageYears,
@@ -167,7 +161,6 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     setState(() {
       _result = result;
       _trend = trend;
-      _method = method;
       _step = _Step.result;
     });
   }
@@ -179,7 +172,6 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
         _result = null;
         _trend = null;
         _analysis = JumpAnalysis.empty;
-        _method = JumpDetectionMethod.pose;
         _step = _Step.source;
       });
 
@@ -208,6 +200,7 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
           video: _video!,
           rangeStart: _trim!.start,
           rangeEnd: _trim!.end,
+          clipDuration: _trim!.clipDuration,
           onDetected: _onDetected,
         );
       case _Step.unmeasured:
@@ -223,7 +216,6 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
           result: _result!,
           trend: _trend,
           analysis: _analysis,
-          method: _method,
           attemptType: _attemptType,
           onAnalyzeAnother: widget.onFirstResult ?? _reset,
           ctaLabel: widget.onFirstResult != null
