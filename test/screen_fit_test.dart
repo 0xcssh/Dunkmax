@@ -123,9 +123,15 @@ bool _assertionsOn = false;
 /// Pro's metrics to make the wrap and overflow verdicts meaningful.
 Future<void> _loadRealFont() async {
   Directory? root;
+  // Checked in under test/fonts (Apache-2.0, see the LICENSE beside them), so
+  // the verdicts are the same on every machine: a CI runner without the SDK's
+  // material_fonts cache used to fall back to the box font, and three rows
+  // that fit on a phone "overflowed" there.
+  final bundled = Directory('test/fonts');
+  if (bundled.existsSync()) root = bundled;
   // flutter_tester lives at <sdk>/bin/cache/artifacts/engine/<platform>/.
   var dir = Directory(Platform.resolvedExecutable).parent;
-  for (var i = 0; i < 8; i++) {
+  for (var i = 0; root == null && i < 8; i++) {
     final candidate =
         Directory('${dir.path}/bin/cache/artifacts/material_fonts');
     if (candidate.existsSync()) {

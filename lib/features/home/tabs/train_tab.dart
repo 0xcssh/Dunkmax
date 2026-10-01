@@ -231,12 +231,17 @@ class _EnrolledCard extends StatelessWidget {
                 color: Colors.white,
               ),
               const Spacer(),
-              Text(
-                l10n.progressPercent(progress.percentComplete),
-                style: const TextStyle(
-                  color: DunkColors.primary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    l10n.progressPercent(progress.percentComplete),
+                    style: const TextStyle(
+                      color: DunkColors.primary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -367,14 +372,18 @@ class _WeekStrip extends StatelessWidget {
                     letterSpacing: 0.5,
                   ),
                 ),
-                Text(
-                  AppLocalizations.of(context).trainWeekSummary(
-                    week.trainingDays.length,
-                    week.restDays.length,
-                  ),
-                  style: const TextStyle(
-                    color: DunkColors.textSecondary,
-                    fontSize: 12,
+                Flexible(
+                  child: Text(
+                    AppLocalizations.of(context).trainWeekSummary(
+                      week.trainingDays.length,
+                      week.restDays.length,
+                    ),
+                    textAlign: TextAlign.end,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: DunkColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
@@ -593,14 +602,18 @@ class _TodaysExercises extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l10n.trainTodaysExercises,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+              Flexible(
+                child: Text(
+                  l10n.trainTodaysExercises,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(

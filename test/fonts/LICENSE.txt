@@ -1,0 +1,4 @@
+Roboto (roboto-*.ttf) — Copyright 2011 Google Inc.
+Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
+Copied unmodified from the Flutter SDK's material_fonts artifacts. Used only by
+test/screen_fit_test.dart so layout verdicts use real text metrics on every machine.
