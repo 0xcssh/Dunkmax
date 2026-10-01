@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/models/jump_log_entry.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../theme/app_theme.dart';
+import '../../../shared/unit_scope.dart';
 
 /// Hand-rolled line chart of vertical-jump readings over time — deliberately
 /// not backed by a charting package, to avoid extra native/build risk for
@@ -10,11 +11,16 @@ import '../../../../theme/app_theme.dart';
 class JumpTrendChart extends StatelessWidget {
   final List<JumpLogEntry> entries;
 
-  const JumpTrendChart({super.key, required this.entries});
+  /// Plot height, including the date-label row. The card that holds the
+  /// chart sets it from the room the screen has.
+  final double height;
+
+  const JumpTrendChart({super.key, required this.entries, this.height = 180});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     final sorted = [...entries]..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
     final plotted = sorted.length > 8
         ? sorted.sublist(sorted.length - 8)
@@ -22,7 +28,7 @@ class JumpTrendChart extends StatelessWidget {
 
     if (plotted.length < 2) {
       return SizedBox(
-        height: 160,
+        height: height,
         child: Center(
           child: Text(
             l10n.progressTrendEmpty,
@@ -34,7 +40,7 @@ class JumpTrendChart extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 180,
+      height: height,
       child: CustomPaint(
         // A CustomPainter has no BuildContext, so both label sets are
         // resolved here and handed down already translated.
@@ -43,7 +49,12 @@ class JumpTrendChart extends StatelessWidget {
           dateLabels: [
             for (final entry in plotted) l10n.jumpDateShort(entry.recordedAt),
           ],
-          inchesLabel: l10n.inches,
+          // Gridline values are stored inches; shown in the athlete's unit.
+          inchesLabel: (inches) =>
+              l10n.length(units.name, units.lengthValue(inches)),
+          // A three-digit centimetre label needs more room than a two-digit
+          // inch one.
+          leftMargin: units.isMetric ? 40 : 28,
         ),
         size: Size.infinite,
       ),
@@ -57,16 +68,19 @@ class _JumpTrendPainter extends CustomPainter {
   /// One label per entry, in the same order — already localised.
   final List<String> dateLabels;
 
-  /// Formats a gridline value in inches — already localised.
+  /// Formats a gridline value, given in stored inches — already localised
+  /// and already in the athlete's unit.
   final String Function(int) inchesLabel;
+
+  /// Room reserved for the gridline labels on the left.
+  final double _leftMargin;
 
   _JumpTrendPainter({
     required this.entries,
     required this.dateLabels,
     required this.inchesLabel,
-  });
-
-  static const double _leftMargin = 28;
+    required double leftMargin,
+  }) : _leftMargin = leftMargin;
   static const double _bottomMargin = 20;
 
   @override
@@ -214,6 +228,7 @@ class _JumpTrendPainter extends CustomPainter {
         return true;
       }
     }
+    if (_leftMargin != oldDelegate._leftMargin) return true;
     for (var i = 0; i < entries.length; i++) {
       if (entries[i].verticalInches != oldDelegate.entries[i].verticalInches ||
           entries[i].recordedAt != oldDelegate.entries[i].recordedAt) {

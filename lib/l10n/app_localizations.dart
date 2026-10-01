@@ -110,29 +110,29 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get commonClose;
 
-  /// A measurement in inches, e.g. the standing reach or dunk target values in the onboarding gap screen's summary rows. In locales that do not use the inch symbol, spell the unit out.
+  /// A length (a vertical, a standing reach, a dunk target) with its unit: the standing-reach and dunk-target values in the onboarding gap screen's summary rows, the big number on the Analyze result and Progress cards, the badge on a jump thumbnail, the trend chart's gridlines, the standing-reach value in Settings. {unit} is 'metric' (value is whole centimetres) or 'imperial' (value is whole inches); the value is already converted. In locales that do not use the inch symbol, spell the imperial unit out.
   ///
   /// In en, this message translates to:
-  /// **'{inches}\"'**
-  String inches(int inches);
+  /// **'{unit, select, metric{{value} cm} other{{value}\"}}'**
+  String length(String unit, int value);
 
-  /// An approximate measurement in inches, used for the big TODAY and DUNK numbers on the onboarding gap meter.
+  /// An approximate length, used for the big TODAY and DUNK numbers on the onboarding gap meter and the projected vertical on the jump-potential screen. {unit} is 'metric' (centimetres) or 'imperial' (inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'~{inches}\"'**
-  String inchesApprox(int inches);
+  /// **'{unit, select, metric{~{value} cm} other{~{value}\"}}'**
+  String lengthApprox(String unit, int value);
 
-  /// The inches still missing to dunk, shown as the middle EST. GAP number on the onboarding gap meter. The leading minus is part of the design.
+  /// The length still missing to dunk, shown as the middle EST. GAP number on the onboarding gap meter. The leading minus is part of the design. {unit} is 'metric' (centimetres) or 'imperial' (inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'-{inches}\"'**
-  String inchesGap(int inches);
+  /// **'{unit, select, metric{-{value} cm} other{-{value}\"}}'**
+  String lengthGap(String unit, int value);
 
-  /// The inches of vertical an athlete has beyond what a dunk needs, shown as the middle EST. MARGIN number on the onboarding gap meter in place of the gap, only when they are estimated to already clear the dunk. The leading plus is part of the design.
+  /// The vertical an athlete has beyond what a dunk needs, shown as the middle EST. MARGIN number on the onboarding gap meter in place of the gap, only when they are estimated to already clear the dunk. The leading plus is part of the design. {unit} is 'metric' (centimetres) or 'imperial' (inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'+{inches}\"'**
-  String inchesMargin(int inches);
+  /// **'{unit, select, metric{+{value} cm} other{+{value}\"}}'**
+  String lengthMargin(String unit, int value);
 
   /// Headline of the first panel of the opening intro carousel. The line break is deliberate — keep two short lines.
   ///
@@ -140,11 +140,11 @@ abstract class AppLocalizations {
   /// **'SEE YOUR REAL\nVERTICAL'**
   String get introPanel1Headline;
 
-  /// Supporting paragraph under the first intro carousel headline (jump analysis).
+  /// Supporting paragraph under the first intro carousel headline (jump analysis). {unit} is 'metric' (the app will show centimetres) or 'imperial' (inches).
   ///
   /// In en, this message translates to:
-  /// **'Film one jump. We time your flight frame by frame and turn it into inches — no tape measure, no guessing.'**
-  String get introPanel1Support;
+  /// **'{unit, select, metric{Film one jump. We time your flight frame by frame and turn it into centimetres — no tape measure, no guessing.} other{Film one jump. We time your flight frame by frame and turn it into inches — no tape measure, no guessing.}}'**
+  String introPanel1Support(String unit);
 
   /// Headline of the second panel of the intro carousel (training plan). Keep two short lines.
   ///
@@ -182,11 +182,23 @@ abstract class AppLocalizations {
   /// **'WHAT\'S YOUR\nDUNK GOAL?'**
   String get goalTitle;
 
-  /// Subtitle of onboarding quiz question 1 (dunk goal).
+  /// Subtitle of onboarding quiz question 1 (dunk goal). Goals are stored and shown back but never reach the program catalog, so this must not promise a goal-shaped plan.
   ///
   /// In en, this message translates to:
-  /// **'Select every goal that fires you up — we\'ll build the path.'**
+  /// **'Pick every goal that fires you up. They go on your profile — your plan itself comes from your level, your schedule and where you train.'**
   String get goalSubtitle;
+
+  /// Title of one goal card on onboarding quiz question 1, and of each goal listed in the gap screen's Goals row. Keyed on the DunkGoal enum name from core/models/dunk_goal.dart (whose English getters stay for tests).
+  ///
+  /// In en, this message translates to:
+  /// **'{goal, select, firstDunk{First Dunk Ever} dunkInGames{Dunk in Games} windmillsAnd360s{Windmills & 360s} alleyOopFinishing{Alley-Oop Finishing} maxVertical{Max Vertical} other{{goal}}}'**
+  String dunkGoalTitle(String goal);
+
+  /// Subtitle of one goal card on onboarding quiz question 1. Keyed on the DunkGoal enum name.
+  ///
+  /// In en, this message translates to:
+  /// **'{goal, select, firstDunk{Unlock your first slam} dunkInGames{Finish when it counts} windmillsAnd360s{Style and flair} alleyOopFinishing{Catch and finish} maxVertical{Add inches to your leap} other{{goal}}}'**
+  String dunkGoalSubtitle(String goal);
 
   /// Title of onboarding quiz question 2 (jump-training experience). Three short lines.
   ///
@@ -200,17 +212,29 @@ abstract class AppLocalizations {
   /// **'No ego here. Be honest so we can push you right.'**
   String get experienceSubtitle;
 
+  /// Title of one card on onboarding quiz question 2. Keyed on the ExperienceLevel enum name from core/models/experience_level.dart (whose English getters stay for tests).
+  ///
+  /// In en, this message translates to:
+  /// **'{level, select, beginner{Beginner} intermediate{Intermediate} advanced{Advanced} other{{level}}}'**
+  String experienceLevelTitle(String level);
+
+  /// Subtitle of one card on onboarding quiz question 2. Keyed on the ExperienceLevel enum name.
+  ///
+  /// In en, this message translates to:
+  /// **'{level, select, beginner{I\'ve got hops but no plan} intermediate{I\'ve trained, ready to level up} advanced{I\'m chasing inches} other{{level}}}'**
+  String experienceLevelSubtitle(String level);
+
   /// Title of onboarding quiz question 3 (basketball position on court).
   ///
   /// In en, this message translates to:
   /// **'WHAT POSITION DO\nYOU PLAY?'**
   String get positionTitle;
 
-  /// Subtitle of onboarding quiz question 3 (position).
+  /// Name of one basketball position card on onboarding quiz question 3. Keyed on the CourtPosition enum name from core/models/court_position.dart.
   ///
   /// In en, this message translates to:
-  /// **'We\'ll tailor exercises to your position.'**
-  String get positionSubtitle;
+  /// **'{position, select, pointGuard{Point Guard} shootingGuard{Shooting Guard} smallForward{Small Forward} powerForward{Power Forward} center{Center} other{{position}}}'**
+  String courtPositionLabel(String position);
 
   /// Title of onboarding quiz question 4 (training days per week). Three short lines.
   ///
@@ -248,17 +272,41 @@ abstract class AppLocalizations {
   /// **'We\'ll recommend programs that fit your setup.'**
   String get locationSubtitle;
 
+  /// Title of one card on onboarding quiz question 5, and (upper-cased) the location badge on the plan-reveal program card. Keyed on the TrainingLocation enum name from core/models/training_location.dart.
+  ///
+  /// In en, this message translates to:
+  /// **'{location, select, home{Home Only} gym{Gym Only} both{Both} other{{location}}}'**
+  String trainingLocationTitle(String location);
+
+  /// Subtitle of one card on onboarding quiz question 5. Keyed on the TrainingLocation enum name.
+  ///
+  /// In en, this message translates to:
+  /// **'{location, select, home{Bodyweight & minimal equipment} gym{Full access to weights & machines} both{Train anywhere, anytime} other{{location}}}'**
+  String trainingLocationSubtitle(String location);
+
   /// Title of onboarding quiz question 6 (current jumping ability, from below-rim to dunking consistently). 'Hops' is basketball slang for jumping ability.
   ///
   /// In en, this message translates to:
   /// **'WHERE ARE YOUR\nHOPS TODAY?'**
   String get hopsTitle;
 
-  /// Subtitle of onboarding quiz question 6 (current hops).
+  /// Subtitle of onboarding quiz question 6 (current hops). It must not promise more than the answer does: hops only sets the estimated vertical and the gap, not the programme.
   ///
   /// In en, this message translates to:
-  /// **'Be honest — this calibrates your whole plan.'**
+  /// **'Be honest — this sets your starting estimate.'**
   String get hopsSubtitle;
+
+  /// Title of one rung on onboarding quiz question 6 (current hops), and the value of the gap screen's Hops row. Keyed on the HopsLevel enum name from core/models/hops_level.dart (whose English getters stay for tests).
+  ///
+  /// In en, this message translates to:
+  /// **'{level, select, dunkConsistently{Dunk consistently} dunkOnGoodDay{Dunk on a good day} grabRim{Grab the rim} touchRim{Touch the rim} belowRim{Below the rim} other{{level}}}'**
+  String hopsLevelTitle(String level);
+
+  /// Subtitle of one rung on onboarding quiz question 6. Keyed on the HopsLevel enum name.
+  ///
+  /// In en, this message translates to:
+  /// **'{level, select, dunkConsistently{Chasing bigger finishes} dunkOnGoodDay{It\'s in you — not consistent yet} grabRim{Palming iron on a good day} touchRim{Fingertips on iron} belowRim{Building from the ground up} other{{level}}}'**
+  String hopsLevelSubtitle(String level);
 
   /// Title of onboarding quiz question 7 (height, picked on two wheels).
   ///
@@ -266,29 +314,35 @@ abstract class AppLocalizations {
   /// **'YOUR HEIGHT'**
   String get heightTitle;
 
-  /// Subtitle of onboarding quiz question 7 (height). 'Vert' is short for vertical jump.
+  /// Subtitle of onboarding quiz question 7 (height). Height only feeds the estimated standing reach (height x 1.33) and hence the dunk target; it does not touch the jump analysis or the program, so do not claim either. 'Vert' is short for vertical jump.
   ///
   /// In en, this message translates to:
-  /// **'We use this to personalize your jump analysis and vert estimates.'**
+  /// **'Sets your estimated standing reach — and from it, the vert you need to dunk.'**
   String get heightSubtitle;
 
-  /// Small caps label under the big height readout on onboarding quiz question 7.
+  /// Small caps label under the big height readout on onboarding quiz question 7. {unit} is 'metric' (one centimetre wheel) or 'imperial' (feet and inches wheels).
   ///
   /// In en, this message translates to:
-  /// **'FEET & INCHES'**
-  String get heightUnitLabel;
+  /// **'{unit, select, metric{CENTIMETRES} other{FEET & INCHES}}'**
+  String heightUnitLabel(String unit);
 
-  /// The big height readout on onboarding quiz question 7, feet and inches.
+  /// The big height readout on onboarding quiz question 7. {unit} is 'metric' (only {cm} is set) or 'imperial' (only {feet} and {inches} are set; the unused numbers are zero).
   ///
   /// In en, this message translates to:
-  /// **'{feet}\' {inches}\"'**
-  String heightValue(int feet, int inches);
+  /// **'{unit, select, metric{{cm} cm} other{{feet}\' {inches}\"}}'**
+  String heightValue(String unit, int feet, int inches, int cm);
 
-  /// The athlete's height written inline in running text, e.g. in the onboarding gap screen's opening sentence and its summary list. Tighter than heightValue, which sits alone on a picker.
+  /// The athlete's height written inline in running text, e.g. in the onboarding gap screen's opening sentence and its summary list, and on a global leaderboard row. Tighter than heightValue, which sits alone on a picker. {unit} is 'metric' (only {cm} is set) or 'imperial' (only {feet} and {inches} are set; the unused numbers are zero).
   ///
   /// In en, this message translates to:
-  /// **'{feet}\'{inches}\"'**
-  String heightValueCompact(int feet, int inches);
+  /// **'{unit, select, metric{{cm} cm} other{{feet}\'{inches}\"}}'**
+  String heightValueCompact(String unit, int feet, int inches, int cm);
+
+  /// One entry of the centimetre wheel on onboarding quiz question 7 (metric regions only).
+  ///
+  /// In en, this message translates to:
+  /// **'{cm} cm'**
+  String heightCmOption(int cm);
 
   /// One entry of the feet wheel on onboarding quiz question 7.
   ///
@@ -308,17 +362,17 @@ abstract class AppLocalizations {
   /// **'YOUR WEIGHT'**
   String get weightTitle;
 
-  /// Subtitle shared by onboarding quiz questions 8 (weight) and 9 (age): the answer is stored but does not change the program.
+  /// Subtitle shared by onboarding quiz questions 3 (position), 8 (weight) and 9 (age): the answer is stored but does not change the program.
   ///
   /// In en, this message translates to:
   /// **'Saved to your athlete profile.'**
   String get savedToAthleteProfile;
 
-  /// Small caps unit under the big weight readout on onboarding quiz question 8 (pounds).
+  /// Small caps unit under the big weight readout on onboarding quiz question 8. {unit} is 'metric' (kilograms) or 'imperial' (pounds).
   ///
   /// In en, this message translates to:
-  /// **'LBS'**
-  String get weightUnitLabel;
+  /// **'{unit, select, metric{KG} other{LBS}}'**
+  String weightUnitLabel(String unit);
 
   /// Title of onboarding quiz question 9 (age wheel).
   ///
@@ -350,11 +404,23 @@ abstract class AppLocalizations {
   /// **'It sets how much room over the rim your finish needs.'**
   String get dunkHandSubtitle;
 
-  /// Footnote under the hand cards on onboarding quiz question 10, explaining why a two-hand finish raises the required vertical.
+  /// Footnote under the hand cards on onboarding quiz question 10, explaining why a two-hand finish raises the required vertical. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'A one-hand dunk needs the ball and one hand over the ring. Both forearms over it is about {inches}\" more, so a two-hand finish raises your target.'**
-  String dunkHandClearanceNote(int inches);
+  /// **'{unit, select, metric{A one-hand dunk needs the ball and one hand over the ring. Both forearms over it is about {value} cm more, so a two-hand finish raises your target.} other{A one-hand dunk needs the ball and one hand over the ring. Both forearms over it is about {value}\" more, so a two-hand finish raises your target.}}'**
+  String dunkHandClearanceNote(String unit, int value);
+
+  /// Title of one hand card on onboarding quiz question 10. Keyed on the DunkHand enum name from core/models/dunk_hand.dart.
+  ///
+  /// In en, this message translates to:
+  /// **'{hand, select, left{Left Hand} right{Right Hand} both{Both Hands} other{{hand}}}'**
+  String dunkHandOptionTitle(String hand);
+
+  /// Caption of one hand card on onboarding quiz question 10. The left/right cards are square with a fixed height, so keep those two to one short line. Keyed on the DunkHand enum name.
+  ///
+  /// In en, this message translates to:
+  /// **'{hand, select, left{One-hand finish} right{One-hand finish} both{Needs more room over the rim} other{{hand}}}'**
+  String dunkHandOptionSubtitle(String hand);
 
   /// Title of onboarding quiz question 11 (commitment level).
   ///
@@ -362,11 +428,23 @@ abstract class AppLocalizations {
   /// **'HOW COMMITTED ARE\nYOU TO YOUR GOAL?'**
   String get commitmentTitle;
 
-  /// Subtitle of onboarding quiz question 11 (commitment).
+  /// Subtitle of onboarding quiz question 11 (commitment). The answer is stored and nothing reads it, so this must neither promise an adapted plan nor claim a result about committed athletes (there is no data behind such a claim).
   ///
   /// In en, this message translates to:
-  /// **'Athletes who commit before they start are the ones who make the leap.'**
+  /// **'This one doesn\'t change your plan. It\'s a promise to yourself — saved to your profile.'**
   String get commitmentSubtitle;
+
+  /// Title of one card on onboarding quiz question 11. Keyed on the CommitmentLevel enum name from core/models/commitment_level.dart.
+  ///
+  /// In en, this message translates to:
+  /// **'{level, select, extremely{Extremely Committed} very{Very Committed} needHelp{I Need Help Staying Consistent} other{{level}}}'**
+  String commitmentLevelTitle(String level);
+
+  /// Subtitle of one card on onboarding quiz question 11. Keyed on the CommitmentLevel enum name.
+  ///
+  /// In en, this message translates to:
+  /// **'{level, select, extremely{I\'m ready to do what it takes} very{I want a clear plan and accountability} needHelp{Keep me locked in week after week} other{{level}}}'**
+  String commitmentLevelSubtitle(String level);
 
   /// Eyebrow label above the gap headline, shown when the athlete has entered a measured standing reach.
   ///
@@ -392,29 +470,29 @@ abstract class AppLocalizations {
   /// **'YOU\'VE GOT THE VERTICAL.'**
   String get gapTitleCanDunk;
 
-  /// Paragraph under the gap headline. {height} is already formatted like 6'1"; {current} and {required} are verticals in inches.
+  /// Paragraph under the gap headline. {height} is already formatted like 6'1" or 185 cm; {current} and {target} are verticals, already converted to the athlete's unit: {unit} is 'metric' (centimetres) or 'imperial' (inches).
   ///
   /// In en, this message translates to:
-  /// **'You\'re {height}. About {current}\" today. Dunking usually takes ~{target}\".'**
-  String gapIntro(String height, int current, int target);
+  /// **'{unit, select, metric{You\'re {height}. About {current} cm today. Dunking usually takes ~{target} cm.} other{You\'re {height}. About {current}\" today. Dunking usually takes ~{target}\".}}'**
+  String gapIntro(String unit, String height, int current, int target);
 
-  /// Paragraph under the gap screen's headline when the athlete's estimated vertical already meets what a dunk needs. {height} is already formatted like 6'1"; {current} and {target} are verticals in inches.
+  /// Paragraph under the gap screen's headline when the athlete's estimated vertical already meets what a dunk needs. {height} is already formatted like 6'1" or 185 cm; {current} and {target} are verticals, already converted to the athlete's unit: {unit} is 'metric' (centimetres) or 'imperial' (inches).
   ///
   /// In en, this message translates to:
-  /// **'You\'re {height}. About {current}\" today, and dunking usually takes ~{target}\". From here the plan is about adding margin and consistency.'**
-  String gapIntroCanDunk(String height, int current, int target);
+  /// **'{unit, select, metric{You\'re {height}. About {current} cm today, and dunking usually takes ~{target} cm. From here the plan is about adding margin and consistency.} other{You\'re {height}. About {current}\" today, and dunking usually takes ~{target}\". From here the plan is about adding margin and consistency.}}'**
+  String gapIntroCanDunk(String unit, String height, int current, int target);
 
-  /// Note on the gap screen, shown only when the athlete answered 'both hands' on quiz question 10.
+  /// Note on the gap screen, shown only when the athlete answered 'both hands' on quiz question 10. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'You picked a two-hand finish, which asks for both forearms over the ring — about {inches}\" more than a one-hand dunk. Your target reflects that.'**
-  String gapTwoHandNote(int inches);
+  /// **'{unit, select, metric{You picked a two-hand finish, which asks for both forearms over the ring — about {value} cm more than a one-hand dunk. Your target reflects that.} other{You picked a two-hand finish, which asks for both forearms over the ring — about {value}\" more than a one-hand dunk. Your target reflects that.}}'**
+  String gapTwoHandNote(String unit, int value);
 
-  /// Caveat on the gap screen, shown only while the standing reach is estimated rather than measured.
+  /// Caveat on the gap screen, shown only while the standing reach is estimated rather than measured. {unit} is 'metric' ({reach} in centimetres) or 'imperial' ({reach} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'Based on an estimated {reach}\" standing reach from your height. Measure your real reach — in Settings any time — for an exact target.'**
-  String gapEstimatedReachNote(int reach);
+  /// **'{unit, select, metric{Based on an estimated {reach} cm standing reach from your height. Measure your real reach — in Settings any time — for an exact target.} other{Based on an estimated {reach}\" standing reach from your height. Measure your real reach — in Settings any time — for an exact target.}}'**
+  String gapEstimatedReachNote(String unit, int reach);
 
   /// Caption under the left number of the gap meter (estimated vertical today).
   ///
@@ -476,11 +554,17 @@ abstract class AppLocalizations {
   /// **'Hops'**
   String get gapRowHops;
 
-  /// Label of the primary-goal row in the gap screen's summary list.
+  /// Label of the goals row in the gap screen's summary list. Lists every goal the athlete picked (multi-select), not just the first one.
   ///
   /// In en, this message translates to:
-  /// **'Primary goal'**
-  String get gapRowPrimaryGoal;
+  /// **'Goals'**
+  String get gapRowGoals;
+
+  /// Separator placed between two goal titles in the gap screen's Goals row, e.g. the ', ' in 'First Dunk Ever, Max Vertical'. Keep the trailing space if the language needs one.
+  ///
+  /// In en, this message translates to:
+  /// **', '**
+  String get gapGoalsSeparator;
 
   /// Label of the sessions-per-week row in the gap screen's summary list.
   ///
@@ -488,17 +572,17 @@ abstract class AppLocalizations {
   /// **'Training days'**
   String get gapRowTrainingDays;
 
-  /// Value of the standing-reach row in the gap screen's summary list while the reach is estimated rather than measured.
+  /// Value of the standing-reach row in the gap screen's summary list while the reach is estimated rather than measured. {unit} is 'metric' ({reach} in centimetres) or 'imperial' ({reach} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'{reach}\" (est.)'**
-  String gapReachEstimatedSuffix(int reach);
+  /// **'{unit, select, metric{{reach} cm (est.)} other{{reach}\" (est.)}}'**
+  String gapReachEstimatedSuffix(String unit, int reach);
 
-  /// Value of the weight row in the gap screen's summary list.
+  /// Value of the weight row in the gap screen's summary list. {unit} is 'metric' ({value} in kilograms) or 'imperial' ({value} in pounds); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'{pounds} lbs'**
-  String gapWeightValue(int pounds);
+  /// **'{unit, select, metric{{value} kg} other{{value} lbs}}'**
+  String gapWeightValue(String unit, int value);
 
   /// Value of the training-days row in the gap screen's summary list.
   ///
@@ -506,7 +590,7 @@ abstract class AppLocalizations {
   /// **'{days}/week'**
   String gapTrainingDaysValue(int days);
 
-  /// Fallback value of the primary-goal row in the gap screen's summary list when the athlete selected no goal.
+  /// Fallback value of the goals row in the gap screen's summary list when the athlete selected no goal.
   ///
   /// In en, this message translates to:
   /// **'Your First Dunk'**
@@ -530,10 +614,10 @@ abstract class AppLocalizations {
   /// **'YOUR JUMP POTENTIAL'**
   String get potentialTitle;
 
-  /// Subtitle of the jump-potential screen. Names the three inputs the projection really uses: height (for reach), self-reported jumping ability, and age.
+  /// Subtitle of the jump-potential screen. The projection is a fixed diminishing-returns curve whose ceiling depends on age only, applied to the onboarding estimate; it ignores schedule, experience and goals, so the copy must not claim it is tailored to them.
   ///
   /// In en, this message translates to:
-  /// **'Projected from your height, hops, and age.'**
+  /// **'A typical progression curve for your age, starting from today\'s estimate — not a promise. Your logged jumps will tell the real story.'**
   String get potentialSubtitle;
 
   /// Caption under one bar of the projection chart on the jump-potential screen. Abbreviated 'week' — keep it short, it sits under a narrow bar.
@@ -542,17 +626,17 @@ abstract class AppLocalizations {
   /// **'WK {week}'**
   String potentialWeekLabel(int week);
 
-  /// Small caps label above the projected eight-week vertical on the jump-potential screen.
+  /// Small caps label above the projected vertical on the jump-potential screen. {weeks} is the length of the recommended program (8 for the beginner and intermediate programs, 10 for the advanced one), so the window matches the plan revealed two screens later.
   ///
   /// In en, this message translates to:
-  /// **'PROJECTED 8-WEEK WINDOW'**
-  String get potentialWindowLabel;
+  /// **'PROJECTED {weeks}-WEEK WINDOW'**
+  String potentialWindowLabel(int weeks);
 
-  /// Line under the projected eight-week vertical, naming the estimated vertical it starts from.
+  /// Line under the projected end-of-program vertical, naming the estimated vertical it starts from. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'Potential from an est. ~{inches}\" today.'**
-  String potentialFromToday(int inches);
+  /// **'{unit, select, metric{Potential from an est. ~{value} cm today.} other{Potential from an est. ~{value}\" today.}}'**
+  String potentialFromToday(String unit, int value);
 
   /// Button at the bottom of the jump-potential screen.
   ///
@@ -692,43 +776,13 @@ abstract class AppLocalizations {
   /// **'THIS WEEK'**
   String get planThisWeek;
 
-  /// Left column of one row in the plan-reveal screen's week layout.
+  /// Upper-case name of a training day in the plan-reveal screen's week layout, keyed on the authored day focus from core/program_catalog.dart ('Power', 'Strength', 'Speed', 'Control'). An unknown focus is printed as authored.
   ///
   /// In en, this message translates to:
-  /// **'DAY {day}'**
-  String planDayLabel(int day);
+  /// **'{focus, select, Power{POWER} Strength{STRENGTH} Speed{SPEED} Control{CONTROL} other{{focus}}}'**
+  String programDayFocus(String focus);
 
-  /// Name of the first training day in the plan-reveal screen's sample week.
-  ///
-  /// In en, this message translates to:
-  /// **'FOUNDATION'**
-  String get planDayFoundation;
-
-  /// Name of the second training day in the plan-reveal screen's sample week.
-  ///
-  /// In en, this message translates to:
-  /// **'BASIC'**
-  String get planDayBasic;
-
-  /// Name of the third training day in the plan-reveal screen's sample week.
-  ///
-  /// In en, this message translates to:
-  /// **'CORE'**
-  String get planDayCore;
-
-  /// Name of the fourth training day in the plan-reveal screen's sample week.
-  ///
-  /// In en, this message translates to:
-  /// **'POWER'**
-  String get planDayPower;
-
-  /// Name of the fifth training day in the plan-reveal screen's sample week (reactive / plyometric work).
-  ///
-  /// In en, this message translates to:
-  /// **'REACTIVE'**
-  String get planDayReactive;
-
-  /// Label of a non-training day in the plan-reveal screen's sample week.
+  /// Label of a non-training day in the plan-reveal screen's week layout.
   ///
   /// In en, this message translates to:
   /// **'REST'**
@@ -746,11 +800,11 @@ abstract class AppLocalizations {
   /// **'EST. VERT'**
   String get mockEstVert;
 
-  /// Inches-to-dunk pill inside the phone mockup on intro carousel panel 1.
+  /// Length-to-dunk pill inside the phone mockup on intro carousel panel 1. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the sample value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'{inches}\" TO DUNK'**
-  String mockToDunk(int inches);
+  /// **'{unit, select, metric{{value} cm TO DUNK} other{{value}\" TO DUNK}}'**
+  String mockToDunk(String unit, int value);
 
   /// Section label inside the phone mockup on intro carousel panel 1, above the four technique score tiles.
   ///
@@ -806,11 +860,11 @@ abstract class AppLocalizations {
   /// **'CURRENT VERTICAL'**
   String get mockCurrentVertical;
 
-  /// Trend line inside the phone mockup on intro carousel panel 3.
+  /// Trend line inside the phone mockup on intro carousel panel 3. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the sample value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'+{inches}\" SINCE FIRST TEST'**
-  String mockSinceFirstTest(int inches);
+  /// **'{unit, select, metric{+{value} cm SINCE FIRST TEST} other{+{value}\" SINCE FIRST TEST}}'**
+  String mockSinceFirstTest(String unit, int value);
 
   /// Stat tile inside the phone mockup on intro carousel panel 3: sessions completed out of the program total.
   ///
@@ -1070,11 +1124,11 @@ abstract class AppLocalizations {
   /// **'M,T,W,T,F,S,S'**
   String get weekdayInitials;
 
-  /// A gain in inches, e.g. the green delta badge next to the latest vertical on Home and on Progress.
+  /// A gain in vertical, e.g. the green delta badge next to the latest vertical on Home. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'+{inches}\"'**
-  String inchesPlus(int inches);
+  /// **'{unit, select, metric{+{value} cm} other{+{value}\"}}'**
+  String lengthPlus(String unit, int value);
 
   /// Bottom navigation bar label for the Home tab. Very tight — five labels share the bar width.
   ///
@@ -1160,13 +1214,13 @@ abstract class AppLocalizations {
   /// **'Stand flat against a wall, reach one arm as high as it goes, mark your fingertips, then measure from the floor. Your dunk target is built on this number.'**
   String get standingReachHowTo;
 
-  /// One reading in the standing-reach dialog: the same measurement in feet-and-inches (already formatted by core/standing_reach.dart) and in plain inches. The double spaces around the separator are intentional.
+  /// One reading in the standing-reach dialog (the big current value and every wheel entry). Imperial shows the same measurement in feet-and-inches ({label}, already formatted like 8'1") and in plain inches ({value}); metric shows centimetres only ({value}, {label} is empty). The double spaces around the separator are intentional. {unit} is 'metric' or 'imperial'.
   ///
   /// In en, this message translates to:
-  /// **'{label}  ·  {inches} in'**
-  String standingReachValue(String label, int inches);
+  /// **'{unit, select, metric{{value} cm} other{{label}  ·  {value} in}}'**
+  String standingReachValue(String unit, String label, int value);
 
-  /// Note at the bottom of the standing-reach dialog, shown only while no real measurement exists. {label} is a formatted height such as 7'8".
+  /// Note at the bottom of the standing-reach dialog, shown only while no real measurement exists. {label} is a formatted reach such as 7'8" or 234 cm.
   ///
   /// In en, this message translates to:
   /// **'Currently estimated at {label} from your height.'**
@@ -1280,11 +1334,11 @@ abstract class AppLocalizations {
   /// **'CURRENT VERTICAL'**
   String get progressCurrentVertical;
 
-  /// Unit shown after the em dash on the Progress headline card while no jump has been measured yet. The two leading spaces are intentional.
+  /// Unit shown after the em dash on the Progress headline card while no jump has been measured yet. The two leading spaces are intentional. {unit} is 'metric' (centimetres) or 'imperial' (inches).
   ///
   /// In en, this message translates to:
-  /// **'  in'**
-  String get progressVertUnitSuffix;
+  /// **'{unit, select, metric{  cm} other{  in}}'**
+  String progressVertUnitSuffix(String unit);
 
   /// Empty state on the Progress headline card, before any jump has been analysed.
   ///
@@ -1298,17 +1352,17 @@ abstract class AppLocalizations {
   /// **'Go to Analyze'**
   String get progressGoToAnalyze;
 
-  /// Trend line on the Progress headline card when the vertical has improved.
+  /// Trend line on the Progress headline card when the vertical has improved. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'+{inches}\" since your first test'**
-  String progressSinceFirstGain(int inches);
+  /// **'{unit, select, metric{+{value} cm since your first test} other{+{value}\" since your first test}}'**
+  String progressSinceFirstGain(String unit, int value);
 
-  /// Trend line on the Progress headline card when the vertical has dropped. {inches} is already negative, so it arrives with its own minus sign.
+  /// Trend line on the Progress headline card when the vertical has dropped. {value} is already negative, so it arrives with its own minus sign, and already converted: {unit} is 'metric' (centimetres) or 'imperial' (inches).
   ///
   /// In en, this message translates to:
-  /// **'{inches}\" since your first test'**
-  String progressSinceFirstLoss(int inches);
+  /// **'{unit, select, metric{{value} cm since your first test} other{{value}\" since your first test}}'**
+  String progressSinceFirstLoss(String unit, int value);
 
   /// Trend line on the Progress headline card when the vertical is unchanged.
   ///
@@ -1346,6 +1400,12 @@ abstract class AppLocalizations {
   /// **'{percent}%'**
   String progressPercent(int percent);
 
+  /// Second line of the Progress workouts card, under the completed count: sessions left in the program and the percentage done, on one short line. All caps like the labels around it.
+  ///
+  /// In en, this message translates to:
+  /// **'{remaining, plural, =1{1 REMAINING · {percent}% COMPLETE} other{{remaining} REMAINING · {percent}% COMPLETE}}'**
+  String progressRemainingAndPercent(int remaining, int percent);
+
   /// Title of the Progress tab card counting consecutive training days.
   ///
   /// In en, this message translates to:
@@ -1370,11 +1430,11 @@ abstract class AppLocalizations {
   /// **'No jumps logged yet.'**
   String get jumpHistoryEmpty;
 
-  /// App bar title of the full-screen jump-clip player: the measured vertical and when it was filmed.
+  /// App bar title of the full-screen jump-clip player: the measured vertical and when it was filmed. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'{inches}\" · {date}'**
-  String jumpVideoTitle(int inches, DateTime date);
+  /// **'{unit, select, metric{{value} cm · {date}} other{{value}\" · {date}}}'**
+  String jumpVideoTitle(String unit, int value, DateTime date);
 
   /// Shown in the jump-clip player when the video fails to open.
   ///
@@ -1394,13 +1454,13 @@ abstract class AppLocalizations {
   /// **'Couldn\'t open the share sheet. Please try again.'**
   String get jumpVideoShareFailed;
 
-  /// Caption attached to a jump clip handed to the native share sheet. 'Dunk It' is the app name and stays as is.
+  /// Caption attached to a jump clip handed to the native share sheet. 'Dunk It' is the app name and stays as is. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'{inches}\" vertical — Dunk It'**
-  String jumpShareText(int inches);
+  /// **'{unit, select, metric{{value} cm vertical — Dunk It} other{{value}\" vertical — Dunk It}}'**
+  String jumpShareText(String unit, int value);
 
-  /// Seven abbreviated weekday names, Monday first, comma-separated, for the Train tab's week strip. Keep each to about three characters — they sit under narrow chips. Must contain exactly seven comma-separated entries.
+  /// Seven abbreviated weekday names, Monday first, comma-separated, for the Train tab's week strip and the plan-reveal screen's week layout. Keep each to about three characters — they sit under narrow chips. Must contain exactly seven comma-separated entries.
   ///
   /// In en, this message translates to:
   /// **'MON,TUE,WED,THU,FRI,SAT,SUN'**
@@ -1604,11 +1664,11 @@ abstract class AppLocalizations {
   /// **'reps'**
   String get logRepsHint;
 
-  /// Placeholder of the weight field on a set row. Pounds — the app logs imperial weight throughout.
+  /// Placeholder of the weight field on a set row. {unit} is 'metric' (the athlete types kilograms) or 'imperial' (pounds); what they type is converted to pounds before it is stored.
   ///
   /// In en, this message translates to:
-  /// **'lbs (optional)'**
-  String get logWeightHint;
+  /// **'{unit, select, metric{kg (optional)} other{lbs (optional)}}'**
+  String logWeightHint(String unit);
 
   /// State of the per-set toggle once the set has been checked off. Keep it short — it sits in a small pill.
   ///
@@ -1862,11 +1922,11 @@ abstract class AppLocalizations {
   /// **'YOU'**
   String get feedYouBadge;
 
-  /// The measured vertical on a Feed personal-board row.
+  /// The measured vertical on a Feed row, both the global board and the athlete's own. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'{inches}\" vert'**
-  String feedJumpStat(int inches);
+  /// **'{unit, select, metric{{value} cm vert} other{{value}\" vert}}'**
+  String feedJumpStat(String unit, int value);
 
   /// Suffix on a Feed personal-board row naming the kind of attempt. {attempt} comes from the untranslated attempt-type model.
   ///
@@ -1880,7 +1940,7 @@ abstract class AppLocalizations {
   /// **'Jump'**
   String get feedAttemptFallback;
 
-  /// Suffix on a global-board row giving the athlete's height. {height} is already formatted by the untranslated leaderboard model.
+  /// Suffix on a global-board row giving the athlete's height. {height} is already formatted by heightValueCompact (6'1" or 185 cm).
   ///
   /// In en, this message translates to:
   /// **' · {height}'**
@@ -2300,23 +2360,47 @@ abstract class AppLocalizations {
   /// **'EST. VERT'**
   String get resultEstVert;
 
-  /// Line under the measured vertical when it already meets the dunk target.
+  /// Line under the measured vertical when it already meets the dunk target. {unit} is 'metric' ({target} in centimetres) or 'imperial' ({target} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'That clears your {target}\" dunk target'**
-  String resultClearsDunk(int target);
+  /// **'{unit, select, metric{That clears your {target} cm dunk target} other{That clears your {target}\" dunk target}}'**
+  String resultClearsDunk(String unit, int target);
 
-  /// Line under the measured vertical when inches are still missing.
+  /// Line under the measured vertical when some vertical is still missing. {unit} is 'metric' ({gap} and {target} in centimetres) or 'imperial' (inches); both values are already converted.
   ///
   /// In en, this message translates to:
-  /// **'{gap}\" to go to your {target}\" dunk target'**
-  String resultGapToDunk(int gap, int target);
+  /// **'{unit, select, metric{{gap} cm to go to your {target} cm dunk target} other{{gap}\" to go to your {target}\" dunk target}}'**
+  String resultGapToDunk(String unit, int gap, int target);
 
-  /// Caveat on the Analyze result while the standing reach is still estimated. The measured vertical is real; only the target it is compared against is not.
+  /// Caveat on the Analyze result while the standing reach is still estimated. The measured vertical is real; only the target it is compared against is not. {unit} is 'metric' ({reach} in centimetres) or 'imperial' ({reach} in inches); the value is already converted.
   ///
   /// In en, this message translates to:
-  /// **'Target assumes an estimated {reach}\" standing reach. Set your real reach in Settings for an exact one.'**
-  String resultEstimatedReachNote(int reach);
+  /// **'{unit, select, metric{Target assumes an estimated {reach} cm standing reach. Set your real reach in Settings for an exact one.} other{Target assumes an estimated {reach}\" standing reach. Set your real reach in Settings for an exact one.}}'**
+  String resultEstimatedReachNote(String unit, int reach);
+
+  /// Quiet line on the Analyze result's vert card, shown only on the athlete's first logged jump: the measured vertical replaces the self-reported 'today' figure the onboarding gap and potential screens showed. {value} is that onboarding estimate, already converted: {unit} is 'metric' (centimetres) or 'imperial' (inches).
+  ///
+  /// In en, this message translates to:
+  /// **'{unit, select, metric{This measurement now stands in for your onboarding estimate of ~{value} cm.} other{This measurement now stands in for your onboarding estimate of ~{value}\".}}'**
+  String resultReplacesOnboardingEstimate(String unit, int value);
+
+  /// Pill on the Analyze result's form-scores card saying whether the athlete took off from one foot or two (shown upper-cased). Keyed on the TakeoffType enum name from core/jump_form_scores.dart.
+  ///
+  /// In en, this message translates to:
+  /// **'{type, select, oneFoot{One-foot takeoff} twoFoot{Two-foot takeoff} other{{type}}}'**
+  String takeoffTypeLabel(String type);
+
+  /// Title of one clip-type chip on the Analyze source screen (shown upper-cased): is the clip a dunk attempt or a plain jump. Keyed on the VideoAttemptType enum name from core/models/video_attempt_type.dart.
+  ///
+  /// In en, this message translates to:
+  /// **'{type, select, dunkAttempt{Dunk Attempt} jumpAttempt{Jump Attempt} other{{type}}}'**
+  String videoAttemptTypeTitle(String type);
+
+  /// Caption of one clip-type chip on the Analyze source screen. Keyed on the VideoAttemptType enum name.
+  ///
+  /// In en, this message translates to:
+  /// **'{type, select, dunkAttempt{Rim or ball in frame} jumpAttempt{No rim needed} other{{type}}}'**
+  String videoAttemptTypeSubtitle(String type);
 
   /// Title of the four-score card on the Analyze result.
   ///

@@ -6,6 +6,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
+import '../widgets/option_list.dart';
 import '../widgets/staggered_entrance.dart';
 
 class HopsScreen extends StatelessWidget {
@@ -53,7 +54,7 @@ class HopsScreen extends StatelessWidget {
             index: OnboardingScaffold.bodyStaggerIndex,
             child: Container(
               width: 3,
-              margin: const EdgeInsets.only(right: 14, top: 6, bottom: 6),
+              margin: const EdgeInsets.only(right: 12, top: 6, bottom: 6),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   begin: Alignment.topCenter,
@@ -69,24 +70,22 @@ class HopsScreen extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.zero,
-              itemCount: HopsLevel.values.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, i) {
-                final level = HopsLevel.values[i];
-                final (icon, tint) = _icons[level]!;
-                return StaggerItem(
-                  index: OnboardingScaffold.bodyStaggerIndex + i,
-                  child: SelectableCard(
-                    leading: IconTile(icon: icon, tint: tint),
-                    title: level.title,
-                    subtitle: level.subtitle,
+            child: OptionList(
+              cards: [
+                for (final level in HopsLevel.values)
+                  SelectableCard(
+                    leading: IconTile(
+                      icon: _icons[level]!.$1,
+                      tint: _icons[level]!.$2,
+                    ),
+                    // Translated here, keyed on the enum name: the core
+                    // getters are English-only (core/ has no Flutter).
+                    title: l10n.hopsLevelTitle(level.name),
+                    subtitle: l10n.hopsLevelSubtitle(level.name),
                     selected: selected == level,
                     onTap: () => onSelect(level),
                   ),
-                );
-              },
+              ],
             ),
           ),
         ],

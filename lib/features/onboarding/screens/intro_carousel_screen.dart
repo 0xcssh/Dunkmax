@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/unit_scope.dart';
 import '../../shared/widgets/primary_button.dart';
 import '../widgets/mock_app_screens.dart';
 import '../widgets/phone_mockup.dart';
@@ -37,10 +38,10 @@ class _IntroCarouselScreenState extends State<IntroCarouselScreen> {
   /// separately because the dots and the clamp need it without a context.
   static const _panelCount = 3;
 
-  List<_Panel> _panels(AppLocalizations l10n) => [
+  List<_Panel> _panels(AppLocalizations l10n, String unit) => [
         _Panel(
           headline: l10n.introPanel1Headline,
-          support: l10n.introPanel1Support,
+          support: l10n.introPanel1Support(unit),
           mock: const AnalysisMock(),
         ),
         _Panel(
@@ -81,7 +82,7 @@ class _IntroCarouselScreenState extends State<IntroCarouselScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final panels = _panels(l10n);
+    final panels = _panels(l10n, UnitScope.of(context).name);
     return Scaffold(
       body: SafeArea(
         child: Padding(

@@ -15,31 +15,69 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonClose => 'Close';
 
   @override
-  String inches(int inches) {
-    return '$inches\"';
+  String length(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$value cm',
+        'other': '$value\"',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String inchesApprox(int inches) {
-    return '~$inches\"';
+  String lengthApprox(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '~$value cm',
+        'other': '~$value\"',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String inchesGap(int inches) {
-    return '-$inches\"';
+  String lengthGap(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '-$value cm',
+        'other': '-$value\"',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String inchesMargin(int inches) {
-    return '+$inches\"';
+  String lengthMargin(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '+$value cm',
+        'other': '+$value\"',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
   String get introPanel1Headline => 'SEE YOUR REAL\nVERTICAL';
 
   @override
-  String get introPanel1Support =>
-      'Film one jump. We time your flight frame by frame and turn it into inches — no tape measure, no guessing.';
+  String introPanel1Support(String unit) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric':
+            'Film one jump. We time your flight frame by frame and turn it into centimetres — no tape measure, no guessing.',
+        'other':
+            'Film one jump. We time your flight frame by frame and turn it into inches — no tape measure, no guessing.',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get introPanel2Headline => 'TRAIN WITH A\nREAL PLAN';
@@ -63,7 +101,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goalSubtitle =>
-      'Select every goal that fires you up — we\'ll build the path.';
+      'Pick every goal that fires you up. They go on your profile — your plan itself comes from your level, your schedule and where you train.';
+
+  @override
+  String dunkGoalTitle(String goal) {
+    String _temp0 = intl.Intl.selectLogic(
+      goal,
+      {
+        'firstDunk': 'First Dunk Ever',
+        'dunkInGames': 'Dunk in Games',
+        'windmillsAnd360s': 'Windmills & 360s',
+        'alleyOopFinishing': 'Alley-Oop Finishing',
+        'maxVertical': 'Max Vertical',
+        'other': '$goal',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dunkGoalSubtitle(String goal) {
+    String _temp0 = intl.Intl.selectLogic(
+      goal,
+      {
+        'firstDunk': 'Unlock your first slam',
+        'dunkInGames': 'Finish when it counts',
+        'windmillsAnd360s': 'Style and flair',
+        'alleyOopFinishing': 'Catch and finish',
+        'maxVertical': 'Add inches to your leap',
+        'other': '$goal',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get experienceTitle => 'HOW EXPERIENCED\nARE YOU\nWITH JUMP TRAINING?';
@@ -73,10 +143,51 @@ class AppLocalizationsEn extends AppLocalizations {
       'No ego here. Be honest so we can push you right.';
 
   @override
+  String experienceLevelTitle(String level) {
+    String _temp0 = intl.Intl.selectLogic(
+      level,
+      {
+        'beginner': 'Beginner',
+        'intermediate': 'Intermediate',
+        'advanced': 'Advanced',
+        'other': '$level',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String experienceLevelSubtitle(String level) {
+    String _temp0 = intl.Intl.selectLogic(
+      level,
+      {
+        'beginner': 'I\'ve got hops but no plan',
+        'intermediate': 'I\'ve trained, ready to level up',
+        'advanced': 'I\'m chasing inches',
+        'other': '$level',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get positionTitle => 'WHAT POSITION DO\nYOU PLAY?';
 
   @override
-  String get positionSubtitle => 'We\'ll tailor exercises to your position.';
+  String courtPositionLabel(String position) {
+    String _temp0 = intl.Intl.selectLogic(
+      position,
+      {
+        'pointGuard': 'Point Guard',
+        'shootingGuard': 'Shooting Guard',
+        'smallForward': 'Small Forward',
+        'powerForward': 'Power Forward',
+        'center': 'Center',
+        'other': '$position',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get daysTitle => 'HOW MANY DAYS\nPER WEEK\nCAN YOU TRAIN?';
@@ -100,29 +211,117 @@ class AppLocalizationsEn extends AppLocalizations {
       'We\'ll recommend programs that fit your setup.';
 
   @override
+  String trainingLocationTitle(String location) {
+    String _temp0 = intl.Intl.selectLogic(
+      location,
+      {
+        'home': 'Home Only',
+        'gym': 'Gym Only',
+        'both': 'Both',
+        'other': '$location',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String trainingLocationSubtitle(String location) {
+    String _temp0 = intl.Intl.selectLogic(
+      location,
+      {
+        'home': 'Bodyweight & minimal equipment',
+        'gym': 'Full access to weights & machines',
+        'both': 'Train anywhere, anytime',
+        'other': '$location',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get hopsTitle => 'WHERE ARE YOUR\nHOPS TODAY?';
 
   @override
-  String get hopsSubtitle => 'Be honest — this calibrates your whole plan.';
+  String get hopsSubtitle => 'Be honest — this sets your starting estimate.';
+
+  @override
+  String hopsLevelTitle(String level) {
+    String _temp0 = intl.Intl.selectLogic(
+      level,
+      {
+        'dunkConsistently': 'Dunk consistently',
+        'dunkOnGoodDay': 'Dunk on a good day',
+        'grabRim': 'Grab the rim',
+        'touchRim': 'Touch the rim',
+        'belowRim': 'Below the rim',
+        'other': '$level',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String hopsLevelSubtitle(String level) {
+    String _temp0 = intl.Intl.selectLogic(
+      level,
+      {
+        'dunkConsistently': 'Chasing bigger finishes',
+        'dunkOnGoodDay': 'It\'s in you — not consistent yet',
+        'grabRim': 'Palming iron on a good day',
+        'touchRim': 'Fingertips on iron',
+        'belowRim': 'Building from the ground up',
+        'other': '$level',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get heightTitle => 'YOUR HEIGHT';
 
   @override
   String get heightSubtitle =>
-      'We use this to personalize your jump analysis and vert estimates.';
+      'Sets your estimated standing reach — and from it, the vert you need to dunk.';
 
   @override
-  String get heightUnitLabel => 'FEET & INCHES';
-
-  @override
-  String heightValue(int feet, int inches) {
-    return '$feet\' $inches\"';
+  String heightUnitLabel(String unit) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': 'CENTIMETRES',
+        'other': 'FEET & INCHES',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String heightValueCompact(int feet, int inches) {
-    return '$feet\'$inches\"';
+  String heightValue(String unit, int feet, int inches, int cm) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$cm cm',
+        'other': '$feet\' $inches\"',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String heightValueCompact(String unit, int feet, int inches, int cm) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$cm cm',
+        'other': '$feet\'$inches\"',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String heightCmOption(int cm) {
+    return '$cm cm';
   }
 
   @override
@@ -142,7 +341,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get savedToAthleteProfile => 'Saved to your athlete profile.';
 
   @override
-  String get weightUnitLabel => 'LBS';
+  String weightUnitLabel(String unit) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': 'KG',
+        'other': 'LBS',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get ageTitle => 'YOUR AGE';
@@ -163,8 +371,45 @@ class AppLocalizationsEn extends AppLocalizations {
       'It sets how much room over the rim your finish needs.';
 
   @override
-  String dunkHandClearanceNote(int inches) {
-    return 'A one-hand dunk needs the ball and one hand over the ring. Both forearms over it is about $inches\" more, so a two-hand finish raises your target.';
+  String dunkHandClearanceNote(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric':
+            'A one-hand dunk needs the ball and one hand over the ring. Both forearms over it is about $value cm more, so a two-hand finish raises your target.',
+        'other':
+            'A one-hand dunk needs the ball and one hand over the ring. Both forearms over it is about $value\" more, so a two-hand finish raises your target.',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dunkHandOptionTitle(String hand) {
+    String _temp0 = intl.Intl.selectLogic(
+      hand,
+      {
+        'left': 'Left Hand',
+        'right': 'Right Hand',
+        'both': 'Both Hands',
+        'other': '$hand',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dunkHandOptionSubtitle(String hand) {
+    String _temp0 = intl.Intl.selectLogic(
+      hand,
+      {
+        'left': 'One-hand finish',
+        'right': 'One-hand finish',
+        'both': 'Needs more room over the rim',
+        'other': '$hand',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -172,7 +417,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commitmentSubtitle =>
-      'Athletes who commit before they start are the ones who make the leap.';
+      'This one doesn\'t change your plan. It\'s a promise to yourself — saved to your profile.';
+
+  @override
+  String commitmentLevelTitle(String level) {
+    String _temp0 = intl.Intl.selectLogic(
+      level,
+      {
+        'extremely': 'Extremely Committed',
+        'very': 'Very Committed',
+        'needHelp': 'I Need Help Staying Consistent',
+        'other': '$level',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String commitmentLevelSubtitle(String level) {
+    String _temp0 = intl.Intl.selectLogic(
+      level,
+      {
+        'extremely': 'I\'m ready to do what it takes',
+        'very': 'I want a clear plan and accountability',
+        'needHelp': 'Keep me locked in week after week',
+        'other': '$level',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get gapBasedOnReach => 'BASED ON YOUR REACH + HOPS';
@@ -187,23 +460,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gapTitleCanDunk => 'YOU\'VE GOT THE VERTICAL.';
 
   @override
-  String gapIntro(String height, int current, int target) {
-    return 'You\'re $height. About $current\" today. Dunking usually takes ~$target\".';
+  String gapIntro(String unit, String height, int current, int target) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric':
+            'You\'re $height. About $current cm today. Dunking usually takes ~$target cm.',
+        'other':
+            'You\'re $height. About $current\" today. Dunking usually takes ~$target\".',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String gapIntroCanDunk(String height, int current, int target) {
-    return 'You\'re $height. About $current\" today, and dunking usually takes ~$target\". From here the plan is about adding margin and consistency.';
+  String gapIntroCanDunk(String unit, String height, int current, int target) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric':
+            'You\'re $height. About $current cm today, and dunking usually takes ~$target cm. From here the plan is about adding margin and consistency.',
+        'other':
+            'You\'re $height. About $current\" today, and dunking usually takes ~$target\". From here the plan is about adding margin and consistency.',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String gapTwoHandNote(int inches) {
-    return 'You picked a two-hand finish, which asks for both forearms over the ring — about $inches\" more than a one-hand dunk. Your target reflects that.';
+  String gapTwoHandNote(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric':
+            'You picked a two-hand finish, which asks for both forearms over the ring — about $value cm more than a one-hand dunk. Your target reflects that.',
+        'other':
+            'You picked a two-hand finish, which asks for both forearms over the ring — about $value\" more than a one-hand dunk. Your target reflects that.',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String gapEstimatedReachNote(int reach) {
-    return 'Based on an estimated $reach\" standing reach from your height. Measure your real reach — in Settings any time — for an exact target.';
+  String gapEstimatedReachNote(String unit, int reach) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric':
+            'Based on an estimated $reach cm standing reach from your height. Measure your real reach — in Settings any time — for an exact target.',
+        'other':
+            'Based on an estimated $reach\" standing reach from your height. Measure your real reach — in Settings any time — for an exact target.',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -237,19 +546,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gapRowHops => 'Hops';
 
   @override
-  String get gapRowPrimaryGoal => 'Primary goal';
+  String get gapRowGoals => 'Goals';
+
+  @override
+  String get gapGoalsSeparator => ', ';
 
   @override
   String get gapRowTrainingDays => 'Training days';
 
   @override
-  String gapReachEstimatedSuffix(int reach) {
-    return '$reach\" (est.)';
+  String gapReachEstimatedSuffix(String unit, int reach) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$reach cm (est.)',
+        'other': '$reach\" (est.)',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String gapWeightValue(int pounds) {
-    return '$pounds lbs';
+  String gapWeightValue(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$value kg',
+        'other': '$value lbs',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -270,7 +596,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get potentialTitle => 'YOUR JUMP POTENTIAL';
 
   @override
-  String get potentialSubtitle => 'Projected from your height, hops, and age.';
+  String get potentialSubtitle =>
+      'A typical progression curve for your age, starting from today\'s estimate — not a promise. Your logged jumps will tell the real story.';
 
   @override
   String potentialWeekLabel(int week) {
@@ -278,11 +605,20 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get potentialWindowLabel => 'PROJECTED 8-WEEK WINDOW';
+  String potentialWindowLabel(int weeks) {
+    return 'PROJECTED $weeks-WEEK WINDOW';
+  }
 
   @override
-  String potentialFromToday(int inches) {
-    return 'Potential from an est. ~$inches\" today.';
+  String potentialFromToday(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': 'Potential from an est. ~$value cm today.',
+        'other': 'Potential from an est. ~$value\" today.',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -368,24 +704,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get planThisWeek => 'THIS WEEK';
 
   @override
-  String planDayLabel(int day) {
-    return 'DAY $day';
+  String programDayFocus(String focus) {
+    String _temp0 = intl.Intl.selectLogic(
+      focus,
+      {
+        'Power': 'POWER',
+        'Strength': 'STRENGTH',
+        'Speed': 'SPEED',
+        'Control': 'CONTROL',
+        'other': '$focus',
+      },
+    );
+    return '$_temp0';
   }
-
-  @override
-  String get planDayFoundation => 'FOUNDATION';
-
-  @override
-  String get planDayBasic => 'BASIC';
-
-  @override
-  String get planDayCore => 'CORE';
-
-  @override
-  String get planDayPower => 'POWER';
-
-  @override
-  String get planDayReactive => 'REACTIVE';
 
   @override
   String get planDayRest => 'REST';
@@ -397,8 +728,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mockEstVert => 'EST. VERT';
 
   @override
-  String mockToDunk(int inches) {
-    return '$inches\" TO DUNK';
+  String mockToDunk(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$value cm TO DUNK',
+        'other': '$value\" TO DUNK',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -429,8 +767,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mockCurrentVertical => 'CURRENT VERTICAL';
 
   @override
-  String mockSinceFirstTest(int inches) {
-    return '+$inches\" SINCE FIRST TEST';
+  String mockSinceFirstTest(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '+$value cm SINCE FIRST TEST',
+        'other': '+$value\" SINCE FIRST TEST',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -586,8 +931,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get weekdayInitials => 'M,T,W,T,F,S,S';
 
   @override
-  String inchesPlus(int inches) {
-    return '+$inches\"';
+  String lengthPlus(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '+$value cm',
+        'other': '+$value\"',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -635,8 +987,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Stand flat against a wall, reach one arm as high as it goes, mark your fingertips, then measure from the floor. Your dunk target is built on this number.';
 
   @override
-  String standingReachValue(String label, int inches) {
-    return '$label  ·  $inches in';
+  String standingReachValue(String unit, String label, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$value cm',
+        'other': '$label  ·  $value in',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -716,7 +1075,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get progressCurrentVertical => 'CURRENT VERTICAL';
 
   @override
-  String get progressVertUnitSuffix => '  in';
+  String progressVertUnitSuffix(String unit) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '  cm',
+        'other': '  in',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get progressLogFirstJump =>
@@ -726,13 +1094,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get progressGoToAnalyze => 'Go to Analyze';
 
   @override
-  String progressSinceFirstGain(int inches) {
-    return '+$inches\" since your first test';
+  String progressSinceFirstGain(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '+$value cm since your first test',
+        'other': '+$value\" since your first test',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String progressSinceFirstLoss(int inches) {
-    return '$inches\" since your first test';
+  String progressSinceFirstLoss(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$value cm since your first test',
+        'other': '$value\" since your first test',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -756,6 +1138,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String progressRemainingAndPercent(int remaining, int percent) {
+    String _temp0 = intl.Intl.pluralLogic(
+      remaining,
+      locale: localeName,
+      other: '$remaining REMAINING · $percent% COMPLETE',
+      one: '1 REMAINING · $percent% COMPLETE',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get progressDayStreak => 'DAY STREAK';
 
   @override
@@ -768,11 +1161,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get jumpHistoryEmpty => 'No jumps logged yet.';
 
   @override
-  String jumpVideoTitle(int inches, DateTime date) {
+  String jumpVideoTitle(String unit, int value, DateTime date) {
     final intl.DateFormat dateDateFormat = intl.DateFormat.yMd(localeName);
     final String dateString = dateDateFormat.format(date);
 
-    return '$inches\" · $dateString';
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$value cm · $dateString',
+        'other': '$value\" · $dateString',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -786,8 +1186,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t open the share sheet. Please try again.';
 
   @override
-  String jumpShareText(int inches) {
-    return '$inches\" vertical — Dunk It';
+  String jumpShareText(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$value cm vertical — Dunk It',
+        'other': '$value\" vertical — Dunk It',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -927,7 +1334,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logRepsHint => 'reps';
 
   @override
-  String get logWeightHint => 'lbs (optional)';
+  String logWeightHint(String unit) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': 'kg (optional)',
+        'other': 'lbs (optional)',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get logValidated => 'DONE';
@@ -1075,8 +1491,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedYouBadge => 'YOU';
 
   @override
-  String feedJumpStat(int inches) {
-    return '$inches\" vert';
+  String feedJumpStat(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$value cm vert',
+        'other': '$value\" vert',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1328,18 +1751,94 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resultEstVert => 'EST. VERT';
 
   @override
-  String resultClearsDunk(int target) {
-    return 'That clears your $target\" dunk target';
+  String resultClearsDunk(String unit, int target) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': 'That clears your $target cm dunk target',
+        'other': 'That clears your $target\" dunk target',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String resultGapToDunk(int gap, int target) {
-    return '$gap\" to go to your $target\" dunk target';
+  String resultGapToDunk(String unit, int gap, int target) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric': '$gap cm to go to your $target cm dunk target',
+        'other': '$gap\" to go to your $target\" dunk target',
+      },
+    );
+    return '$_temp0';
   }
 
   @override
-  String resultEstimatedReachNote(int reach) {
-    return 'Target assumes an estimated $reach\" standing reach. Set your real reach in Settings for an exact one.';
+  String resultEstimatedReachNote(String unit, int reach) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric':
+            'Target assumes an estimated $reach cm standing reach. Set your real reach in Settings for an exact one.',
+        'other':
+            'Target assumes an estimated $reach\" standing reach. Set your real reach in Settings for an exact one.',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String resultReplacesOnboardingEstimate(String unit, int value) {
+    String _temp0 = intl.Intl.selectLogic(
+      unit,
+      {
+        'metric':
+            'This measurement now stands in for your onboarding estimate of ~$value cm.',
+        'other':
+            'This measurement now stands in for your onboarding estimate of ~$value\".',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String takeoffTypeLabel(String type) {
+    String _temp0 = intl.Intl.selectLogic(
+      type,
+      {
+        'oneFoot': 'One-foot takeoff',
+        'twoFoot': 'Two-foot takeoff',
+        'other': '$type',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String videoAttemptTypeTitle(String type) {
+    String _temp0 = intl.Intl.selectLogic(
+      type,
+      {
+        'dunkAttempt': 'Dunk Attempt',
+        'jumpAttempt': 'Jump Attempt',
+        'other': '$type',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String videoAttemptTypeSubtitle(String type) {
+    String _temp0 = intl.Intl.selectLogic(
+      type,
+      {
+        'dunkAttempt': 'Rim or ball in frame',
+        'jumpAttempt': 'No rim needed',
+        'other': '$type',
+      },
+    );
+    return '$_temp0';
   }
 
   @override

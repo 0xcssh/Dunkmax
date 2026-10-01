@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/models/dunk_goal.dart';
 import '../../../core/models/onboarding_profile.dart';
 import '../../../core/vert_assessment.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
-import '../../shared/widgets/primary_button.dart';
+import '../../shared/layout_density.dart';
+import '../../shared/unit_scope.dart';
+import '../widgets/onboarding_scaffold.dart';
+import '../widgets/sell_scaffold.dart';
 
 /// "Here's the gap" — turns the vitals into the inches-to-dunk story.
 class GapScreen extends StatelessWidget {
@@ -27,112 +31,116 @@ class GapScreen extends StatelessWidget {
         dunkHand: profile.dunkHand,
       );
 
-  String _heightLabel(AppLocalizations l10n) => l10n.heightValueCompact(
-        profile.heightInches ~/ 12,
-        profile.heightInches % 12,
-      );
+  String _heightLabel(AppLocalizations l10n, UnitSystem units) {
+    final h = units.height(profile.heightInches);
+    return l10n.heightValueCompact(units.name, h.feet, h.inches, h.cm);
+  }
 
-  /// The goal titles themselves come from `core/models/dunk_goal.dart`, which
-  /// is pure Dart and stays untranslated for now — only the "no goal picked"
-  /// fallback is localised here.
-  String _primaryGoal(AppLocalizations l10n) =>
-      profile.goals.isEmpty ? l10n.gapDefaultGoal : profile.goals.first.title;
+  /// Every goal the athlete picked, in the catalogue's order. The quiz is a
+  /// multi-select, so showing only the first tap as a "primary goal" invented
+  /// a ranking the athlete never made. Titles are translated via the enum
+  /// name (the core getters are English-only).
+  String _goals(AppLocalizations l10n) {
+    if (profile.goals.isEmpty) return l10n.gapDefaultGoal;
+    final picked = [
+      for (final goal in DunkGoal.values)
+        if (profile.goals.contains(goal)) l10n.dunkGoalTitle(goal.name),
+    ];
+    return picked.join(l10n.gapGoalsSeparator);
+  }
 
   @override
   Widget build(BuildContext context) {
     final a = _a;
     final l10n = AppLocalizations.of(context);
-    final heightLabel = _heightLabel(l10n);
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconButton(
-                onPressed: onBack,
-                padding: EdgeInsets.zero,
-                alignment: Alignment.centerLeft,
-                icon: const Icon(Icons.chevron_left, color: Colors.white, size: 30),
-              ),
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    Text(
-                        a.reachIsMeasured
-                            ? l10n.gapBasedOnReach
-                            : l10n.gapBasedOnHeight,
-                        style: const TextStyle(
-                            color: DunkColors.primary,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1,
-                            fontSize: 13)),
-                    const SizedBox(height: 8),
-                    // An athlete already estimated to clear the dunk has no
-                    // gap: the headline, the meter's middle figure and the
-                    // CTA all say so rather than selling a "-0" shortfall.
-                    Text(a.canAlreadyDunk ? l10n.gapTitleCanDunk : l10n.gapTitle,
-                        style: DunkTheme.onboardingTitle),
-                    const SizedBox(height: 12),
-                    Text(
-                      a.canAlreadyDunk
-                          ? l10n.gapIntroCanDunk(
-                              heightLabel,
-                              a.estimatedCurrentVert,
-                              a.requiredVert,
-                            )
-                          : l10n.gapIntro(
-                              heightLabel,
-                              a.estimatedCurrentVert,
-                              a.requiredVert,
-                            ),
-                      style: DunkTheme.onboardingSubtitle,
-                    ),
-                    const SizedBox(height: 24),
-                    _GapMeter(assessment: a),
-                    if (profile.dunkHand?.isTwoHanded ?? false) ...[
-                      const SizedBox(height: 12),
-                      const _TwoHandNote(),
-                    ],
-                    if (!a.reachIsMeasured) ...[
-                      const SizedBox(height: 12),
-                      _EstimatedReachNote(assessment: a),
-                    ],
-                    const SizedBox(height: 20),
-                    _SummaryGrid(rows: [
-                      (l10n.gapRowHeight, heightLabel),
-                      (
-                        l10n.gapRowStandingReach,
-                        a.reachIsMeasured
-                            ? l10n.inches(a.standingReach)
-                            : l10n.gapReachEstimatedSuffix(a.standingReach)
-                      ),
-                      (l10n.gapRowEstToday, l10n.inches(a.estimatedCurrentVert)),
-                      (l10n.gapRowDunkTarget, l10n.inches(a.requiredVert)),
-                      (l10n.gapRowWeight, l10n.gapWeightValue(profile.weightLbs)),
-                      // The hops labels come from core/models/hops_level.dart,
-                      // which is pure Dart and stays English for now.
-                      (l10n.gapRowHops, profile.hopsLevel.title),
-                      (l10n.gapRowPrimaryGoal, _primaryGoal(l10n)),
-                      (
-                        l10n.gapRowTrainingDays,
-                        l10n.gapTrainingDaysValue(profile.daysPerWeek)
-                      ),
-                    ]),
-                  ],
+    final units = UnitScope.of(context);
+    final unit = units.name;
+    final heightLabel = _heightLabel(l10n, units);
+    final density = LayoutDensity.of(context);
+    return SellScaffold(
+      onBack: onBack,
+      ctaLabel: a.canAlreadyDunk ? l10n.gapCtaCanDunk : l10n.gapCta,
+      onContinue: onContinue,
+      children: [
+        Text(
+            a.reachIsMeasured
+                ? l10n.gapBasedOnReach
+                : l10n.gapBasedOnHeight,
+            style: const TextStyle(
+                color: DunkColors.primary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+                fontSize: 13)),
+        const SizedBox(height: 6),
+        // An athlete already estimated to clear the dunk has no gap: the
+        // headline, the meter's middle figure and the CTA all say so rather
+        // than selling a "-0" shortfall.
+        OnboardingHeadline(
+          text: a.canAlreadyDunk ? l10n.gapTitleCanDunk : l10n.gapTitle,
+        ),
+        SizedBox(height: density.pick(8, 6)),
+        Text(
+          a.canAlreadyDunk
+              ? l10n.gapIntroCanDunk(
+                  unit,
+                  heightLabel,
+                  units.lengthValue(a.estimatedCurrentVert),
+                  units.lengthValue(a.requiredVert),
+                )
+              : l10n.gapIntro(
+                  unit,
+                  heightLabel,
+                  units.lengthValue(a.estimatedCurrentVert),
+                  units.lengthValue(a.requiredVert),
                 ),
-              ),
-              const SizedBox(height: 12),
-              PrimaryButton(
-                label: a.canAlreadyDunk ? l10n.gapCtaCanDunk : l10n.gapCta,
-                onPressed: onContinue,
-              ),
-            ],
+          style: density.pick(
+            DunkTheme.onboardingSubtitle,
+            DunkTheme.onboardingSubtitleCompact,
           ),
         ),
-      ),
+        SizedBox(height: density.pick(16, 12)),
+        _GapMeter(assessment: a),
+        if (profile.dunkHand?.isTwoHanded ?? false) ...[
+          const SizedBox(height: 10),
+          const _TwoHandNote(),
+        ],
+        if (!a.reachIsMeasured) ...[
+          const SizedBox(height: 10),
+          _EstimatedReachNote(assessment: a),
+        ],
+        SizedBox(height: density.pick(12, 8)),
+        _SummaryGrid(rows: [
+          (l10n.gapRowHeight, heightLabel),
+          (
+            l10n.gapRowStandingReach,
+            a.reachIsMeasured
+                ? l10n.length(unit, units.lengthValue(a.standingReach))
+                : l10n.gapReachEstimatedSuffix(
+                    unit, units.lengthValue(a.standingReach))
+          ),
+          (
+            l10n.gapRowEstToday,
+            l10n.length(unit, units.lengthValue(a.estimatedCurrentVert))
+          ),
+          (
+            l10n.gapRowDunkTarget,
+            l10n.length(unit, units.lengthValue(a.requiredVert))
+          ),
+          (
+            l10n.gapRowWeight,
+            l10n.gapWeightValue(unit, units.weight(profile.weightLbs).value)
+          ),
+          (
+            l10n.gapRowHops,
+            l10n.hopsLevelTitle(profile.hopsLevel.name)
+          ),
+          (l10n.gapRowGoals, _goals(l10n)),
+          (
+            l10n.gapRowTrainingDays,
+            l10n.gapTrainingDaysValue(profile.daysPerWeek)
+          ),
+        ]),
+      ],
     );
   }
 }
@@ -145,6 +153,7 @@ class _TwoHandNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final units = UnitScope.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -152,8 +161,10 @@ class _TwoHandNote extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            AppLocalizations.of(context)
-                .gapTwoHandNote(VertAssessment.twoHandExtraClearance),
+            AppLocalizations.of(context).gapTwoHandNote(
+              units.name,
+              units.lengthValue(VertAssessment.twoHandExtraClearance),
+            ),
             style: const TextStyle(
               color: DunkColors.textTertiary,
               fontSize: 12,
@@ -176,6 +187,7 @@ class _EstimatedReachNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final units = UnitScope.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -183,8 +195,10 @@ class _EstimatedReachNote extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            AppLocalizations.of(context)
-                .gapEstimatedReachNote(assessment.standingReach),
+            AppLocalizations.of(context).gapEstimatedReachNote(
+              units.name,
+              units.lengthValue(assessment.standingReach),
+            ),
             style: const TextStyle(
               color: DunkColors.textTertiary,
               fontSize: 12,
@@ -204,20 +218,23 @@ class _GapMeter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    // The middle figure is the gap — or, once there is none, the inches to
+    final units = UnitScope.of(context);
+    final unit = units.name;
+    // The middle figure is the gap — or, once there is none, the length to
     // spare. A margin of exactly zero reads as a plain 0" gap, not "+0".
     final margin = assessment.marginInches;
     final showMargin = assessment.canAlreadyDunk && margin > 0;
     final String middleValue;
     if (showMargin) {
-      middleValue = l10n.inchesMargin(margin);
+      middleValue = l10n.lengthMargin(unit, units.lengthValue(margin));
     } else if (assessment.canAlreadyDunk) {
-      middleValue = l10n.inches(0);
+      middleValue = l10n.length(unit, 0);
     } else {
-      middleValue = l10n.inchesGap(assessment.gapInches);
+      middleValue =
+          l10n.lengthGap(unit, units.lengthValue(assessment.gapInches));
     }
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(18),
@@ -227,7 +244,8 @@ class _GapMeter extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _Big(
-              value: l10n.inchesApprox(assessment.estimatedCurrentVert),
+              value: l10n.lengthApprox(
+                  unit, units.lengthValue(assessment.estimatedCurrentVert)),
               label: l10n.gapMeterToday,
               color: Colors.white),
           const Icon(Icons.arrow_forward, color: DunkColors.textTertiary),
@@ -237,7 +255,8 @@ class _GapMeter extends StatelessWidget {
               color: DunkColors.primary),
           const Icon(Icons.arrow_forward, color: DunkColors.textTertiary),
           _Big(
-              value: l10n.inchesApprox(assessment.requiredVert),
+              value: l10n.lengthApprox(
+                  unit, units.lengthValue(assessment.requiredVert)),
               label: l10n.gapMeterDunk,
               color: DunkColors.accentGreen),
         ],
@@ -284,15 +303,24 @@ class _SummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Eight rows have to sit under the meter on one page, so each row is as
+    // tall as a line of 14 pt text plus a slim gap — a tabular summary, not a
+    // list of cards.
+    final rowGap = LayoutDensity.of(context).pick(5.0, 3.5);
     return Column(
       children: [
         for (final (k, v) in rows)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 9),
+            padding: EdgeInsets.symmetric(vertical: rowGap),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(k, style: const TextStyle(color: DunkColors.textSecondary, fontSize: 15)),
+                Text(k,
+                    style: const TextStyle(
+                        color: DunkColors.textSecondary,
+                        fontSize: 14,
+                        height: 1.3)),
                 const SizedBox(width: 12),
                 // Flexible so a long value (a hops label, a goal title) wraps
                 // under itself instead of overflowing the row.
@@ -301,7 +329,8 @@ class _SummaryGrid extends StatelessWidget {
                       textAlign: TextAlign.end,
                       style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 15,
+                          fontSize: 14,
+                          height: 1.3,
                           fontWeight: FontWeight.w600)),
                 ),
               ],

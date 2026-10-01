@@ -108,6 +108,7 @@ void main() {
         latestVerticalInches: 20,
         latestRecordedAt: DateTime(2026, 1, 1),
         deltaFromFirstInches: 4,
+        entryCount: 2,
       );
       final summary = JumpFeedback.build(result, trend: trend);
       expect(summary.focusNote, contains('up'));
@@ -119,6 +120,7 @@ void main() {
         latestVerticalInches: 20,
         latestRecordedAt: DateTime(2026, 1, 1),
         deltaFromFirstInches: -3,
+        entryCount: 2,
       );
       final summary = JumpFeedback.build(result, trend: trend);
       expect(summary.focusNote, contains('below'));
@@ -131,9 +133,27 @@ void main() {
         latestVerticalInches: 20,
         latestRecordedAt: DateTime(2026, 1, 1),
         deltaFromFirstInches: 0,
+        entryCount: 2,
       );
       final summary = JumpFeedback.build(result, trend: trend);
       expect(summary.focusNote, contains('Same as your first'));
+    });
+
+    test('a one-entry trend is the first test: compared to the onboarding '
+        'estimate, never to itself', () {
+      // The flow persists the jump before computing the trend, so the first
+      // ever test arrives with a trend of exactly one entry and zero delta.
+      final trend = JumpTrend(
+        latestVerticalInches: 20,
+        latestRecordedAt: DateTime(2026, 1, 1),
+        deltaFromFirstInches: 0,
+        entryCount: 1,
+      );
+      final withTrend = JumpFeedback.build(result, trend: trend);
+      final withoutTrend = JumpFeedback.build(result);
+      expect(withTrend.focusNote, withoutTrend.focusNote);
+      expect(withTrend.focusNote, contains('onboarding estimate'));
+      expect(withTrend.focusNote, isNot(contains('Same as your first')));
     });
   });
 
@@ -260,6 +280,7 @@ void main() {
         latestVerticalInches: 20,
         latestRecordedAt: DateTime(2026, 1, 1),
         deltaFromFirstInches: 4,
+        entryCount: 2,
       );
       final withScores = JumpFeedback.build(
         resultWithVert(20),

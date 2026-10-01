@@ -9,32 +9,36 @@
   "@commonClose": {
     "description": "Dismiss button of the small alert shown on the paywall when a legal page is not published yet."
   },
-  "inches": "{inches}\"",
-  "@inches": {
-    "description": "A measurement in inches, e.g. the standing reach or dunk target values in the onboarding gap screen's summary rows. In locales that do not use the inch symbol, spell the unit out.",
+  "length": "{unit, select, metric{{value} cm} other{{value}\"}}",
+  "@length": {
+    "description": "A length (a vertical, a standing reach, a dunk target) with its unit: the standing-reach and dunk-target values in the onboarding gap screen's summary rows, the big number on the Analyze result and Progress cards, the badge on a jump thumbnail, the trend chart's gridlines, the standing-reach value in Settings. {unit} is 'metric' (value is whole centimetres) or 'imperial' (value is whole inches); the value is already converted. In locales that do not use the inch symbol, spell the imperial unit out.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
-  "inchesApprox": "~{inches}\"",
-  "@inchesApprox": {
-    "description": "An approximate measurement in inches, used for the big TODAY and DUNK numbers on the onboarding gap meter.",
+  "lengthApprox": "{unit, select, metric{~{value} cm} other{~{value}\"}}",
+  "@lengthApprox": {
+    "description": "An approximate length, used for the big TODAY and DUNK numbers on the onboarding gap meter and the projected vertical on the jump-potential screen. {unit} is 'metric' (centimetres) or 'imperial' (inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
-  "inchesGap": "-{inches}\"",
-  "@inchesGap": {
-    "description": "The inches still missing to dunk, shown as the middle EST. GAP number on the onboarding gap meter. The leading minus is part of the design.",
+  "lengthGap": "{unit, select, metric{-{value} cm} other{-{value}\"}}",
+  "@lengthGap": {
+    "description": "The length still missing to dunk, shown as the middle EST. GAP number on the onboarding gap meter. The leading minus is part of the design. {unit} is 'metric' (centimetres) or 'imperial' (inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
-  "inchesMargin": "+{inches}\"",
-  "@inchesMargin": {
-    "description": "The inches of vertical an athlete has beyond what a dunk needs, shown as the middle EST. MARGIN number on the onboarding gap meter in place of the gap, only when they are estimated to already clear the dunk. The leading plus is part of the design.",
+  "lengthMargin": "{unit, select, metric{+{value} cm} other{+{value}\"}}",
+  "@lengthMargin": {
+    "description": "The vertical an athlete has beyond what a dunk needs, shown as the middle EST. MARGIN number on the onboarding gap meter in place of the gap, only when they are estimated to already clear the dunk. The leading plus is part of the design. {unit} is 'metric' (centimetres) or 'imperial' (inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
 
@@ -42,9 +46,12 @@
   "@introPanel1Headline": {
     "description": "Headline of the first panel of the opening intro carousel. The line break is deliberate — keep two short lines."
   },
-  "introPanel1Support": "Film one jump. We time your flight frame by frame and turn it into inches — no tape measure, no guessing.",
+  "introPanel1Support": "{unit, select, metric{Film one jump. We time your flight frame by frame and turn it into centimetres — no tape measure, no guessing.} other{Film one jump. We time your flight frame by frame and turn it into inches — no tape measure, no guessing.}}",
   "@introPanel1Support": {
-    "description": "Supporting paragraph under the first intro carousel headline (jump analysis)."
+    "description": "Supporting paragraph under the first intro carousel headline (jump analysis). {unit} is 'metric' (the app will show centimetres) or 'imperial' (inches).",
+    "placeholders": {
+      "unit": { "type": "String" }
+    }
   },
   "introPanel2Headline": "TRAIN WITH A\nREAL PLAN",
   "@introPanel2Headline": {
@@ -71,9 +78,23 @@
   "@goalTitle": {
     "description": "Title of onboarding quiz question 1 (dunk goal, multi-select)."
   },
-  "goalSubtitle": "Select every goal that fires you up — we'll build the path.",
+  "goalSubtitle": "Pick every goal that fires you up. They go on your profile — your plan itself comes from your level, your schedule and where you train.",
   "@goalSubtitle": {
-    "description": "Subtitle of onboarding quiz question 1 (dunk goal)."
+    "description": "Subtitle of onboarding quiz question 1 (dunk goal). Goals are stored and shown back but never reach the program catalog, so this must not promise a goal-shaped plan."
+  },
+  "dunkGoalTitle": "{goal, select, firstDunk{First Dunk Ever} dunkInGames{Dunk in Games} windmillsAnd360s{Windmills & 360s} alleyOopFinishing{Alley-Oop Finishing} maxVertical{Max Vertical} other{{goal}}}",
+  "@dunkGoalTitle": {
+    "description": "Title of one goal card on onboarding quiz question 1, and of each goal listed in the gap screen's Goals row. Keyed on the DunkGoal enum name from core/models/dunk_goal.dart (whose English getters stay for tests).",
+    "placeholders": {
+      "goal": { "type": "String" }
+    }
+  },
+  "dunkGoalSubtitle": "{goal, select, firstDunk{Unlock your first slam} dunkInGames{Finish when it counts} windmillsAnd360s{Style and flair} alleyOopFinishing{Catch and finish} maxVertical{Add inches to your leap} other{{goal}}}",
+  "@dunkGoalSubtitle": {
+    "description": "Subtitle of one goal card on onboarding quiz question 1. Keyed on the DunkGoal enum name.",
+    "placeholders": {
+      "goal": { "type": "String" }
+    }
   },
 
   "experienceTitle": "HOW EXPERIENCED\nARE YOU\nWITH JUMP TRAINING?",
@@ -84,14 +105,31 @@
   "@experienceSubtitle": {
     "description": "Subtitle of onboarding quiz question 2 (experience)."
   },
+  "experienceLevelTitle": "{level, select, beginner{Beginner} intermediate{Intermediate} advanced{Advanced} other{{level}}}",
+  "@experienceLevelTitle": {
+    "description": "Title of one card on onboarding quiz question 2. Keyed on the ExperienceLevel enum name from core/models/experience_level.dart (whose English getters stay for tests).",
+    "placeholders": {
+      "level": { "type": "String" }
+    }
+  },
+  "experienceLevelSubtitle": "{level, select, beginner{I've got hops but no plan} intermediate{I've trained, ready to level up} advanced{I'm chasing inches} other{{level}}}",
+  "@experienceLevelSubtitle": {
+    "description": "Subtitle of one card on onboarding quiz question 2. Keyed on the ExperienceLevel enum name.",
+    "placeholders": {
+      "level": { "type": "String" }
+    }
+  },
 
   "positionTitle": "WHAT POSITION DO\nYOU PLAY?",
   "@positionTitle": {
     "description": "Title of onboarding quiz question 3 (basketball position on court)."
   },
-  "positionSubtitle": "We'll tailor exercises to your position.",
-  "@positionSubtitle": {
-    "description": "Subtitle of onboarding quiz question 3 (position)."
+  "courtPositionLabel": "{position, select, pointGuard{Point Guard} shootingGuard{Shooting Guard} smallForward{Small Forward} powerForward{Power Forward} center{Center} other{{position}}}",
+  "@courtPositionLabel": {
+    "description": "Name of one basketball position card on onboarding quiz question 3. Keyed on the CourtPosition enum name from core/models/court_position.dart.",
+    "placeholders": {
+      "position": { "type": "String" }
+    }
   },
 
   "daysTitle": "HOW MANY DAYS\nPER WEEK\nCAN YOU TRAIN?",
@@ -119,42 +157,84 @@
   "@locationSubtitle": {
     "description": "Subtitle of onboarding quiz question 5 (training location)."
   },
+  "trainingLocationTitle": "{location, select, home{Home Only} gym{Gym Only} both{Both} other{{location}}}",
+  "@trainingLocationTitle": {
+    "description": "Title of one card on onboarding quiz question 5, and (upper-cased) the location badge on the plan-reveal program card. Keyed on the TrainingLocation enum name from core/models/training_location.dart.",
+    "placeholders": {
+      "location": { "type": "String" }
+    }
+  },
+  "trainingLocationSubtitle": "{location, select, home{Bodyweight & minimal equipment} gym{Full access to weights & machines} both{Train anywhere, anytime} other{{location}}}",
+  "@trainingLocationSubtitle": {
+    "description": "Subtitle of one card on onboarding quiz question 5. Keyed on the TrainingLocation enum name.",
+    "placeholders": {
+      "location": { "type": "String" }
+    }
+  },
 
   "hopsTitle": "WHERE ARE YOUR\nHOPS TODAY?",
   "@hopsTitle": {
     "description": "Title of onboarding quiz question 6 (current jumping ability, from below-rim to dunking consistently). 'Hops' is basketball slang for jumping ability."
   },
-  "hopsSubtitle": "Be honest — this calibrates your whole plan.",
+  "hopsSubtitle": "Be honest — this sets your starting estimate.",
   "@hopsSubtitle": {
-    "description": "Subtitle of onboarding quiz question 6 (current hops)."
+    "description": "Subtitle of onboarding quiz question 6 (current hops). It must not promise more than the answer does: hops only sets the estimated vertical and the gap, not the programme."
+  },
+  "hopsLevelTitle": "{level, select, dunkConsistently{Dunk consistently} dunkOnGoodDay{Dunk on a good day} grabRim{Grab the rim} touchRim{Touch the rim} belowRim{Below the rim} other{{level}}}",
+  "@hopsLevelTitle": {
+    "description": "Title of one rung on onboarding quiz question 6 (current hops), and the value of the gap screen's Hops row. Keyed on the HopsLevel enum name from core/models/hops_level.dart (whose English getters stay for tests).",
+    "placeholders": {
+      "level": { "type": "String" }
+    }
+  },
+  "hopsLevelSubtitle": "{level, select, dunkConsistently{Chasing bigger finishes} dunkOnGoodDay{It's in you — not consistent yet} grabRim{Palming iron on a good day} touchRim{Fingertips on iron} belowRim{Building from the ground up} other{{level}}}",
+  "@hopsLevelSubtitle": {
+    "description": "Subtitle of one rung on onboarding quiz question 6. Keyed on the HopsLevel enum name.",
+    "placeholders": {
+      "level": { "type": "String" }
+    }
   },
 
   "heightTitle": "YOUR HEIGHT",
   "@heightTitle": {
     "description": "Title of onboarding quiz question 7 (height, picked on two wheels)."
   },
-  "heightSubtitle": "We use this to personalize your jump analysis and vert estimates.",
+  "heightSubtitle": "Sets your estimated standing reach — and from it, the vert you need to dunk.",
   "@heightSubtitle": {
-    "description": "Subtitle of onboarding quiz question 7 (height). 'Vert' is short for vertical jump."
+    "description": "Subtitle of onboarding quiz question 7 (height). Height only feeds the estimated standing reach (height x 1.33) and hence the dunk target; it does not touch the jump analysis or the program, so do not claim either. 'Vert' is short for vertical jump."
   },
-  "heightUnitLabel": "FEET & INCHES",
+  "heightUnitLabel": "{unit, select, metric{CENTIMETRES} other{FEET & INCHES}}",
   "@heightUnitLabel": {
-    "description": "Small caps label under the big height readout on onboarding quiz question 7."
-  },
-  "heightValue": "{feet}' {inches}\"",
-  "@heightValue": {
-    "description": "The big height readout on onboarding quiz question 7, feet and inches.",
+    "description": "Small caps label under the big height readout on onboarding quiz question 7. {unit} is 'metric' (one centimetre wheel) or 'imperial' (feet and inches wheels).",
     "placeholders": {
-      "feet": { "type": "int" },
-      "inches": { "type": "int" }
+      "unit": { "type": "String" }
     }
   },
-  "heightValueCompact": "{feet}'{inches}\"",
-  "@heightValueCompact": {
-    "description": "The athlete's height written inline in running text, e.g. in the onboarding gap screen's opening sentence and its summary list. Tighter than heightValue, which sits alone on a picker.",
+  "heightValue": "{unit, select, metric{{cm} cm} other{{feet}' {inches}\"}}",
+  "@heightValue": {
+    "description": "The big height readout on onboarding quiz question 7. {unit} is 'metric' (only {cm} is set) or 'imperial' (only {feet} and {inches} are set; the unused numbers are zero).",
     "placeholders": {
+      "unit": { "type": "String" },
       "feet": { "type": "int" },
-      "inches": { "type": "int" }
+      "inches": { "type": "int" },
+      "cm": { "type": "int" }
+    }
+  },
+  "heightValueCompact": "{unit, select, metric{{cm} cm} other{{feet}'{inches}\"}}",
+  "@heightValueCompact": {
+    "description": "The athlete's height written inline in running text, e.g. in the onboarding gap screen's opening sentence and its summary list, and on a global leaderboard row. Tighter than heightValue, which sits alone on a picker. {unit} is 'metric' (only {cm} is set) or 'imperial' (only {feet} and {inches} are set; the unused numbers are zero).",
+    "placeholders": {
+      "unit": { "type": "String" },
+      "feet": { "type": "int" },
+      "inches": { "type": "int" },
+      "cm": { "type": "int" }
+    }
+  },
+  "heightCmOption": "{cm} cm",
+  "@heightCmOption": {
+    "description": "One entry of the centimetre wheel on onboarding quiz question 7 (metric regions only).",
+    "placeholders": {
+      "cm": { "type": "int" }
     }
   },
   "heightFeetOption": "{feet} ft",
@@ -178,11 +258,14 @@
   },
   "savedToAthleteProfile": "Saved to your athlete profile.",
   "@savedToAthleteProfile": {
-    "description": "Subtitle shared by onboarding quiz questions 8 (weight) and 9 (age): the answer is stored but does not change the program."
+    "description": "Subtitle shared by onboarding quiz questions 3 (position), 8 (weight) and 9 (age): the answer is stored but does not change the program."
   },
-  "weightUnitLabel": "LBS",
+  "weightUnitLabel": "{unit, select, metric{KG} other{LBS}}",
   "@weightUnitLabel": {
-    "description": "Small caps unit under the big weight readout on onboarding quiz question 8 (pounds)."
+    "description": "Small caps unit under the big weight readout on onboarding quiz question 8. {unit} is 'metric' (kilograms) or 'imperial' (pounds).",
+    "placeholders": {
+      "unit": { "type": "String" }
+    }
   },
 
   "ageTitle": "YOUR AGE",
@@ -209,11 +292,26 @@
   "@dunkHandSubtitle": {
     "description": "Subtitle of onboarding quiz question 10. Deliberately does NOT promise an approach-angle analysis — nothing in the app analyses approach angle."
   },
-  "dunkHandClearanceNote": "A one-hand dunk needs the ball and one hand over the ring. Both forearms over it is about {inches}\" more, so a two-hand finish raises your target.",
+  "dunkHandClearanceNote": "{unit, select, metric{A one-hand dunk needs the ball and one hand over the ring. Both forearms over it is about {value} cm more, so a two-hand finish raises your target.} other{A one-hand dunk needs the ball and one hand over the ring. Both forearms over it is about {value}\" more, so a two-hand finish raises your target.}}",
   "@dunkHandClearanceNote": {
-    "description": "Footnote under the hand cards on onboarding quiz question 10, explaining why a two-hand finish raises the required vertical.",
+    "description": "Footnote under the hand cards on onboarding quiz question 10, explaining why a two-hand finish raises the required vertical. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
+    }
+  },
+  "dunkHandOptionTitle": "{hand, select, left{Left Hand} right{Right Hand} both{Both Hands} other{{hand}}}",
+  "@dunkHandOptionTitle": {
+    "description": "Title of one hand card on onboarding quiz question 10. Keyed on the DunkHand enum name from core/models/dunk_hand.dart.",
+    "placeholders": {
+      "hand": { "type": "String" }
+    }
+  },
+  "dunkHandOptionSubtitle": "{hand, select, left{One-hand finish} right{One-hand finish} both{Needs more room over the rim} other{{hand}}}",
+  "@dunkHandOptionSubtitle": {
+    "description": "Caption of one hand card on onboarding quiz question 10. The left/right cards are square with a fixed height, so keep those two to one short line. Keyed on the DunkHand enum name.",
+    "placeholders": {
+      "hand": { "type": "String" }
     }
   },
 
@@ -221,9 +319,23 @@
   "@commitmentTitle": {
     "description": "Title of onboarding quiz question 11 (commitment level)."
   },
-  "commitmentSubtitle": "Athletes who commit before they start are the ones who make the leap.",
+  "commitmentSubtitle": "This one doesn't change your plan. It's a promise to yourself — saved to your profile.",
   "@commitmentSubtitle": {
-    "description": "Subtitle of onboarding quiz question 11 (commitment)."
+    "description": "Subtitle of onboarding quiz question 11 (commitment). The answer is stored and nothing reads it, so this must neither promise an adapted plan nor claim a result about committed athletes (there is no data behind such a claim)."
+  },
+  "commitmentLevelTitle": "{level, select, extremely{Extremely Committed} very{Very Committed} needHelp{I Need Help Staying Consistent} other{{level}}}",
+  "@commitmentLevelTitle": {
+    "description": "Title of one card on onboarding quiz question 11. Keyed on the CommitmentLevel enum name from core/models/commitment_level.dart.",
+    "placeholders": {
+      "level": { "type": "String" }
+    }
+  },
+  "commitmentLevelSubtitle": "{level, select, extremely{I'm ready to do what it takes} very{I want a clear plan and accountability} needHelp{Keep me locked in week after week} other{{level}}}",
+  "@commitmentLevelSubtitle": {
+    "description": "Subtitle of one card on onboarding quiz question 11. Keyed on the CommitmentLevel enum name.",
+    "placeholders": {
+      "level": { "type": "String" }
+    }
   },
 
   "gapBasedOnReach": "BASED ON YOUR REACH + HOPS",
@@ -242,35 +354,39 @@
   "@gapTitleCanDunk": {
     "description": "Headline of the first onboarding sell screen, replacing the 'here's the gap' headline when the athlete's estimated vertical already meets what a dunk needs, so there is no gap to show."
   },
-  "gapIntro": "You're {height}. About {current}\" today. Dunking usually takes ~{target}\".",
+  "gapIntro": "{unit, select, metric{You're {height}. About {current} cm today. Dunking usually takes ~{target} cm.} other{You're {height}. About {current}\" today. Dunking usually takes ~{target}\".}}",
   "@gapIntro": {
-    "description": "Paragraph under the gap headline. {height} is already formatted like 6'1\"; {current} and {required} are verticals in inches.",
+    "description": "Paragraph under the gap headline. {height} is already formatted like 6'1\" or 185 cm; {current} and {target} are verticals, already converted to the athlete's unit: {unit} is 'metric' (centimetres) or 'imperial' (inches).",
     "placeholders": {
+      "unit": { "type": "String" },
       "height": { "type": "String" },
       "current": { "type": "int" },
       "target": { "type": "int" }
     }
   },
-  "gapIntroCanDunk": "You're {height}. About {current}\" today, and dunking usually takes ~{target}\". From here the plan is about adding margin and consistency.",
+  "gapIntroCanDunk": "{unit, select, metric{You're {height}. About {current} cm today, and dunking usually takes ~{target} cm. From here the plan is about adding margin and consistency.} other{You're {height}. About {current}\" today, and dunking usually takes ~{target}\". From here the plan is about adding margin and consistency.}}",
   "@gapIntroCanDunk": {
-    "description": "Paragraph under the gap screen's headline when the athlete's estimated vertical already meets what a dunk needs. {height} is already formatted like 6'1\"; {current} and {target} are verticals in inches.",
+    "description": "Paragraph under the gap screen's headline when the athlete's estimated vertical already meets what a dunk needs. {height} is already formatted like 6'1\" or 185 cm; {current} and {target} are verticals, already converted to the athlete's unit: {unit} is 'metric' (centimetres) or 'imperial' (inches).",
     "placeholders": {
+      "unit": { "type": "String" },
       "height": { "type": "String" },
       "current": { "type": "int" },
       "target": { "type": "int" }
     }
   },
-  "gapTwoHandNote": "You picked a two-hand finish, which asks for both forearms over the ring — about {inches}\" more than a one-hand dunk. Your target reflects that.",
+  "gapTwoHandNote": "{unit, select, metric{You picked a two-hand finish, which asks for both forearms over the ring — about {value} cm more than a one-hand dunk. Your target reflects that.} other{You picked a two-hand finish, which asks for both forearms over the ring — about {value}\" more than a one-hand dunk. Your target reflects that.}}",
   "@gapTwoHandNote": {
-    "description": "Note on the gap screen, shown only when the athlete answered 'both hands' on quiz question 10.",
+    "description": "Note on the gap screen, shown only when the athlete answered 'both hands' on quiz question 10. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
-  "gapEstimatedReachNote": "Based on an estimated {reach}\" standing reach from your height. Measure your real reach — in Settings any time — for an exact target.",
+  "gapEstimatedReachNote": "{unit, select, metric{Based on an estimated {reach} cm standing reach from your height. Measure your real reach — in Settings any time — for an exact target.} other{Based on an estimated {reach}\" standing reach from your height. Measure your real reach — in Settings any time — for an exact target.}}",
   "@gapEstimatedReachNote": {
-    "description": "Caveat on the gap screen, shown only while the standing reach is estimated rather than measured.",
+    "description": "Caveat on the gap screen, shown only while the standing reach is estimated rather than measured. {unit} is 'metric' ({reach} in centimetres) or 'imperial' ({reach} in inches); the value is already converted.",
     "placeholders": {
+      "unit": { "type": "String" },
       "reach": { "type": "int" }
     }
   },
@@ -302,22 +418,26 @@
   "@gapRowWeight": { "description": "Label of the weight row in the gap screen's summary list." },
   "gapRowHops": "Hops",
   "@gapRowHops": { "description": "Label of the current-jumping-ability row in the gap screen's summary list." },
-  "gapRowPrimaryGoal": "Primary goal",
-  "@gapRowPrimaryGoal": { "description": "Label of the primary-goal row in the gap screen's summary list." },
+  "gapRowGoals": "Goals",
+  "@gapRowGoals": { "description": "Label of the goals row in the gap screen's summary list. Lists every goal the athlete picked (multi-select), not just the first one." },
+  "gapGoalsSeparator": ", ",
+  "@gapGoalsSeparator": { "description": "Separator placed between two goal titles in the gap screen's Goals row, e.g. the ', ' in 'First Dunk Ever, Max Vertical'. Keep the trailing space if the language needs one." },
   "gapRowTrainingDays": "Training days",
   "@gapRowTrainingDays": { "description": "Label of the sessions-per-week row in the gap screen's summary list." },
-  "gapReachEstimatedSuffix": "{reach}\" (est.)",
+  "gapReachEstimatedSuffix": "{unit, select, metric{{reach} cm (est.)} other{{reach}\" (est.)}}",
   "@gapReachEstimatedSuffix": {
-    "description": "Value of the standing-reach row in the gap screen's summary list while the reach is estimated rather than measured.",
+    "description": "Value of the standing-reach row in the gap screen's summary list while the reach is estimated rather than measured. {unit} is 'metric' ({reach} in centimetres) or 'imperial' ({reach} in inches); the value is already converted.",
     "placeholders": {
+      "unit": { "type": "String" },
       "reach": { "type": "int" }
     }
   },
-  "gapWeightValue": "{pounds} lbs",
+  "gapWeightValue": "{unit, select, metric{{value} kg} other{{value} lbs}}",
   "@gapWeightValue": {
-    "description": "Value of the weight row in the gap screen's summary list.",
+    "description": "Value of the weight row in the gap screen's summary list. {unit} is 'metric' ({value} in kilograms) or 'imperial' ({value} in pounds); the value is already converted.",
     "placeholders": {
-      "pounds": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
   "gapTrainingDaysValue": "{days}/week",
@@ -329,7 +449,7 @@
   },
   "gapDefaultGoal": "Your First Dunk",
   "@gapDefaultGoal": {
-    "description": "Fallback value of the primary-goal row in the gap screen's summary list when the athlete selected no goal."
+    "description": "Fallback value of the goals row in the gap screen's summary list when the athlete selected no goal."
   },
   "gapCta": "CLOSE THE GAP",
   "@gapCta": {
@@ -344,9 +464,9 @@
   "@potentialTitle": {
     "description": "Headline of the second onboarding sell screen: the projected vertical over eight weeks."
   },
-  "potentialSubtitle": "Projected from your height, hops, and age.",
+  "potentialSubtitle": "A typical progression curve for your age, starting from today's estimate — not a promise. Your logged jumps will tell the real story.",
   "@potentialSubtitle": {
-    "description": "Subtitle of the jump-potential screen. Names the three inputs the projection really uses: height (for reach), self-reported jumping ability, and age."
+    "description": "Subtitle of the jump-potential screen. The projection is a fixed diminishing-returns curve whose ceiling depends on age only, applied to the onboarding estimate; it ignores schedule, experience and goals, so the copy must not claim it is tailored to them."
   },
   "potentialWeekLabel": "WK {week}",
   "@potentialWeekLabel": {
@@ -355,15 +475,19 @@
       "week": { "type": "int" }
     }
   },
-  "potentialWindowLabel": "PROJECTED 8-WEEK WINDOW",
+  "potentialWindowLabel": "PROJECTED {weeks}-WEEK WINDOW",
   "@potentialWindowLabel": {
-    "description": "Small caps label above the projected eight-week vertical on the jump-potential screen."
-  },
-  "potentialFromToday": "Potential from an est. ~{inches}\" today.",
-  "@potentialFromToday": {
-    "description": "Line under the projected eight-week vertical, naming the estimated vertical it starts from.",
+    "description": "Small caps label above the projected vertical on the jump-potential screen. {weeks} is the length of the recommended program (8 for the beginner and intermediate programs, 10 for the advanced one), so the window matches the plan revealed two screens later.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "weeks": { "type": "int" }
+    }
+  },
+  "potentialFromToday": "{unit, select, metric{Potential from an est. ~{value} cm today.} other{Potential from an est. ~{value}\" today.}}",
+  "@potentialFromToday": {
+    "description": "Line under the projected end-of-program vertical, naming the estimated vertical it starts from. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.",
+    "placeholders": {
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
   "potentialCta": "SEE MY PLAN",
@@ -470,35 +594,26 @@
   "@planThisWeek": {
     "description": "Section heading above the seven-day layout on the plan-reveal screen."
   },
-  "planDayLabel": "DAY {day}",
-  "@planDayLabel": {
-    "description": "Left column of one row in the plan-reveal screen's week layout.",
+  "programDayFocus": "{focus, select, Power{POWER} Strength{STRENGTH} Speed{SPEED} Control{CONTROL} other{{focus}}}",
+  "@programDayFocus": {
+    "description": "Upper-case name of a training day in the plan-reveal screen's week layout, keyed on the authored day focus from core/program_catalog.dart ('Power', 'Strength', 'Speed', 'Control'). An unknown focus is printed as authored.",
     "placeholders": {
-      "day": { "type": "int" }
+      "focus": { "type": "String" }
     }
   },
-  "planDayFoundation": "FOUNDATION",
-  "@planDayFoundation": { "description": "Name of the first training day in the plan-reveal screen's sample week." },
-  "planDayBasic": "BASIC",
-  "@planDayBasic": { "description": "Name of the second training day in the plan-reveal screen's sample week." },
-  "planDayCore": "CORE",
-  "@planDayCore": { "description": "Name of the third training day in the plan-reveal screen's sample week." },
-  "planDayPower": "POWER",
-  "@planDayPower": { "description": "Name of the fourth training day in the plan-reveal screen's sample week." },
-  "planDayReactive": "REACTIVE",
-  "@planDayReactive": { "description": "Name of the fifth training day in the plan-reveal screen's sample week (reactive / plyometric work)." },
   "planDayRest": "REST",
-  "@planDayRest": { "description": "Label of a non-training day in the plan-reveal screen's sample week." },
+  "@planDayRest": { "description": "Label of a non-training day in the plan-reveal screen's week layout." },
 
   "mockJumpAnalysis": "JUMP ANALYSIS",
   "@mockJumpAnalysis": { "description": "Screen label inside the phone mockup on intro carousel panel 1. Illustrative UI, not real data." },
   "mockEstVert": "EST. VERT",
   "@mockEstVert": { "description": "Card label inside the phone mockup on intro carousel panel 1: estimated vertical jump." },
-  "mockToDunk": "{inches}\" TO DUNK",
+  "mockToDunk": "{unit, select, metric{{value} cm TO DUNK} other{{value}\" TO DUNK}}",
   "@mockToDunk": {
-    "description": "Inches-to-dunk pill inside the phone mockup on intro carousel panel 1.",
+    "description": "Length-to-dunk pill inside the phone mockup on intro carousel panel 1. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the sample value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
   "mockFormScores": "FORM SCORES",
@@ -519,11 +634,12 @@
   "@mockProgress": { "description": "Screen label inside the phone mockup on intro carousel panel 3." },
   "mockCurrentVertical": "CURRENT VERTICAL",
   "@mockCurrentVertical": { "description": "Card label inside the phone mockup on intro carousel panel 3." },
-  "mockSinceFirstTest": "+{inches}\" SINCE FIRST TEST",
+  "mockSinceFirstTest": "{unit, select, metric{+{value} cm SINCE FIRST TEST} other{+{value}\" SINCE FIRST TEST}}",
   "@mockSinceFirstTest": {
-    "description": "Trend line inside the phone mockup on intro carousel panel 3.",
+    "description": "Trend line inside the phone mockup on intro carousel panel 3. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the sample value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
   "mockWorkouts": "WORKOUTS",
@@ -644,11 +760,12 @@
   "@weekdayInitials": {
     "description": "Seven single-letter weekday initials, Monday first, comma-separated. Used by the Home tab's five-day strip and by the week strip inside the intro carousel's phone mockup. Must contain exactly seven comma-separated entries."
   },
-  "inchesPlus": "+{inches}\"",
-  "@inchesPlus": {
-    "description": "A gain in inches, e.g. the green delta badge next to the latest vertical on Home and on Progress.",
+  "lengthPlus": "{unit, select, metric{+{value} cm} other{+{value}\"}}",
+  "@lengthPlus": {
+    "description": "A gain in vertical, e.g. the green delta badge next to the latest vertical on Home. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
 
@@ -682,17 +799,18 @@
 
   "standingReachHowTo": "Stand flat against a wall, reach one arm as high as it goes, mark your fingertips, then measure from the floor. Your dunk target is built on this number.",
   "@standingReachHowTo": { "description": "Instructions at the top of the standing-reach dialog, explaining how to measure it." },
-  "standingReachValue": "{label}  ·  {inches} in",
+  "standingReachValue": "{unit, select, metric{{value} cm} other{{label}  ·  {value} in}}",
   "@standingReachValue": {
-    "description": "One reading in the standing-reach dialog: the same measurement in feet-and-inches (already formatted by core/standing_reach.dart) and in plain inches. The double spaces around the separator are intentional.",
+    "description": "One reading in the standing-reach dialog (the big current value and every wheel entry). Imperial shows the same measurement in feet-and-inches ({label}, already formatted like 8'1\") and in plain inches ({value}); metric shows centimetres only ({value}, {label} is empty). The double spaces around the separator are intentional. {unit} is 'metric' or 'imperial'.",
     "placeholders": {
+      "unit": { "type": "String" },
       "label": { "type": "String" },
-      "inches": { "type": "int" }
+      "value": { "type": "int" }
     }
   },
   "standingReachEstimateNote": "Currently estimated at {label} from your height.",
   "@standingReachEstimateNote": {
-    "description": "Note at the bottom of the standing-reach dialog, shown only while no real measurement exists. {label} is a formatted height such as 7'8\".",
+    "description": "Note at the bottom of the standing-reach dialog, shown only while no real measurement exists. {label} is a formatted reach such as 7'8\" or 234 cm.",
     "placeholders": {
       "label": { "type": "String" }
     }
@@ -764,24 +882,31 @@
   "@progressViewAll": { "description": "Link at the end of the Progress recent-analyses title row; opens the full jump history." },
   "progressCurrentVertical": "CURRENT VERTICAL",
   "@progressCurrentVertical": { "description": "Label above the big number on the Progress tab's headline card." },
-  "progressVertUnitSuffix": "  in",
-  "@progressVertUnitSuffix": { "description": "Unit shown after the em dash on the Progress headline card while no jump has been measured yet. The two leading spaces are intentional." },
+  "progressVertUnitSuffix": "{unit, select, metric{  cm} other{  in}}",
+  "@progressVertUnitSuffix": {
+    "description": "Unit shown after the em dash on the Progress headline card while no jump has been measured yet. The two leading spaces are intentional. {unit} is 'metric' (centimetres) or 'imperial' (inches).",
+    "placeholders": {
+      "unit": { "type": "String" }
+    }
+  },
   "progressLogFirstJump": "Log your first jump test to start tracking",
   "@progressLogFirstJump": { "description": "Empty state on the Progress headline card, before any jump has been analysed." },
   "progressGoToAnalyze": "Go to Analyze",
   "@progressGoToAnalyze": { "description": "Button on the Progress empty state that switches to the Analyze tab." },
-  "progressSinceFirstGain": "+{inches}\" since your first test",
+  "progressSinceFirstGain": "{unit, select, metric{+{value} cm since your first test} other{+{value}\" since your first test}}",
   "@progressSinceFirstGain": {
-    "description": "Trend line on the Progress headline card when the vertical has improved.",
+    "description": "Trend line on the Progress headline card when the vertical has improved. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
-  "progressSinceFirstLoss": "{inches}\" since your first test",
+  "progressSinceFirstLoss": "{unit, select, metric{{value} cm since your first test} other{{value}\" since your first test}}",
   "@progressSinceFirstLoss": {
-    "description": "Trend line on the Progress headline card when the vertical has dropped. {inches} is already negative, so it arrives with its own minus sign.",
+    "description": "Trend line on the Progress headline card when the vertical has dropped. {value} is already negative, so it arrives with its own minus sign, and already converted: {unit} is 'metric' (centimetres) or 'imperial' (inches).",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
   "progressSinceFirstNoChange": "No change since your first test",
@@ -801,6 +926,14 @@
       "percent": { "type": "int" }
     }
   },
+  "progressRemainingAndPercent": "{remaining, plural, =1{1 REMAINING · {percent}% COMPLETE} other{{remaining} REMAINING · {percent}% COMPLETE}}",
+  "@progressRemainingAndPercent": {
+    "description": "Second line of the Progress workouts card, under the completed count: sessions left in the program and the percentage done, on one short line. All caps like the labels around it.",
+    "placeholders": {
+      "remaining": { "type": "int" },
+      "percent": { "type": "int" }
+    }
+  },
   "progressDayStreak": "DAY STREAK",
   "@progressDayStreak": { "description": "Title of the Progress tab card counting consecutive training days." },
   "progressStreakDaysSuffix": "  days",
@@ -810,11 +943,12 @@
   "@jumpHistoryTitle": { "description": "App bar title of the full jump-history list, opened from Progress's View All." },
   "jumpHistoryEmpty": "No jumps logged yet.",
   "@jumpHistoryEmpty": { "description": "Empty state of the full jump-history list." },
-  "jumpVideoTitle": "{inches}\" · {date}",
+  "jumpVideoTitle": "{unit, select, metric{{value} cm · {date}} other{{value}\" · {date}}}",
   "@jumpVideoTitle": {
-    "description": "App bar title of the full-screen jump-clip player: the measured vertical and when it was filmed.",
+    "description": "App bar title of the full-screen jump-clip player: the measured vertical and when it was filmed. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" },
+      "unit": { "type": "String" },
+      "value": { "type": "int" },
       "date": { "type": "DateTime", "format": "yMd" }
     }
   },
@@ -824,17 +958,18 @@
   "@jumpVideoMissing": { "description": "Snackbar in the jump-clip player when Share is tapped but the file has been deleted." },
   "jumpVideoShareFailed": "Couldn't open the share sheet. Please try again.",
   "@jumpVideoShareFailed": { "description": "Snackbar in the jump-clip player when the native share sheet fails to open." },
-  "jumpShareText": "{inches}\" vertical — Dunk It",
+  "jumpShareText": "{unit, select, metric{{value} cm vertical — Dunk It} other{{value}\" vertical — Dunk It}}",
   "@jumpShareText": {
-    "description": "Caption attached to a jump clip handed to the native share sheet. 'Dunk It' is the app name and stays as is.",
+    "description": "Caption attached to a jump clip handed to the native share sheet. 'Dunk It' is the app name and stays as is. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
 
 "weekdayLabels": "MON,TUE,WED,THU,FRI,SAT,SUN",
   "@weekdayLabels": {
-    "description": "Seven abbreviated weekday names, Monday first, comma-separated, for the Train tab's week strip. Keep each to about three characters — they sit under narrow chips. Must contain exactly seven comma-separated entries."
+    "description": "Seven abbreviated weekday names, Monday first, comma-separated, for the Train tab's week strip and the plan-reveal screen's week layout. Keep each to about three characters — they sit under narrow chips. Must contain exactly seven comma-separated entries."
   },
 
   "trainTitle": "TRAIN",
@@ -971,8 +1106,13 @@
   },
   "logRepsHint": "reps",
   "@logRepsHint": { "description": "Placeholder of the repetitions field on a set row." },
-  "logWeightHint": "lbs (optional)",
-  "@logWeightHint": { "description": "Placeholder of the weight field on a set row. Pounds — the app logs imperial weight throughout." },
+  "logWeightHint": "{unit, select, metric{kg (optional)} other{lbs (optional)}}",
+  "@logWeightHint": {
+    "description": "Placeholder of the weight field on a set row. {unit} is 'metric' (the athlete types kilograms) or 'imperial' (pounds); what they type is converted to pounds before it is stored.",
+    "placeholders": {
+      "unit": { "type": "String" }
+    }
+  },
   "logValidated": "DONE",
   "@logValidated": { "description": "State of the per-set toggle once the set has been checked off. Keep it short — it sits in a small pill." },
   "logValidate": "VALIDATE",
@@ -1078,11 +1218,12 @@
   "@feedLoading": { "description": "Caption under the Feed's loading skeleton rows." },
   "feedYouBadge": "YOU",
   "@feedYouBadge": { "description": "Pill marking the athlete's own row on the global board. Keep it very short." },
-  "feedJumpStat": "{inches}\" vert",
+  "feedJumpStat": "{unit, select, metric{{value} cm vert} other{{value}\" vert}}",
   "@feedJumpStat": {
-    "description": "The measured vertical on a Feed personal-board row.",
+    "description": "The measured vertical on a Feed row, both the global board and the athlete's own. {unit} is 'metric' ({value} in centimetres) or 'imperial' ({value} in inches); the value is already converted.",
     "placeholders": {
-      "inches": { "type": "int" }
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
     }
   },
   "feedAttemptSeparator": " · {attempt}",
@@ -1096,7 +1237,7 @@
   "@feedAttemptFallback": { "description": "Used in place of the attempt type on a Feed personal-board row when the entry recorded none." },
   "feedGlobalStatSeparator": " · {height}",
   "@feedGlobalStatSeparator": {
-    "description": "Suffix on a global-board row giving the athlete's height. {height} is already formatted by the untranslated leaderboard model.",
+    "description": "Suffix on a global-board row giving the athlete's height. {height} is already formatted by heightValueCompact (6'1\" or 185 cm).",
     "placeholders": {
       "height": { "type": "String" }
     }
@@ -1251,26 +1392,58 @@
   "@resultCtaAnalyzeAnother": { "description": "Button at the bottom of the Analyze result that restarts the flow." },
   "resultEstVert": "EST. VERT",
   "@resultEstVert": { "description": "Label above the measured vertical on the Analyze result." },
-  "resultClearsDunk": "That clears your {target}\" dunk target",
+  "resultClearsDunk": "{unit, select, metric{That clears your {target} cm dunk target} other{That clears your {target}\" dunk target}}",
   "@resultClearsDunk": {
-    "description": "Line under the measured vertical when it already meets the dunk target.",
+    "description": "Line under the measured vertical when it already meets the dunk target. {unit} is 'metric' ({target} in centimetres) or 'imperial' ({target} in inches); the value is already converted.",
     "placeholders": {
+      "unit": { "type": "String" },
       "target": { "type": "int" }
     }
   },
-  "resultGapToDunk": "{gap}\" to go to your {target}\" dunk target",
+  "resultGapToDunk": "{unit, select, metric{{gap} cm to go to your {target} cm dunk target} other{{gap}\" to go to your {target}\" dunk target}}",
   "@resultGapToDunk": {
-    "description": "Line under the measured vertical when inches are still missing.",
+    "description": "Line under the measured vertical when some vertical is still missing. {unit} is 'metric' ({gap} and {target} in centimetres) or 'imperial' (inches); both values are already converted.",
     "placeholders": {
+      "unit": { "type": "String" },
       "gap": { "type": "int" },
       "target": { "type": "int" }
     }
   },
-  "resultEstimatedReachNote": "Target assumes an estimated {reach}\" standing reach. Set your real reach in Settings for an exact one.",
+  "resultEstimatedReachNote": "{unit, select, metric{Target assumes an estimated {reach} cm standing reach. Set your real reach in Settings for an exact one.} other{Target assumes an estimated {reach}\" standing reach. Set your real reach in Settings for an exact one.}}",
   "@resultEstimatedReachNote": {
-    "description": "Caveat on the Analyze result while the standing reach is still estimated. The measured vertical is real; only the target it is compared against is not.",
+    "description": "Caveat on the Analyze result while the standing reach is still estimated. The measured vertical is real; only the target it is compared against is not. {unit} is 'metric' ({reach} in centimetres) or 'imperial' ({reach} in inches); the value is already converted.",
     "placeholders": {
+      "unit": { "type": "String" },
       "reach": { "type": "int" }
+    }
+  },
+  "resultReplacesOnboardingEstimate": "{unit, select, metric{This measurement now stands in for your onboarding estimate of ~{value} cm.} other{This measurement now stands in for your onboarding estimate of ~{value}\".}}",
+  "@resultReplacesOnboardingEstimate": {
+    "description": "Quiet line on the Analyze result's vert card, shown only on the athlete's first logged jump: the measured vertical replaces the self-reported 'today' figure the onboarding gap and potential screens showed. {value} is that onboarding estimate, already converted: {unit} is 'metric' (centimetres) or 'imperial' (inches).",
+    "placeholders": {
+      "unit": { "type": "String" },
+      "value": { "type": "int" }
+    }
+  },
+  "takeoffTypeLabel": "{type, select, oneFoot{One-foot takeoff} twoFoot{Two-foot takeoff} other{{type}}}",
+  "@takeoffTypeLabel": {
+    "description": "Pill on the Analyze result's form-scores card saying whether the athlete took off from one foot or two (shown upper-cased). Keyed on the TakeoffType enum name from core/jump_form_scores.dart.",
+    "placeholders": {
+      "type": { "type": "String" }
+    }
+  },
+  "videoAttemptTypeTitle": "{type, select, dunkAttempt{Dunk Attempt} jumpAttempt{Jump Attempt} other{{type}}}",
+  "@videoAttemptTypeTitle": {
+    "description": "Title of one clip-type chip on the Analyze source screen (shown upper-cased): is the clip a dunk attempt or a plain jump. Keyed on the VideoAttemptType enum name from core/models/video_attempt_type.dart.",
+    "placeholders": {
+      "type": { "type": "String" }
+    }
+  },
+  "videoAttemptTypeSubtitle": "{type, select, dunkAttempt{Rim or ball in frame} jumpAttempt{No rim needed} other{{type}}}",
+  "@videoAttemptTypeSubtitle": {
+    "description": "Caption of one clip-type chip on the Analyze source screen. Keyed on the VideoAttemptType enum name.",
+    "placeholders": {
+      "type": { "type": "String" }
     }
   },
   "resultFormScoresTitle": "FORM SCORES",

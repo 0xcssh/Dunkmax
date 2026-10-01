@@ -5,6 +5,7 @@ import 'features/analyze/analyze_flow.dart';
 import 'features/home/root_shell.dart';
 import 'features/onboarding/onboarding_flow.dart';
 import 'features/paywall/paywall_screen.dart';
+import 'features/shared/unit_scope.dart';
 import 'l10n/app_localizations.dart';
 import 'services/athlete_profile_store.dart';
 import 'services/jump_log_store.dart';
@@ -31,6 +32,11 @@ class DunkMaxApp extends StatefulWidget {
   final LeaderboardService leaderboardService;
   final SubscriptionService subscriptionService;
 
+  /// Metric or imperial, decided by the device's region (see
+  /// [UnitScope.resolveFromPlatform]). Null resolves it at build time; tests
+  /// pass one explicitly to force either system.
+  final UnitSystem? unitSystem;
+
   const DunkMaxApp({
     super.key,
     required this.store,
@@ -39,6 +45,7 @@ class DunkMaxApp extends StatefulWidget {
     required this.athleteProfileStore,
     required this.leaderboardService,
     required this.subscriptionService,
+    this.unitSystem,
   });
 
   @override
@@ -147,6 +154,12 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
       // data-only change: drop an `app_xx.arb` next to the two existing ones.
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      // Above the Navigator, so dialogs and sheets see the same unit system
+      // as the screens that open them.
+      builder: (context, child) => UnitScope(
+        system: widget.unitSystem ?? UnitScope.resolveFromPlatform(),
+        child: child!,
+      ),
       home: _buildHome(),
     );
   }

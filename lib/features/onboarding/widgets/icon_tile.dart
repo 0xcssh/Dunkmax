@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../shared/layout_density.dart';
+
+/// Side of the rounded-square badge on an option card. 44 pt keeps a card
+/// at ~68 pt, which is what lets five of them share a screen with the
+/// headline and the CTA; short phones drop to 40.
+double _tileSize(BuildContext context) =>
+    LayoutDensity.of(context).pick(44, 40);
+
 /// The small rounded-square icon badge used on onboarding option cards.
 class IconTile extends StatelessWidget {
   final IconData icon;
@@ -9,14 +17,15 @@ class IconTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = _tileSize(context);
     return Container(
-      width: 48,
-      height: 48,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: tint.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(icon, color: tint, size: 24),
+      child: Icon(icon, color: tint, size: size * 0.5),
     );
   }
 }
@@ -30,9 +39,10 @@ class NumberTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = _tileSize(context);
     return Container(
-      width: 48,
-      height: 48,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: tint.withValues(alpha: 0.18),
@@ -42,7 +52,7 @@ class NumberTile extends StatelessWidget {
         '$number',
         style: TextStyle(
           color: tint,
-          fontSize: 20,
+          fontSize: size * 0.42,
           fontWeight: FontWeight.w800,
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/unit_scope.dart';
 
 /// Simplified, recognisable versions of three of the app's own surfaces,
 /// drawn to fit [PhoneMockup.designSize] (210 × 440) and scaled from there.
@@ -20,6 +21,7 @@ class AnalysisMock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     return _MockScreen(
       children: [
         _MockLabel(l10n.mockJumpAnalysis),
@@ -30,10 +32,10 @@ class AnalysisMock extends StatelessWidget {
             children: [
               _MockLabel(l10n.mockEstVert),
               const SizedBox(height: 2),
-              // An illustrative number, deliberately not localised as a
-              // measurement: it is part of the product shot.
+              // An illustrative number, part of the product shot — shown in
+              // the athlete's own unit so the shot looks like their app.
               Text(
-                l10n.inches(29),
+                l10n.length(units.name, units.lengthValue(29)),
                 style: const TextStyle(
                   fontSize: 44,
                   height: 1.05,
@@ -48,7 +50,7 @@ class AnalysisMock extends StatelessWidget {
                       size: 11, color: DunkColors.primary),
                   const SizedBox(width: 4),
                   Text(
-                    l10n.mockToDunk(6),
+                    l10n.mockToDunk(units.name, units.lengthValue(6)),
                     style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
@@ -139,6 +141,7 @@ class ProgressMock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     return _MockScreen(
       children: [
         _MockLabel(l10n.mockProgress),
@@ -150,7 +153,7 @@ class ProgressMock extends StatelessWidget {
               _MockLabel(l10n.mockCurrentVertical),
               const SizedBox(height: 2),
               Text(
-                l10n.inches(31),
+                l10n.length(units.name, units.lengthValue(31)),
                 style: const TextStyle(
                   fontSize: 38,
                   height: 1.05,
@@ -160,7 +163,7 @@ class ProgressMock extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                l10n.mockSinceFirstTest(4),
+                l10n.mockSinceFirstTest(units.name, units.lengthValue(4)),
                 style: const TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w800,

@@ -17,6 +17,22 @@ abstract class StandingReach {
   /// Highest reach the app will accept, in inches.
   static const int maxInches = 110;
 
+  /// The same bounds for a metric picker, in whole centimetres — the inch
+  /// bounds converted and rounded (55" = 139.7 cm, 110" = 279.4 cm). A value
+  /// picked in this range always converts back inside [minInches]..
+  /// [maxInches], so the metric wheel can never store an implausible reach.
+  static const int minCm = 140;
+  static const int maxCm = 279;
+
+  static bool isPlausibleCm(int cm) => cm >= minCm && cm <= maxCm;
+
+  /// Pulls [cm] into the plausible metric range.
+  static int clampCm(int cm) {
+    if (cm < minCm) return minCm;
+    if (cm > maxCm) return maxCm;
+    return cm;
+  }
+
   static bool isPlausible(int inches) =>
       inches >= minInches && inches <= maxInches;
 

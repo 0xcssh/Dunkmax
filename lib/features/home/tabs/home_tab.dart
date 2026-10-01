@@ -9,6 +9,9 @@ import '../../../l10n/app_localizations.dart';
 import '../../../services/jump_log_store.dart';
 import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/layout_density.dart';
+import '../../shared/unit_scope.dart';
+import '../../shared/widgets/fit_or_scroll.dart';
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -70,12 +73,17 @@ class HomeTab extends StatelessWidget {
         ? null
         : completedDaySet.reduce((a, b) => a.isBefore(b) ? a : b);
 
+    // One page: header, the 5-day strip, today's hero card and the two
+    // stat tiles share the room above the tab bar. The column only scrolls
+    // if a phone is shorter than the ones this is laid out for.
+    final density = LayoutDensity.of(context);
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+      child: FitOrScrollColumn(
+        padding: EdgeInsets.fromLTRB(20, density.pick(12, 8), 20, 12),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _HeaderRow(streak: streak, onOpenSettings: onOpenSettings),
-          const SizedBox(height: 20),
+          SizedBox(height: density.pick(16, 12)),
           _DayStrip(
             currentSessionNumber: currentSessionNumber,
             totalSessions: program.totalSessions,
@@ -84,7 +92,7 @@ class HomeTab extends StatelessWidget {
             firstLoggedDay: firstLoggedDay,
             isProgramComplete: isProgramComplete,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: density.pick(14, 10)),
           _HeroCard(
             today: today,
             weekNumber: weekNumber,
@@ -94,7 +102,7 @@ class HomeTab extends StatelessWidget {
             isRestDay: plan.isRestDay,
             onStartTraining: onStartTraining,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: density.pick(14, 10)),
           _StatsRow(trend: trend, streak: streak),
         ],
       ),
@@ -347,8 +355,9 @@ class _DayCard extends StatelessWidget {
       border = Border.all(color: DunkColors.stroke);
     }
 
+    final compact = LayoutDensity.of(context).isCompact;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: EdgeInsets.symmetric(vertical: compact ? 7 : 9),
       decoration: BoxDecoration(
         gradient: isToday ? DunkColors.primaryGradient : null,
         color: isToday ? null : bg,
@@ -368,9 +377,9 @@ class _DayCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: compact ? 5 : 7),
           statusIcon,
-          const SizedBox(height: 8),
+          SizedBox(height: compact ? 5 : 7),
           Text(
             '${date.day}',
             style: TextStyle(
@@ -448,9 +457,10 @@ class _HeroCard extends StatelessWidget {
     }
     final secondary = resting ? DunkColors.textSecondary : Colors.white70;
 
+    final compact = LayoutDensity.of(context).isCompact;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(compact ? 16 : 20),
       decoration: BoxDecoration(
         gradient: resting ? null : DunkColors.primaryGradient,
         color: resting ? DunkColors.surface : null,
@@ -460,8 +470,8 @@ class _HeroCard extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: compact ? 44 : 52,
+            height: compact ? 44 : 52,
             decoration: BoxDecoration(
               color: resting
                   ? DunkColors.surfaceRaised
@@ -473,21 +483,22 @@ class _HeroCard extends StatelessWidget {
                   ? Icons.emoji_events
                   : (resting ? Icons.nightlight_round : _focusIcon),
               color: resting ? DunkColors.primary : Colors.white,
-              size: 28,
+              size: compact ? 24 : 26,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: compact ? 10 : 12),
           Text(
             headline,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontStyle: FontStyle.italic,
               fontWeight: FontWeight.w900,
-              fontSize: 26,
+              fontSize: compact ? 22 : 24,
+              height: 1.15,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             body,
             textAlign: TextAlign.center,
@@ -505,7 +516,7 @@ class _HeroCard extends StatelessWidget {
               style: TextStyle(color: secondary, fontSize: 13),
             ),
           ],
-          const SizedBox(height: 20),
+          SizedBox(height: compact ? 12 : 16),
           Material(
             color: resting ? Colors.transparent : Colors.white,
             shape: RoundedRectangleBorder(
@@ -521,7 +532,7 @@ class _HeroCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               onTap: onStartTraining,
               child: Container(
-                height: 52,
+                height: compact ? 46 : 50,
                 width: double.infinity,
                 alignment: Alignment.center,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -557,16 +568,21 @@ class _StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     return Row(
       children: [
         Expanded(
           child: _StatCard(
             icon: Icons.straighten,
-            value: trend == null ? '—' : l10n.inches(trend!.latestVerticalInches),
+            value: trend == null
+                ? '—'
+                : l10n.length(units.name,
+                    units.lengthValue(trend!.latestVerticalInches)),
             label: l10n.homeLatestVert,
             trailing: trend != null && trend!.isImproving
                 ? _GreenDelta(
-                    text: l10n.inchesPlus(trend!.deltaFromFirstInches))
+                    text: l10n.lengthPlus(units.name,
+                        units.lengthValue(trend!.deltaFromFirstInches)))
                 : null,
           ),
         ),
@@ -623,8 +639,9 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = LayoutDensity.of(context).isCompact;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(compact ? 12 : 14),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -634,22 +651,23 @@ class _StatCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               color: DunkColors.surfaceRaised,
               borderRadius: BorderRadius.circular(9),
             ),
-            child: Icon(icon, color: DunkColors.primary, size: 17),
+            child: Icon(icon, color: DunkColors.primary, size: 16),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: compact ? 8 : 10),
           Row(
             children: [
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 28,
+                  fontSize: compact ? 24 : 26,
+                  height: 1.15,
                   fontWeight: FontWeight.w900,
                 ),
               ),

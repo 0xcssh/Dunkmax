@@ -7,6 +7,7 @@ import '../../../core/jump_trend.dart';
 import '../../../core/models/video_attempt_type.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/unit_scope.dart';
 import '../../shared/widgets/primary_button.dart';
 import '../widgets/detection_details_card.dart';
 import 'processing_screen.dart';
@@ -47,10 +48,13 @@ class JumpResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // The breakdown's prose is authored in core (English); it still quotes
+    // the numbers in the athlete's own unit.
     final feedback = JumpFeedback.build(
       result,
       trend: trend,
       scores: analysis.scores,
+      units: UnitScope.of(context),
     );
     return SafeArea(
       child: ListView(
@@ -66,7 +70,7 @@ class JumpResultScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _VertCard(result: result),
+          _VertCard(result: result, trend: trend),
           const SizedBox(height: 16),
           // Scores sit directly under the headline number on purpose: they are
           // the other measured output of the same pass, and a reader scanning
@@ -329,11 +333,20 @@ class _AspectNote extends StatelessWidget {
 
 class _VertCard extends StatelessWidget {
   final JumpResult result;
-  const _VertCard({required this.result});
+  final JumpTrend? trend;
+  const _VertCard({required this.result, required this.trend});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
+    final unit = units.name;
+    // Until this jump the only "today" figure the athlete had seen was the
+    // onboarding self-report (gap screen, potential screen). On the first
+    // measured test say once, quietly, that the measurement now stands in for
+    // it — otherwise that number just vanishes and the gap shown here
+    // disagrees with the one they saw at onboarding for no stated reason.
+    final isFirstTest = trend?.isFirstTest ?? false;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -353,7 +366,7 @@ class _VertCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            l10n.inches(result.verticalInches),
+            l10n.length(unit, units.lengthValue(result.verticalInches)),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 56,
@@ -364,8 +377,13 @@ class _VertCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             result.clearsDunk
-                ? l10n.resultClearsDunk(result.requiredVert)
-                : l10n.resultGapToDunk(result.gapInches, result.requiredVert),
+                ? l10n.resultClearsDunk(
+                    unit, units.lengthValue(result.requiredVert))
+                : l10n.resultGapToDunk(
+                    unit,
+                    units.lengthValue(result.gapInches),
+                    units.lengthValue(result.requiredVert),
+                  ),
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           ),
@@ -375,7 +393,23 @@ class _VertCard extends StatelessWidget {
           if (!result.assessment.reachIsMeasured) ...[
             const SizedBox(height: 8),
             Text(
-              l10n.resultEstimatedReachNote(result.assessment.standingReach),
+              l10n.resultEstimatedReachNote(
+                  unit, units.lengthValue(result.assessment.standingReach)),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                height: 1.3,
+              ),
+            ),
+          ],
+          if (isFirstTest) ...[
+            const SizedBox(height: 8),
+            Text(
+              l10n.resultReplacesOnboardingEstimate(
+                unit,
+                units.lengthValue(result.assessment.estimatedCurrentVert),
+              ),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white70,
@@ -698,7 +732,10 @@ class _TakeoffPill extends StatelessWidget {
             const Icon(Icons.directions_run, color: DunkColors.primary, size: 14),
             const SizedBox(width: 6),
             Text(
-              type.label.toUpperCase(),
+              // Keyed on the enum name; `TakeoffType.label` is core English.
+              AppLocalizations.of(context)
+                  .takeoffTypeLabel(type.name)
+                  .toUpperCase(),
               style: const TextStyle(
                 color: DunkColors.primary,
                 fontSize: 11,

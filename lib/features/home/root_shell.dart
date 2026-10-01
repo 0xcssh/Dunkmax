@@ -11,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../analyze/analyze_flow.dart';
 import '../feed/display_name_dialog.dart';
 import '../feed/feed_tab.dart';
+import '../shared/unit_scope.dart';
 import 'standing_reach_dialog.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/progress_tab.dart';
@@ -110,6 +111,7 @@ class _RootShellState extends State<RootShell> {
 
   Future<void> _openSettings(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     final reach = widget.profile.standingReachInches;
     await showModalBottomSheet<void>(
       context: context,
@@ -163,7 +165,9 @@ class _RootShellState extends State<RootShell> {
                   label: l10n.settingsStandingReach,
                   // Honest about which number the dunk target rests on: until
                   // it's measured, everything downstream uses an estimate.
-                  value: reach == null ? l10n.settingsNotSet : l10n.inches(reach),
+                  value: reach == null
+                      ? l10n.settingsNotSet
+                      : l10n.length(units.name, units.lengthValue(reach)),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     _editStandingReach(context);

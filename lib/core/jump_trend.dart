@@ -6,13 +6,24 @@ class JumpTrend {
   final DateTime latestRecordedAt;
   final int deltaFromFirstInches; // latest - first; can be 0 or negative
 
+  /// How many logged jumps this trend was computed over (at least 1).
+  final int entryCount;
+
   const JumpTrend({
     required this.latestVerticalInches,
     required this.latestRecordedAt,
     required this.deltaFromFirstInches,
+    required this.entryCount,
   });
 
   bool get isImproving => deltaFromFirstInches > 0;
+
+  /// True when the latest jump is the only one on record — i.e. this is the
+  /// athlete's first measured test, and until now the only "current vertical"
+  /// the app had was the onboarding self-report. The Analyze flow computes
+  /// the trend *after* persisting the new entry, so a null trend never means
+  /// "first test"; this does.
+  bool get isFirstTest => entryCount == 1;
 }
 
 /// Pure aggregation over a jump-log history. Returns null on an empty list —
@@ -27,6 +38,7 @@ abstract class JumpTrendCalculator {
       latestVerticalInches: latest.verticalInches,
       latestRecordedAt: latest.recordedAt,
       deltaFromFirstInches: latest.verticalInches - first.verticalInches,
+      entryCount: sorted.length,
     );
   }
 }

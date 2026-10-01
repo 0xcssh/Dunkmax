@@ -10,6 +10,9 @@ import '../../../services/jump_log_store.dart';
 import '../../../services/media_file_resolver.dart';
 import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/layout_density.dart';
+import '../../shared/unit_scope.dart';
+import '../../shared/widgets/fit_or_scroll.dart';
 import '../../progress/jump_history_screen.dart';
 import '../../progress/jump_video_screen.dart';
 import 'widgets/jump_trend_chart.dart';
@@ -55,9 +58,16 @@ class ProgressTab extends StatelessWidget {
         ? recentEntries.sublist(0, 5)
         : recentEntries;
 
+    // Five blocks on one page above the tab bar: the headline vertical, the
+    // trend chart, workouts and streak side by side, and the recent clips.
+    // Nothing scrolls on the phones this is laid out for; a shorter phone
+    // degrades to a scroll rather than a clip.
+    final density = LayoutDensity.of(context);
+    final gap = density.pick(10.0, 8.0);
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: FitOrScrollColumn(
+        padding: EdgeInsets.fromLTRB(20, density.pick(12, 8), 20, 12),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             AppLocalizations.of(context).progressTitle,
@@ -68,16 +78,23 @@ class ProgressTab extends StatelessWidget {
               letterSpacing: 1,
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: density.pick(12, 8)),
           _VerticalCard(trend: trend, onGoToAnalyze: onGoToAnalyze),
-          const SizedBox(height: 16),
+          SizedBox(height: gap),
           _TrendChartCard(entries: allJumpEntries),
-          const SizedBox(height: 16),
-          _WorkoutsCard(progress: progress),
-          const SizedBox(height: 16),
-          _StreakCard(streak: streak),
+          SizedBox(height: gap),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 3, child: _WorkoutsCard(progress: progress)),
+                SizedBox(width: gap),
+                Expanded(flex: 2, child: _StreakCard(streak: streak)),
+              ],
+            ),
+          ),
           if (allJumpEntries.isNotEmpty) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: density.pick(14, 10)),
             _RecentAnalysesSection(
               allEntries: allJumpEntries,
               recentEntries: recentToShow,
@@ -96,8 +113,9 @@ class _TrendChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final density = LayoutDensity.of(context);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(density.pick(14, 10)),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -121,8 +139,8 @@ class _TrendChartCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          JumpTrendChart(entries: entries),
+          SizedBox(height: density.pick(10, 8)),
+          JumpTrendChart(entries: entries, height: density.pick(120, 84)),
         ],
       ),
     );
@@ -176,9 +194,9 @@ class _RecentAnalysesSection extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 140,
+          height: _RecentAnalysisThumb.height,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: recentEntries.length,
@@ -196,9 +214,16 @@ class _RecentAnalysisThumb extends StatelessWidget {
 
   const _RecentAnalysisThumb({required this.entry});
 
+  static const double _thumbWidth = 96;
+  static const double _thumbHeight = 62;
+
+  /// Still plus its date line, so the strip can be sized without guessing.
+  static const double height = _thumbHeight + 6 + 16;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     final date = entry.recordedAt;
     // What the entry stored is a file name (legacy entries: an absolute path),
     // resolved here against the current documents directory — the container
@@ -208,7 +233,7 @@ class _RecentAnalysisThumb extends StatelessWidget {
     final video = resolver.resolve(entry.videoPath);
     final thumbnail = resolver.resolve(entry.thumbnailPath);
     return SizedBox(
-      width: 110,
+      width: _thumbWidth,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -223,15 +248,15 @@ class _RecentAnalysisThumb extends StatelessWidget {
                       ),
                     )),
             child: SizedBox(
-              width: 110,
-              height: 90,
+              width: _thumbWidth,
+              height: _thumbHeight,
               child: Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
-                      width: 110,
-                      height: 90,
+                      width: _thumbWidth,
+                      height: _thumbHeight,
                       child: thumbnail != null
                           ? Image.file(
                               thumbnail,
@@ -263,7 +288,8 @@ class _RecentAnalysisThumb extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        l10n.inches(entry.verticalInches),
+                        l10n.length(units.name,
+                            units.lengthValue(entry.verticalInches)),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -279,7 +305,12 @@ class _RecentAnalysisThumb extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             l10n.jumpDateShort(date),
-            style: const TextStyle(color: DunkColors.textSecondary, fontSize: 11),
+            maxLines: 1,
+            style: const TextStyle(
+              color: DunkColors.textSecondary,
+              fontSize: 11,
+              height: 16 / 11,
+            ),
           ),
         ],
       ),
@@ -296,9 +327,11 @@ class _VerticalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     final trend = this.trend;
+    final compact = LayoutDensity.of(context).isCompact;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(compact ? 12 : 16),
       decoration: BoxDecoration(
         gradient: DunkColors.primaryGradient,
         borderRadius: BorderRadius.circular(20),
@@ -314,24 +347,25 @@ class _VerticalCard extends StatelessWidget {
               letterSpacing: 1,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           RichText(
             text: TextSpan(
               children: [
                 TextSpan(
                   text: trend == null
                       ? '—'
-                      : l10n.inches(trend.latestVerticalInches),
-                  style: const TextStyle(
+                      : l10n.length(units.name,
+                          units.lengthValue(trend.latestVerticalInches)),
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 56,
+                    fontSize: compact ? 40 : 46,
                     fontWeight: FontWeight.w900,
                     height: 1.0,
                   ),
                 ),
                 if (trend == null)
                   TextSpan(
-                    text: l10n.progressVertUnitSuffix,
+                    text: l10n.progressVertUnitSuffix(units.name),
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 20,
@@ -341,7 +375,7 @@ class _VerticalCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           if (trend == null) ...[
             Text(
               l10n.progressLogFirstJump,
@@ -367,12 +401,17 @@ class _VerticalCard extends StatelessWidget {
           ] else
             Text(
               trend.deltaFromFirstInches > 0
-                  ? l10n.progressSinceFirstGain(trend.deltaFromFirstInches)
+                  ? l10n.progressSinceFirstGain(units.name,
+                      units.lengthValue(trend.deltaFromFirstInches))
                   : trend.deltaFromFirstInches < 0
-                      ? l10n.progressSinceFirstLoss(trend.deltaFromFirstInches)
+                      ? l10n.progressSinceFirstLoss(units.name,
+                          units.lengthValue(trend.deltaFromFirstInches))
                       : l10n.progressSinceFirstNoChange,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600),
             ),
         ],
       ),
@@ -388,8 +427,9 @@ class _WorkoutsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final compact = LayoutDensity.of(context).isCompact;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(compact ? 10 : 14),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -397,50 +437,86 @@ class _WorkoutsCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
               const Icon(Icons.fitness_center,
-                  color: DunkColors.primary, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                l10n.progressWorkouts,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
+                  color: DunkColors.primary, size: 16),
+              const SizedBox(width: 6),
+              // Scaled down rather than cut: the French "JOURS D'AFFILÉE"
+              // is wider than the narrow card.
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.progressWorkouts,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: compact ? 8 : 10),
+          // Three figures on one line: done · remaining · percent. They sit
+          // where a row of three stat columns used to, so the streak can
+          // share the row with this card.
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
-              _Stat(
-                value: '${progress.completedSessions}',
-                label: l10n.progressCompleted,
-                color: DunkColors.primary,
+              Text(
+                '${progress.completedSessions}',
+                style: const TextStyle(
+                  color: DunkColors.primary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-              _Stat(
-                value: '${progress.remaining}',
-                label: l10n.progressRemaining,
-                color: Colors.white,
-              ),
-              _Stat(
-                value: l10n.progressPercent(progress.percentComplete),
-                label: l10n.progressCompleteLabel,
-                color: DunkColors.primary,
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  l10n.progressCompleted,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: DunkColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 2),
+          Text(
+            l10n.progressRemainingAndPercent(
+              progress.remaining,
+              progress.percentComplete,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: DunkColors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+          SizedBox(height: compact ? 8 : 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: progress.fraction,
-              minHeight: 8,
+              minHeight: 6,
               backgroundColor: DunkColors.surfaceRaised,
               valueColor: const AlwaysStoppedAnimation(DunkColors.primary),
             ),
@@ -458,91 +534,76 @@ class _StreakCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final compact = LayoutDensity.of(context).isCompact;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 28),
+      padding: EdgeInsets.all(compact ? 10 : 14),
       decoration: BoxDecoration(
         color: DunkColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: DunkColors.stroke),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.local_fire_department,
-                  color: DunkColors.primary, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                AppLocalizations.of(context).progressDayStreak,
-                style: const TextStyle(
-                  color: DunkColors.textTertiary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
+                  color: DunkColors.primary, size: 16),
+              const SizedBox(width: 6),
+              // Scaled down rather than cut: the French "JOURS D'AFFILÉE"
+              // is wider than the narrow card.
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.progressDayStreak,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '$streak',
-                  style: const TextStyle(
-                    color: DunkColors.primary,
-                    fontSize: 56,
-                    fontWeight: FontWeight.w900,
+          SizedBox(height: compact ? 8 : 10),
+          // Scaled down rather than wrapped: the number and its unit are one
+          // figure, and the card is narrow.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$streak',
+                    style: const TextStyle(
+                      color: DunkColors.primary,
+                      fontSize: 34,
+                      height: 1.0,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-                TextSpan(
-                  text: AppLocalizations.of(context).progressStreakDaysSuffix,
-                  style: const TextStyle(
-                    color: DunkColors.textSecondary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
+                  TextSpan(
+                    text: l10n.progressStreakDaysSuffix,
+                    style: const TextStyle(
+                      color: DunkColors.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color color;
-
-  const _Stat({required this.value, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            color: DunkColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
     );
   }
 }

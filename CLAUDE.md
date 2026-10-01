@@ -490,7 +490,10 @@ a guessed share_plus API has broken CI on this repo before.
 - `requiredVert = reachTarget − standingReach` (`reachTarget` = 126, or 130 for
   a two-hand finish).
 - `estimatedCurrentVert` from the self-reported hops level, rim-relative
-  (touch-the-rim ⇒ reach == 120).
+  (touch-the-rim ⇒ reach == 120; below-the-rim ⇒ `belowRimShortfall` = 8"
+  under that — a stand-in for the whole beginner bucket, which is why it is
+  deliberately far from "touch". Asking the athlete for the number was tried
+  and dropped: someone who cannot touch the rim has no way to know).
 - `gapInches = requiredVert − currentVert`.
 - Projection: diminishing-returns curve `maxGain × (1 − e^(−week/5))`, with
   `maxGain` biased by age (younger = more upside).
@@ -665,6 +668,10 @@ TODO (rough priority):
       `AppLocalizations.supportedLocales`. `test/l10n_catalog_test.dart`
       fails on a missing key, an orphan key or a placeholder mismatch, so a
       half-translated locale cannot ship silently falling back to English.
+      Enum cards (hops, goals, experience, position, commitment, dunk hand,
+      location, attempt type, takeoff type, program day focus) are rendered
+      through `{x, select, …}` ARB messages keyed on the enum name; the core
+      `title` getters remain for tests only.
       Still English, deliberately: everything authored in `lib/core/**` —
       `exercise_library.dart`'s coaching content, `jump_feedback.dart`'s
       sentences, `jump_form_scores.dart`'s reasons and labels, the enum
@@ -682,6 +689,29 @@ TODO (rough priority):
       the step and keeps Flutter's default while the source is absent, so a
       missing icon never breaks a build — it just looks unset. Still TODO: a
       condensed display font (currently the system font).
+
+## Units follow the REGION, not the language
+
+`core/units.dart` (pure, tested): `UnitSystem.forRegion(country, language)` —
+imperial for US / LR / MM, metric for every other country; with no country at
+all, imperial for `en` and metric otherwise. Resolved once in `main.dart` from
+the platform locale (which carries the region; `Localizations.localeOf` often
+has only the language) and handed down by `features/shared/unit_scope.dart`.
+**Storage is inches/lbs everywhere** (profiles, jump log, leaderboard); only
+input (height wheel in cm, weight slider in kg, reach dialog in cm) and
+display convert. Every length/weight string is a `{unit, select, …}` ARB
+message. A cm height round-trips through whole inches (181 cm may redisplay as
+180 cm) — known, accepted. Nothing language- or region-specific may be
+hardcoded: the owner is adding locales as data files.
+
+## One page, no scrolling
+
+`test/screen_fit_test.dart` renders every screen at 390x844 and 375x667 in en
+and fr with realistic data and **fails** on any overflow or on vertical scroll
+at 390x844, except the Analyze result and the exercise detail, which hold more
+than a page by design. Compact spacing lives in `features/shared/
+layout_density.dart`; `widgets/fit_or_scroll.dart` scrolls only when it must.
+Keep the test green when adding content; shorten before you scroll.
 
 ## Conventions
 

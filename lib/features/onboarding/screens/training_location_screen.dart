@@ -6,7 +6,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
-import '../widgets/staggered_entrance.dart';
+import '../widgets/option_list.dart';
 
 class TrainingLocationScreen extends StatelessWidget {
   final TrainingLocation? selected;
@@ -43,24 +43,19 @@ class TrainingLocationScreen extends StatelessWidget {
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       staggerBody: false,
-      child: ListView.separated(
-        padding: EdgeInsets.zero,
-        itemCount: TrainingLocation.values.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, i) {
-          final loc = TrainingLocation.values[i];
-          final (icon, tint) = _icons[loc]!;
-          return StaggerItem(
-            index: OnboardingScaffold.bodyStaggerIndex + i,
-            child: SelectableCard(
-              leading: IconTile(icon: icon, tint: tint),
-              title: loc.title,
-              subtitle: loc.subtitle,
+      child: OptionList(
+        cards: [
+          for (final loc in TrainingLocation.values)
+            SelectableCard(
+              leading: IconTile(icon: _icons[loc]!.$1, tint: _icons[loc]!.$2),
+              // Translated here, keyed on the enum name: the core getters
+              // are English-only (core/ has no Flutter, so no l10n).
+              title: l10n.trainingLocationTitle(loc.name),
+              subtitle: l10n.trainingLocationSubtitle(loc.name),
               selected: selected == loc,
               onTap: () => onSelect(loc),
             ),
-          );
-        },
+        ],
       ),
     );
   }

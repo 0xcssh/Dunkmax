@@ -9,6 +9,9 @@ import '../../services/jump_log_store.dart';
 import '../../services/leaderboard_service.dart';
 import '../../services/media_file_resolver.dart';
 import '../../theme/app_theme.dart';
+import '../shared/layout_density.dart';
+import '../shared/unit_scope.dart';
+import '../shared/widgets/fit_or_scroll.dart';
 import '../progress/jump_video_screen.dart';
 import 'display_name_dialog.dart';
 
@@ -148,17 +151,23 @@ class _FeedTabState extends State<FeedTab> {
     final l10n = AppLocalizations.of(context);
     final personalBoard = Leaderboard.rank(widget.jumpLogStore.entries);
 
+    // Fits one page with a short personal board; a full global board (up to
+    // 50 rows) is the one thing on this tab that legitimately scrolls. The
+    // physics stay always-scrollable so pull-to-refresh works either way.
+    final density = LayoutDensity.of(context);
+    final rowGap = density.pick(8.0, 6.0);
     return SafeArea(
       child: RefreshIndicator(
         onRefresh: _load,
         color: DunkColors.primary,
         backgroundColor: DunkColors.surface,
-        child: ListView(
+        child: FitOrScrollColumn(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+          padding: EdgeInsets.fromLTRB(20, density.pick(12, 8), 20, 12),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const _Header(),
-            const SizedBox(height: 20),
+            SizedBox(height: density.pick(14, 10)),
             _SectionHeader(
               icon: Icons.public,
               title: l10n.feedGlobalTitle,
@@ -170,21 +179,21 @@ class _FeedTabState extends State<FeedTab> {
                       onTap: _editDisplayName,
                     ),
             ),
-            const SizedBox(height: 12),
-            ..._buildGlobalSection(l10n),
-            const SizedBox(height: 28),
+            SizedBox(height: rowGap),
+            ..._buildGlobalSection(l10n, rowGap),
+            SizedBox(height: density.pick(16, 12)),
             _SectionHeader(
               icon: Icons.emoji_events_outlined,
               title: l10n.feedPersonalTitle,
               subtitle: l10n.feedPersonalSubtitle,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: rowGap),
             if (personalBoard.isEmpty)
               const _EmptyBoardCard()
             else
-              for (final row in personalBoard) ...[
-                _RankedJumpRow(row: row),
-                const SizedBox(height: 12),
+              for (var i = 0; i < personalBoard.length; i++) ...[
+                if (i > 0) SizedBox(height: rowGap),
+                _RankedJumpRow(row: personalBoard[i]),
               ],
           ],
         ),
@@ -192,7 +201,7 @@ class _FeedTabState extends State<FeedTab> {
     );
   }
 
-  List<Widget> _buildGlobalSection(AppLocalizations l10n) {
+  List<Widget> _buildGlobalSection(AppLocalizations l10n, double rowGap) {
     switch (_state) {
       case _BoardState.notConfigured:
         return [
@@ -216,7 +225,7 @@ class _FeedTabState extends State<FeedTab> {
         return [
           if (widget.displayName.isEmpty)
             _NamePromptCard(onSetName: _editDisplayName),
-          if (widget.displayName.isEmpty) const SizedBox(height: 12),
+          if (widget.displayName.isEmpty) SizedBox(height: rowGap),
           if (_globalBoard.isEmpty)
             _BoardNoticeCard(
               icon: Icons.emoji_events_outlined,
@@ -224,13 +233,13 @@ class _FeedTabState extends State<FeedTab> {
               body: l10n.feedNoAthletesBody,
             )
           else
-            for (final row in _globalBoard) ...[
+            for (var i = 0; i < _globalBoard.length; i++) ...[
+              if (i > 0) SizedBox(height: rowGap),
               _GlobalAthleteRow(
-                row: row,
+                row: _globalBoard[i],
                 isSelf: _ownAthleteId != null &&
-                    row.athlete.athleteId == _ownAthleteId,
+                    _globalBoard[i].athlete.athleteId == _ownAthleteId,
               ),
-              const SizedBox(height: 12),
             ],
         ];
     }
@@ -245,15 +254,15 @@ class _Header extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 44,
-          height: 44,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             color: DunkColors.primary,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.groups_outlined, color: Colors.white, size: 24),
+          child: const Icon(Icons.groups_outlined, color: Colors.white, size: 21),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Text(
           AppLocalizations.of(context).feedTitle,
           style: const TextStyle(
@@ -370,10 +379,13 @@ class _GlobalAthleteRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     final athlete = row.athlete;
+    // Rows are stored and ranked in inches; shown in the viewer's own unit.
+    final height = units.height(athlete.heightInches);
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: isSelf
             ? DunkColors.primary.withValues(alpha: 0.10)
@@ -397,7 +409,8 @@ class _GlobalAthleteRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 15,
+                    height: 1.2,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -405,10 +418,9 @@ class _GlobalAthleteRow extends StatelessWidget {
                 RichText(
                   text: TextSpan(
                     children: [
-                      // Both figures are formatted by the untranslated
-                      // leaderboard model; only the separator is ours.
                       TextSpan(
-                        text: athlete.formattedVertical,
+                        text: l10n.feedJumpStat(units.name,
+                            units.lengthValue(athlete.verticalInches)),
                         style: const TextStyle(
                           color: DunkColors.primary,
                           fontSize: 13,
@@ -417,7 +429,9 @@ class _GlobalAthleteRow extends StatelessWidget {
                       ),
                       TextSpan(
                         text: l10n.feedGlobalStatSeparator(
-                            athlete.formattedHeight),
+                          l10n.heightValueCompact(units.name, height.feet,
+                              height.inches, height.cm),
+                        ),
                         style: const TextStyle(
                           color: DunkColors.textSecondary,
                           fontSize: 13,
@@ -464,6 +478,7 @@ class _RankedJumpRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     final entry = row.entry;
     // The entry stores file names (legacy entries: absolute paths); the file
     // they point at today is found by resolving against the current documents
@@ -490,7 +505,7 @@ class _RankedJumpRow extends StatelessWidget {
                   ),
                 ),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: DunkColors.stroke),
@@ -505,9 +520,12 @@ class _RankedJumpRow extends StatelessWidget {
                   children: [
                     Text(
                       l10n.jumpDateMedium(entry.recordedAt),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 15,
+                        height: 1.2,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -516,7 +534,8 @@ class _RankedJumpRow extends StatelessWidget {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: l10n.feedJumpStat(entry.verticalInches),
+                            text: l10n.feedJumpStat(units.name,
+                                units.lengthValue(entry.verticalInches)),
                             style: const TextStyle(
                               color: DunkColors.primary,
                               fontSize: 13,
@@ -575,13 +594,14 @@ class _RankBadge extends StatelessWidget {
       _ => DunkColors.primary,
     };
 
+    final size = LayoutDensity.of(context).pick(48.0, 44.0);
     return Container(
-      width: 56,
-      height: 56,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       child: isPodium
-          ? const Icon(Icons.military_tech, color: Colors.white, size: 28)
+          ? Icon(Icons.military_tech, color: Colors.white, size: size * 0.5)
           : Text(
               AppLocalizations.of(context).feedRankNumber(rank),
               style: const TextStyle(
@@ -609,8 +629,8 @@ class _JumpThumbnail extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
-        width: 90,
-        height: 64,
+        width: 76,
+        height: 54,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -663,7 +683,10 @@ class _EmptyBoardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+      padding: EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: LayoutDensity.of(context).pick(18, 12),
+      ),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -721,7 +744,7 @@ class _BoardNoticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(LayoutDensity.of(context).pick(14, 12)),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -731,8 +754,8 @@ class _BoardNoticeCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: DunkColors.surfaceRaised,
               borderRadius: BorderRadius.circular(12),
@@ -780,7 +803,7 @@ class _BoardLoadingCard extends StatelessWidget {
       children: [
         for (var i = 0; i < 3; i++) ...[
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: DunkColors.surface,
               borderRadius: BorderRadius.circular(16),
@@ -789,8 +812,8 @@ class _BoardLoadingCard extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 48,
+                  height: 48,
                   decoration: const BoxDecoration(
                     color: DunkColors.surfaceRaised,
                     shape: BoxShape.circle,
@@ -824,7 +847,7 @@ class _BoardLoadingCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
         ],
         Text(
           AppLocalizations.of(context).feedLoading,

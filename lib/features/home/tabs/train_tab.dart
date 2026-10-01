@@ -9,6 +9,8 @@ import '../../../core/training_schedule.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../services/workout_session_store.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/layout_density.dart';
+import '../../shared/widgets/fit_or_scroll.dart';
 import '../../train/session_flow.dart';
 
 /// The TRAIN tab: enrolled program header, the current week at a glance,
@@ -74,9 +76,15 @@ class _TrainTabState extends State<TrainTab> {
     );
     final week = schedule.weekAt(plan.week, completedSessions: completed);
 
+    // Laid out to share one page with the tab bar: program card (with its
+    // progress), the week strip, today's drills and the CTA. Nothing scrolls
+    // on the phones this targets; a shorter one degrades to a scroll.
+    final density = LayoutDensity.of(context);
+    final gap = density.pick(10.0, 8.0);
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: FitOrScrollColumn(
+        padding: EdgeInsets.fromLTRB(20, density.pick(8, 4), 20, density.pick(12, 10)),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -101,11 +109,11 @@ class _TrainTabState extends State<TrainTab> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          _EnrolledCard(program: program, plan: plan),
-          const SizedBox(height: 16),
+          SizedBox(height: density.pick(12, 8)),
+          _EnrolledCard(program: program, plan: plan, progress: progress),
+          SizedBox(height: gap),
           _WeekStrip(week: week, todayWeekday: plan.weekday),
-          const SizedBox(height: 16),
+          SizedBox(height: gap),
           if (plan.isRestDay)
             _RestDayCard(nextFocus: plan.day.focus)
           else
@@ -115,9 +123,7 @@ class _TrainTabState extends State<TrainTab> {
               exercises: plan.day.exercises,
               isDeload: plan.isDeloadWeek,
             ),
-          const SizedBox(height: 16),
-          _ProgressCard(progress: progress),
-          const SizedBox(height: 20),
+          SizedBox(height: density.pick(12, 10)),
           _CompleteButton(
             done: progress.isComplete,
             isRestDay: plan.isRestDay,
@@ -129,15 +135,27 @@ class _TrainTabState extends State<TrainTab> {
   }
 }
 
+/// The enrolled program and how far through it the athlete is — one card.
+///
+/// The progress figures used to sit in a card of their own below the drill
+/// list; folding them in here keeps the same three numbers and the bar on
+/// screen while giving the drill list the height it needs to show every
+/// exercise without scrolling.
 class _EnrolledCard extends StatelessWidget {
   final TrainingProgram program;
   final TodayPlan plan;
+  final ProgramProgress progress;
 
-  const _EnrolledCard({required this.program, required this.plan});
+  const _EnrolledCard({
+    required this.program,
+    required this.plan,
+    required this.progress,
+  });
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final compact = LayoutDensity.of(context).isCompact;
     // Built here rather than read off `plan.positionLabel`: that getter lives
     // in pure-Dart core, which has no access to translations.
     final position = l10n.trainPositionLabel(
@@ -146,11 +164,11 @@ class _EnrolledCard extends StatelessWidget {
       plan.sessionsPerWeek,
     );
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(compact ? 10 : 14),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: DunkColors.stroke),
+        border: Border.all(color: DunkColors.primary.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,23 +189,24 @@ class _EnrolledCard extends StatelessWidget {
               if (plan.isDeloadWeek) const _DeloadPill(),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           // Program names come from the untranslated program catalog.
           Text(
             program.name.toUpperCase(),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 17,
+              height: 1.2,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             l10n.trainProgramMeta(position, plan.totalWeeks),
             style: const TextStyle(color: DunkColors.textSecondary, fontSize: 13),
           ),
           if (plan.isDeloadWeek) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(
               l10n.trainDeloadExplainer,
               style: const TextStyle(
@@ -197,8 +216,84 @@ class _EnrolledCard extends StatelessWidget {
               ),
             ),
           ],
+          SizedBox(height: compact ? 10 : 12),
+          Row(
+            children: [
+              _InlineStat(
+                value: '${progress.completedSessions}',
+                label: l10n.progressCompleted,
+                color: DunkColors.primary,
+              ),
+              const SizedBox(width: 16),
+              _InlineStat(
+                value: '${progress.remaining}',
+                label: l10n.progressRemaining,
+                color: Colors.white,
+              ),
+              const Spacer(),
+              Text(
+                l10n.progressPercent(progress.percentComplete),
+                style: const TextStyle(
+                  color: DunkColors.primary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress.fraction,
+              minHeight: 6,
+              backgroundColor: DunkColors.surfaceRaised,
+              valueColor: const AlwaysStoppedAnimation(DunkColors.primary),
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// `3 COMPLETED` on one line: the figure and its label side by side.
+class _InlineStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+
+  const _InlineStat({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            color: DunkColors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -246,8 +341,9 @@ class _WeekStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = LayoutDensity.of(context).isCompact;
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      padding: EdgeInsets.fromLTRB(12, compact ? 8 : 12, 12, compact ? 8 : 12),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -284,7 +380,7 @@ class _WeekStrip extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: compact ? 8 : 10),
           Row(
             children: [
               for (final day in week.days)
@@ -353,9 +449,9 @@ class _DayChip extends StatelessWidget {
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Container(
-            height: 38,
+            height: LayoutDensity.of(context).pick(34, 28),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: background,
@@ -483,8 +579,9 @@ class _TodaysExercises extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final compact = LayoutDensity.of(context).isCompact;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(compact ? 10 : 14),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -520,7 +617,7 @@ class _TodaysExercises extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           // Both the focus and the warm-up text come from the untranslated
           // program catalog.
           Text(
@@ -528,18 +625,20 @@ class _TodaysExercises extends StatelessWidget {
             style: const TextStyle(
               color: DunkColors.textSecondary,
               fontSize: 12,
+              height: 1.3,
             ),
           ),
           if (isDeload) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               l10n.trainDeloadVolumeNote,
               style: const TextStyle(color: DunkColors.primary, fontSize: 12),
             ),
           ],
-          const SizedBox(height: 12),
+          SizedBox(height: compact ? 6 : 8),
           for (var i = 0; i < exercises.length; i++) ...[
-            if (i > 0) const Divider(color: DunkColors.stroke, height: 20),
+            if (i > 0)
+              Divider(color: DunkColors.stroke, height: compact ? 10 : 14),
             _ExerciseRow(exercise: exercises[i]),
           ],
         ],
@@ -564,9 +663,10 @@ class _ExerciseThumbnail extends StatelessWidget {
     final frames = ExerciseLibrary.guideForExercise(exercise)?.demoFrames;
     final radius = BorderRadius.circular(10);
 
+    final size = LayoutDensity.of(context).pick(40.0, 36.0);
     return Container(
-      width: 44,
-      height: 44,
+      width: size,
+      height: size,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: DunkColors.surfaceRaised,
@@ -606,125 +706,25 @@ class _ExerciseRow extends StatelessWidget {
             children: [
               Text(
                 exercise.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 15,
+                  height: 1.2,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(
                 exercise.volumeLabel,
                 style: const TextStyle(
                   color: DunkColors.textSecondary,
-                  fontSize: 13,
+                  fontSize: 12.5,
+                  height: 1.2,
                 ),
               ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProgressCard extends StatelessWidget {
-  final ProgramProgress progress;
-
-  const _ProgressCard({required this.progress});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: DunkColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: DunkColors.primary.withValues(alpha: 0.35)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.show_chart, color: DunkColors.primary, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                l10n.trainProgramProgress,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _Stat(
-                value: '${progress.completedSessions}',
-                label: l10n.progressCompleted,
-                color: DunkColors.primary,
-              ),
-              _Stat(
-                value: '${progress.remaining}',
-                label: l10n.progressRemaining,
-                color: Colors.white,
-              ),
-              _Stat(
-                value: l10n.progressPercent(progress.percentComplete),
-                label: l10n.progressCompleteLabel,
-                color: DunkColors.primary,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress.fraction,
-              minHeight: 8,
-              backgroundColor: DunkColors.surfaceRaised,
-              valueColor: const AlwaysStoppedAnimation(DunkColors.primary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color color;
-
-  const _Stat({required this.value, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            color: DunkColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
           ),
         ),
       ],
@@ -764,7 +764,7 @@ class _CompleteButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
-          height: 56,
+          height: LayoutDensity.of(context).pick(54, 50),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             gradient: muted ? null : DunkColors.primaryGradient,

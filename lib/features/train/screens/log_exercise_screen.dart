@@ -5,6 +5,9 @@ import '../../../core/models/exercise.dart';
 import '../../../core/models/workout_session.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/layout_density.dart';
+import '../../shared/unit_scope.dart';
+import '../../shared/widgets/fit_or_scroll.dart';
 import '../../shared/widgets/primary_button.dart';
 import 'exercise_detail_screen.dart';
 
@@ -81,6 +84,11 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
 
   bool get _allValidated => !_validated.contains(false);
 
+  static double? _typedLoadToLbs(UnitSystem units, String raw) {
+    final typed = double.tryParse(raw.trim().replaceAll(',', '.'));
+    return typed == null ? null : units.lbsFromLoad(typed);
+  }
+
   void _toggleValidated(int index) {
     setState(() {
       _validated[index] = !_validated[index];
@@ -88,6 +96,9 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
   }
 
   void _submit() {
+    // The field is labelled in the athlete's unit (kg in a metric region);
+    // what is stored is always pounds.
+    final units = UnitScope.of(context);
     final sets = <LoggedSet>[
       for (var i = 0; i < widget.exercise.sets; i++)
         LoggedSet(
@@ -95,9 +106,7 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
           reps: int.tryParse(_repsControllers[i].text.trim()) ?? 0,
           // A French decimal pad types "62,5"; double.tryParse only takes a
           // point, so the comma used to drop the weight entirely.
-          weightLbs: double.tryParse(
-            _weightControllers[i].text.trim().replaceAll(',', '.'),
-          ),
+          weightLbs: _typedLoadToLbs(units, _weightControllers[i].text),
         ),
     ];
     widget.onLogged(LoggedExercise(
@@ -112,9 +121,10 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
     final l10n = AppLocalizations.of(context);
     final isLast = widget.exerciseIndex + 1 == widget.totalExercises;
     final canAdvance = _allValidated;
+    final density = LayoutDensity.of(context);
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        padding: EdgeInsets.fromLTRB(20, 4, 20, density.pick(12, 10)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -141,40 +151,52 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             _ExerciseTitle(
               exercise: widget.exercise,
               onTap: () =>
                   ExerciseDetailScreen.open(context, widget.exercise),
             ),
-            const SizedBox(height: 6),
-            Text(widget.exercise.volumeLabel, style: DunkTheme.onboardingSubtitle),
-            const SizedBox(height: 16),
+            const SizedBox(height: 4),
+            Text(
+              widget.exercise.volumeLabel,
+              style: density.pick(
+                DunkTheme.onboardingSubtitle,
+                DunkTheme.onboardingSubtitleCompact,
+              ),
+            ),
+            SizedBox(height: density.pick(12, 10)),
             _GuideCard(
               exercise: widget.exercise,
               onTap: () =>
                   ExerciseDetailScreen.open(context, widget.exercise),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: density.pick(12, 10)),
+            // One line per set, so a 5-set drill fits above the CTA with
+            // nothing to scroll; the column only scrolls for the longest
+            // progressed prescriptions (7–8 sets) or when the keyboard is up.
             Expanded(
-              child: ListView.separated(
-                padding: EdgeInsets.zero,
+              child: FitOrScrollColumn(
                 // The number pad has no "done" key on iOS: scrolling the
                 // list (or tapping outside a field) is how it goes away.
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                itemCount: widget.exercise.sets,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, i) => _SetRow(
-                  setNumber: i + 1,
-                  repsController: _repsControllers[i],
-                  weightController: _weightControllers[i],
-                  validated: _validated[i],
-                  onToggleValidated: () => _toggleValidated(i),
-                ),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < widget.exercise.sets; i++) ...[
+                    if (i > 0) SizedBox(height: density.pick(8, 6)),
+                    _SetRow(
+                      setNumber: i + 1,
+                      repsController: _repsControllers[i],
+                      weightController: _weightControllers[i],
+                      validated: _validated[i],
+                      onToggleValidated: () => _toggleValidated(i),
+                    ),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: density.pick(12, 10)),
             PrimaryButton(
               label: isLast
                   ? l10n.logCtaFinishSession
@@ -182,12 +204,12 @@ class _LogExerciseScreenState extends State<LogExerciseScreen> {
               onPressed: canAdvance ? _submit : null,
             ),
             if (!canAdvance) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Text(
                 l10n.logValidateEverySet,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    color: DunkColors.textSecondary, fontSize: 13),
+                    color: DunkColors.textSecondary, fontSize: 12),
               ),
             ],
           ],
@@ -219,11 +241,17 @@ class _ExerciseTitle extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Flexible(
-                child: Text(exercise.name, style: DunkTheme.onboardingTitle),
+                child: Text(
+                  exercise.name,
+                  style: LayoutDensity.of(context).pick(
+                    DunkTheme.onboardingTitle,
+                    DunkTheme.onboardingTitleCompact,
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
               const Padding(
-                padding: EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: 6),
                 child: Icon(Icons.info_outline,
                     size: 20, color: DunkColors.primary),
               ),
@@ -260,7 +288,7 @@ class _GuideCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: DunkColors.surface,
             borderRadius: BorderRadius.circular(16),
@@ -272,8 +300,8 @@ class _GuideCard extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: DunkColors.surfaceRaised,
                       borderRadius: BorderRadius.circular(10),
@@ -369,56 +397,57 @@ class _SetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // Label · reps · weight · done, on one line. The old two-row card spent
+    // ~115 pt per set; five of them could not share a page with the CTA.
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
       decoration: BoxDecoration(
         color: DunkColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: validated ? DunkColors.primary : DunkColors.stroke,
           width: validated ? 1.6 : 1,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  l10n.logSetNumber(setNumber),
-                  style: const TextStyle(
-                    color: DunkColors.textTertiary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
-                  ),
-                ),
+          SizedBox(
+            width: 50,
+            child: Text(
+              l10n.logSetNumber(setNumber),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: validated ? DunkColors.primary : DunkColors.textTertiary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
               ),
-              _ValidateToggle(validated: validated, onTap: onToggleValidated),
-            ],
+            ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _NumberField(
-                  controller: repsController,
-                  hintText: l10n.logRepsHint,
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _NumberField(
-                  controller: weightController,
-                  hintText: l10n.logWeightHint,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                ),
-              ),
-            ],
+          const SizedBox(width: 6),
+          // Reps is a two-digit field; weight carries the longer hint and a
+          // decimal, so it gets the wider share.
+          Expanded(
+            flex: 2,
+            child: _NumberField(
+              controller: repsController,
+              hintText: l10n.logRepsHint,
+              keyboardType: TextInputType.number,
+            ),
           ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: _NumberField(
+              controller: weightController,
+              hintText: l10n.logWeightHint(UnitScope.of(context).name),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ),
+          const SizedBox(width: 6),
+          _ValidateToggle(validated: validated, onTap: onToggleValidated),
         ],
       ),
     );
@@ -427,7 +456,9 @@ class _SetRow extends StatelessWidget {
 
 /// Tap target that marks a set as done. Filled orange + check when
 /// validated, outlined when not. Re-tappable so an athlete can un-validate
-/// to fix a number before locking it back in.
+/// to fix a number before locking it back in. The state is spoken through
+/// the tooltip and semantics label — the pill's VALIDATE / DONE word did not
+/// fit a one-line set row beside two fields.
 class _ValidateToggle extends StatelessWidget {
   final bool validated;
   final VoidCallback onTap;
@@ -436,43 +467,37 @@ class _ValidateToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: validated ? DunkColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: validated ? DunkColors.primary : DunkColors.stroke,
-              width: 1.4,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                validated ? Icons.check_circle : Icons.circle_outlined,
-                size: 16,
-                color: validated ? Colors.black : DunkColors.textTertiary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                validated
-                    ? AppLocalizations.of(context).logValidated
-                    : AppLocalizations.of(context).logValidate,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                  color: validated ? Colors.black : DunkColors.textSecondary,
+    final l10n = AppLocalizations.of(context);
+    final label = validated ? l10n.logValidated : l10n.logValidate;
+    return Tooltip(
+      message: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Semantics(
+            button: true,
+            label: label,
+            checked: validated,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: validated ? DunkColors.primary : Colors.transparent,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: validated ? DunkColors.primary : DunkColors.stroke,
+                  width: 1.4,
                 ),
               ),
-            ],
+              child: Icon(
+                Icons.check,
+                size: 20,
+                color: validated ? Colors.black : DunkColors.textTertiary,
+              ),
+            ),
           ),
         ),
       ),
@@ -501,11 +526,13 @@ class _NumberField extends StatelessWidget {
       decoration: InputDecoration(
         isDense: true,
         hintText: hintText,
-        hintStyle: const TextStyle(color: DunkColors.textTertiary),
+        hintStyle:
+            const TextStyle(color: DunkColors.textTertiary, fontSize: 13),
+        hintMaxLines: 1,
         filled: true,
         fillColor: DunkColors.surfaceRaised,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: DunkColors.stroke),

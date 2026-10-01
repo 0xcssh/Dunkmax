@@ -4,6 +4,8 @@ import '../../../core/models/video_attempt_type.dart';
 import '../../../core/pose_jump_detector.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/layout_density.dart';
+import '../../shared/widgets/fit_or_scroll.dart';
 import '../../shared/widgets/primary_button.dart';
 import '../widgets/detection_details_card.dart';
 import 'processing_screen.dart';
@@ -124,9 +126,11 @@ class UnmeasuredScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final (headline, fixes) = _diagnosis(l10n);
 
+    final density = LayoutDensity.of(context);
+    final iconSize = density.pick(88.0, 68.0);
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+      child: FitOrScrollColumn(
+        padding: EdgeInsets.fromLTRB(24, density.pick(16, 12), 24, 20),
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,24 +144,27 @@ class UnmeasuredScreen extends StatelessWidget {
                 letterSpacing: 1,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               l10n.unmeasuredSubtitle,
-              style: DunkTheme.onboardingSubtitle,
+              style: density.pick(
+                DunkTheme.onboardingSubtitle,
+                DunkTheme.onboardingSubtitleCompact,
+              ),
             ),
-            const SizedBox(height: 28),
+            SizedBox(height: density.pick(20, 14)),
             Container(
-              width: 96,
-              height: 96,
+              width: iconSize,
+              height: iconSize,
               decoration: BoxDecoration(
                 color: DunkColors.surface,
                 shape: BoxShape.circle,
                 border: Border.all(color: DunkColors.stroke),
               ),
-              child: const Icon(Icons.search_off_outlined,
-                  color: DunkColors.primary, size: 40),
+              child: Icon(Icons.search_off_outlined,
+                  color: DunkColors.primary, size: iconSize * 0.42),
             ),
-            const SizedBox(height: 22),
+            SizedBox(height: density.pick(16, 12)),
             Text(
               headline,
               style: const TextStyle(
@@ -167,10 +174,10 @@ class UnmeasuredScreen extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             for (final fix in fixes) ...[
               Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -194,13 +201,13 @@ class UnmeasuredScreen extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 28),
+            SizedBox(height: density.pick(20, 14)),
             PrimaryButton(
               label: l10n.unmeasuredRetrimCta,
               trailingIcon: Icons.content_cut,
               onPressed: onRetrim,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             Center(
               child: TextButton(
                 onPressed: onNewClip,

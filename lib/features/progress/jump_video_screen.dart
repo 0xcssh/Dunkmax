@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../shared/unit_scope.dart';
 
 /// Full-screen playback of a persisted jump clip, reached from Progress's
 /// recent-analyses row, the full jump-history list or the Feed's own board.
@@ -146,6 +147,7 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
   Future<void> _share() async {
     if (_sharing) return;
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     if (!_fileExists()) {
       setState(() => _canShare = false);
       _showMessage(l10n.jumpVideoMissing);
@@ -155,7 +157,8 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
     try {
       await Share.shareXFiles(
         [XFile(widget.videoFile.path)],
-        text: l10n.jumpShareText(widget.verticalInches),
+        text: l10n.jumpShareText(
+            units.name, units.lengthValue(widget.verticalInches)),
         sharePositionOrigin: _shareOrigin(),
       );
     } catch (_) {
@@ -168,6 +171,7 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     return Scaffold(
       backgroundColor: DunkColors.background,
       appBar: AppBar(
@@ -175,7 +179,8 @@ class _JumpVideoScreenState extends State<JumpVideoScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          l10n.jumpVideoTitle(widget.verticalInches, widget.recordedAt),
+          l10n.jumpVideoTitle(units.name,
+              units.lengthValue(widget.verticalInches), widget.recordedAt),
           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
         ),
         actions: [

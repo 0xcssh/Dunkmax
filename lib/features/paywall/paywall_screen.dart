@@ -8,6 +8,8 @@ import '../../core/subscription_offer.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/subscription_service.dart';
 import '../../theme/app_theme.dart';
+import '../shared/layout_density.dart';
+import '../shared/widgets/fit_or_scroll.dart';
 
 /// The paywall. A hard gate — the app itself is only reachable by holding the
 /// entitlement (see `app.dart`) — but [onBack] lets the athlete step back to
@@ -242,6 +244,10 @@ class _PaywallScreenState extends State<PaywallScreen> {
             _capitalize(trial.label),
           );
 
+    // One page on the target phones: wordmark, headline, three benefits,
+    // the plan card(s), CTA and the legal lines. The middle column scrolls
+    // only when "view other plans" is open on a short phone.
+    final density = LayoutDensity.of(context);
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -253,7 +259,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+            padding: EdgeInsets.fromLTRB(24, 4, 24, density.pick(12, 8)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -262,40 +268,42 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   child: IconButton(
                     onPressed: _busy ? null : widget.onBack,
                     padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 36, minHeight: 36),
                     icon: const Icon(Icons.chevron_left,
                         color: Colors.white, size: 28),
                   ),
                 ),
                 Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
+                  child: FitOrScrollColumn(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const _Wordmark(),
-                      const SizedBox(height: 20),
+                      SizedBox(height: density.pick(14, 10)),
                       Text(
                         l10n.paywallHeadline,
-                        style: const TextStyle(
-                          fontSize: 32,
+                        style: TextStyle(
+                          fontSize: density.pick(30, 26),
                           height: 1.05,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: density.pick(8, 6)),
                       Text(
                         subheadline,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: DunkColors.textSecondary,
-                          fontSize: 15,
-                          height: 1.35,
+                          fontSize: density.pick(15, 14),
+                          height: 1.3,
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: density.pick(16, 12)),
                       for (final (title, subtitle, icon) in _benefits(l10n)) ...[
                         _BenefitRow(title: title, subtitle: subtitle, icon: icon),
-                        const SizedBox(height: 16),
+                        SizedBox(height: density.pick(12, 8)),
                       ],
-                      const SizedBox(height: 8),
+                      SizedBox(height: density.pick(4, 2)),
                       if (_loading)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 28),
@@ -340,14 +348,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   subLabel: _ctaSubLabel(l10n, selected, canSkip),
                   onTap: ctaTap,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: density.pick(10, 8)),
                 Text(
                   _disclosure(l10n, selected, canSkip, service.isConfigured),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       color: DunkColors.textTertiary, fontSize: 11, height: 1.3),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: density.pick(8, 6)),
                 // Scaled down as one unit only when the three links are wider
                 // than the screen (longer French labels on a narrow phone);
                 // centred and untouched otherwise.
@@ -677,15 +685,15 @@ class _BenefitRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 38,
-          height: 38,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             color: DunkColors.primary.withValues(alpha: 0.16),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: DunkColors.primary, size: 20),
+          child: Icon(icon, color: DunkColors.primary, size: 19),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

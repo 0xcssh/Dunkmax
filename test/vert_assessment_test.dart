@@ -48,6 +48,20 @@ void main() {
       expect(a.marginInches, 2); // 31 today - 29 needed
     });
 
+    test('"below the rim" sits clearly below "touch the rim"', () {
+      // The owner switched from "touch the rim" to "below the rim" and saw
+      // the gap move by a hand's width. The stand-in for the beginner
+      // bucket has to read as a different athlete, not a rounding error.
+      final touch = VertAssessment(
+          heightInches: 73, ageYears: 25, hops: HopsLevel.touchRim);
+      final below = VertAssessment(
+          heightInches: 73, ageYears: 25, hops: HopsLevel.belowRim);
+      expect(touch.gapInches, 6);
+      expect(below.gapInches, 6 + VertAssessment.belowRimShortfall);
+      expect(below.gapInches - touch.gapInches, greaterThanOrEqualTo(8));
+      expect(below.estimatedCurrentVert, 23 - VertAssessment.belowRimShortfall);
+    });
+
     test('margin is zero while there is still a gap', () {
       final a = VertAssessment(heightInches: 73, ageYears: 25, hops: HopsLevel.touchRim);
       expect(a.marginInches, 0);

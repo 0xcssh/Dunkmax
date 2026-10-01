@@ -6,7 +6,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
-import '../widgets/staggered_entrance.dart';
+import '../widgets/option_list.dart';
 
 class PositionScreen extends StatelessWidget {
   final CourtPosition? selected;
@@ -33,27 +33,24 @@ class PositionScreen extends StatelessWidget {
       step: step,
       totalSteps: totalSteps,
       title: l10n.positionTitle,
-      subtitle: l10n.positionSubtitle,
+      // Position is stored and shown back, but nothing in the program catalog
+      // reads it — so no "we'll tailor exercises to your position" here.
+      subtitle: l10n.savedToAthleteProfile,
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       staggerBody: false,
-      child: ListView.separated(
-        padding: EdgeInsets.zero,
-        itemCount: CourtPosition.values.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, i) {
-          final position = CourtPosition.values[i];
-          return StaggerItem(
-            index: OnboardingScaffold.bodyStaggerIndex + i,
-            child: SelectableCard(
+      child: OptionList(
+        cards: [
+          for (final position in CourtPosition.values)
+            SelectableCard(
               leading:
                   NumberTile(number: position.number, tint: DunkColors.primary),
-              title: position.label,
+              // Translated here, keyed on the enum name (core is English-only).
+              title: l10n.courtPositionLabel(position.name),
               selected: selected == position,
               onTap: () => onSelect(position),
             ),
-          );
-        },
+        ],
       ),
     );
   }

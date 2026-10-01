@@ -4,6 +4,7 @@ import '../../core/models/jump_log_entry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/media_file_resolver.dart';
 import '../../theme/app_theme.dart';
+import '../shared/unit_scope.dart';
 import 'jump_video_screen.dart';
 
 /// Full history of every logged jump, newest first — pushed from Progress's
@@ -15,6 +16,7 @@ class JumpHistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     final sorted = [...entries]..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     return Scaffold(
       appBar: AppBar(
@@ -88,7 +90,8 @@ class JumpHistoryScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  l10n.inches(entry.verticalInches),
+                                  l10n.length(units.name,
+                                      units.lengthValue(entry.verticalInches)),
                                   style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
                                 ),
                                 const SizedBox(height: 2),

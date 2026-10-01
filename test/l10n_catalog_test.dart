@@ -25,9 +25,16 @@ Map<String, dynamic> _load(String locale) {
 }
 
 /// Placeholder names as they appear in an ICU message, including the count
-/// variable of a plural (`{count, plural, ...}`).
-Set<String> _placeholders(String message) =>
-    RegExp(r'\{(\w+)[,}]').allMatches(message).map((m) => m.group(1)!).toSet();
+/// variable of a plural (`{count, plural, ...}`) and the selector of a select
+/// (`{level, select, ...}`).
+///
+/// A brace glued to a preceding word is an ICU case key (`both{Both}`,
+/// `Power{POWER}`), never a placeholder — a placeholder's brace always follows
+/// whitespace, punctuation, another brace or the start of the message.
+Set<String> _placeholders(String message) => RegExp(r'(?<!\w)\{(\w+)[,}]')
+    .allMatches(message)
+    .map((m) => m.group(1)!)
+    .toSet();
 
 void main() {
   final en = _load('en');

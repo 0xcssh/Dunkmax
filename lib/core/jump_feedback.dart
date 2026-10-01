@@ -1,6 +1,7 @@
 import 'jump_form_scores.dart';
 import 'jump_result.dart';
 import 'jump_trend.dart';
+import 'units.dart';
 
 /// One aspect of the jump singled out as the strongest or the weakest of the
 /// aspects that were actually **measured** on this clip.
@@ -190,15 +191,20 @@ abstract class JumpFeedback {
   /// [scores] is optional: a jump measured by manual marking has no tracked
   /// body to score, and then this returns exactly the feedback it always did.
   /// Deterministic (never random), so the same jump always reads the same.
+  ///
+  /// [units] decides how the numbers in the prose read — 29" or 74 cm.
+  /// The sentences themselves stay English (this file is authored copy, see
+  /// CLAUDE.md); only the quoted measurements follow the athlete's region.
   static JumpFeedbackSummary build(
     JumpResult result, {
     JumpTrend? trend,
     JumpFormScores? scores,
+    UnitSystem units = UnitSystem.imperial,
   }) {
     final ranked = _rank(scores);
     return JumpFeedbackSummary(
-      headline: _headline(result),
-      focusNote: _focusNote(result, trend),
+      headline: _headline(result, units),
+      focusNote: _focusNote(result, trend, units),
       strength: ranked == null
           ? null
           : _aspect(
@@ -276,19 +282,26 @@ abstract class JumpFeedback {
     return [tips[0], tips[1]];
   }
 
-  static String _headline(JumpResult result) {
+  static String _headline(JumpResult result, UnitSystem units) {
+    final vert = units.formatLength(result.verticalInches);
+    final required = units.formatLength(result.requiredVert);
     if (result.clearsDunk) {
-      return "You hit ${result.verticalInches}\" — that clears the "
-          '${result.requiredVert}" you need at your height. Keep stacking '
-          'sessions to make it repeatable, not a one-off.';
+      return 'You hit $vert — that clears the $required you need at your '
+          'height. Keep stacking sessions to make it repeatable, not a '
+          'one-off.';
     }
-    return "You hit ${result.verticalInches}\" this jump, "
-        '${result.gapInches}" short of the ${result.requiredVert}" you need '
+    final gap = units.formatLength(result.gapInches);
+    return 'You hit $vert this jump, $gap short of the $required you need '
         'at your height.';
   }
 
-  static String _focusNote(JumpResult result, JumpTrend? trend) {
-    if (trend == null) {
+  static String _focusNote(
+      JumpResult result, JumpTrend? trend, UnitSystem units) {
+    // The Analyze flow computes the trend after persisting the new entry, so
+    // on the athlete's first test the trend is not null — it holds exactly one
+    // entry. Without `isFirstTest` that jump read "Same as your first logged
+    // test", comparing the measurement to itself.
+    if (trend == null || trend.isFirstTest) {
       // First-ever logged jump: this is the first time real data exists,
       // and it will often disagree with the self-reported hops-level guess
       // from onboarding (assessment.estimatedCurrentVert) — sometimes by a
@@ -298,29 +311,33 @@ abstract class JumpFeedback {
       final selfReported = result.assessment.estimatedCurrentVert;
       final measured = result.verticalInches;
       final delta = measured - selfReported;
+      final measuredText = units.formatLength(measured);
+      final selfReportedText = units.formatLength(selfReported);
+      final deltaText = units.formatLength(delta.abs());
       if (delta.abs() <= 2) {
         return 'Your measured jump lines up closely with your onboarding '
             'estimate — good self-awareness. Log a few more to start '
             'tracking your trend.';
       }
       if (delta > 0) {
-        return 'Your measured jump ($measured") came in $delta" above your '
-            'onboarding estimate ($selfReported") — that estimate was a '
-            'guess from a self-reported category, not a measurement. This '
-            'real number is what we track from here.';
+        return 'Your measured jump ($measuredText) came in $deltaText above '
+            'your onboarding estimate ($selfReportedText) — that estimate '
+            'was a guess from a self-reported category, not a measurement. '
+            'This real number is what we track from here.';
       }
-      return 'Your measured jump ($measured") came in ${delta.abs()}" below '
-          'your onboarding estimate ($selfReported") — self-reports run '
+      return 'Your measured jump ($measuredText) came in $deltaText below '
+          'your onboarding estimate ($selfReportedText) — self-reports run '
           'optimistic more often than not. This real number is what we '
           'track from here.';
     }
     final delta = trend.deltaFromFirstInches;
+    final deltaText = units.formatLength(delta.abs());
     if (delta > 0) {
-      return "You're up $delta\" since your first logged test — the trend "
+      return "You're up $deltaText since your first logged test — the trend "
           'is real, keep logging to see it hold.';
     }
     if (delta < 0) {
-      return "You're ${delta.abs()}\" below your first logged test. That "
+      return "You're $deltaText below your first logged test. That "
           "happens — fatigue, footing, warm-up all move this number day to "
           'day. Keep logging; one jump is a data point, not a verdict.';
     }

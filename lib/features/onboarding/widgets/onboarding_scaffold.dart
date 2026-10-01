@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/layout_density.dart';
 import '../../shared/widgets/primary_button.dart';
 import 'staggered_entrance.dart';
 
@@ -54,10 +55,16 @@ class OnboardingScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Every quiz step has to fit one page: header, headline, subtitle, the
+    // body and the CTA. The headline keeps its authored line breaks and is
+    // scaled down (never wrapped) when its longest line is wider than the
+    // screen — a French line that wraps to a third row costs more height than
+    // a slightly smaller headline. Shorter phones get the compact metrics.
+    final density = LayoutDensity.of(context);
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          padding: EdgeInsets.fromLTRB(20, 8, 20, density.pick(12, 10)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -70,23 +77,29 @@ class OnboardingScaffold extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              SizedBox(height: density.pick(18, 12)),
               StaggerItem(
                 index: 0,
-                child: Text(title, style: DunkTheme.onboardingTitle),
+                child: OnboardingHeadline(text: title),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: density.pick(8, 6)),
               StaggerItem(
                 index: 1,
-                child: Text(subtitle, style: DunkTheme.onboardingSubtitle),
+                child: Text(
+                  subtitle,
+                  style: density.pick(
+                    DunkTheme.onboardingSubtitle,
+                    DunkTheme.onboardingSubtitleCompact,
+                  ),
+                ),
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: density.pick(16, 12)),
               Expanded(
                 child: staggerBody
                     ? StaggerItem(index: bodyStaggerIndex, child: child)
                     : child,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: density.pick(12, 10)),
               StaggerItem(
                 index: _ctaStaggerIndex,
                 child: PrimaryButton(
@@ -95,6 +108,38 @@ class OnboardingScaffold extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The all-caps onboarding headline, shared by the quiz steps and the sell
+/// screens so they shrink the same way on the same phones.
+///
+/// Authored line breaks are kept. If the longest line is still wider than the
+/// available width the whole block scales down to fit, so a headline never
+/// gains an unplanned extra row.
+class OnboardingHeadline extends StatelessWidget {
+  final String text;
+
+  const OnboardingHeadline({super.key, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final density = LayoutDensity.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(
+          text,
+          softWrap: false,
+          style: density.pick(
+            DunkTheme.onboardingTitle,
+            DunkTheme.onboardingTitleCompact,
           ),
         ),
       ),

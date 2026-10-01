@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
-import '../../shared/widgets/primary_button.dart';
+import '../../shared/layout_density.dart';
+import '../widgets/onboarding_scaffold.dart';
+import '../widgets/sell_scaffold.dart';
 
 /// The last sell beat before the plan reveal.
 ///
@@ -62,48 +64,66 @@ class HowItWorksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconButton(
-                onPressed: onBack,
-                padding: EdgeInsets.zero,
-                alignment: Alignment.centerLeft,
-                icon: const Icon(Icons.chevron_left,
-                    color: Colors.white, size: 30),
-              ),
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    Text(
-                      l10n.howItWorksTitle,
-                      style: DunkTheme.onboardingTitle,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      l10n.howItWorksSubtitle,
-                      style: DunkTheme.onboardingSubtitle,
-                    ),
-                    const SizedBox(height: 20),
-                    const _PhysicsCard(),
-                    const SizedBox(height: 12),
-                    for (final (icon, title, body) in _points(l10n)) ...[
-                      _PointCard(icon: icon, title: title, body: body),
-                      const SizedBox(height: 12),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              PrimaryButton(label: l10n.howItWorksCta, onPressed: onContinue),
-            ],
+    final density = LayoutDensity.of(context);
+    final gap = density.pick(8.0, 6.0);
+    // This is the densest screen in the flow — five blocks of prose — so
+    // every gap here is a notch under the other sell screens'.
+    return SellScaffold(
+      onBack: onBack,
+      ctaLabel: l10n.howItWorksCta,
+      onContinue: onContinue,
+      children: [
+        OnboardingHeadline(text: l10n.howItWorksTitle),
+        const SizedBox(height: 4),
+        Text(
+          l10n.howItWorksSubtitle,
+          style: density.pick(
+            DunkTheme.onboardingSubtitle,
+            DunkTheme.onboardingSubtitleCompact,
           ),
         ),
+        SizedBox(height: density.pick(10, 8)),
+        const _PhysicsCard(),
+        SizedBox(height: gap),
+        _PointsCard(points: _points(l10n)),
+      ],
+    );
+  }
+}
+
+/// The four claims as one card of rows with hairline dividers, rather than
+/// four bordered cards: same words, same icons, and the ~80 pt of card
+/// chrome that would otherwise push the CTA below the fold goes to the
+/// text instead.
+class _PointsCard extends StatelessWidget {
+  final List<(IconData, String, String)> points;
+
+  const _PointsCard({required this.points});
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = LayoutDensity.of(context).isCompact;
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: compact ? 3 : 4,
+      ),
+      decoration: BoxDecoration(
+        color: DunkColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DunkColors.stroke),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < points.length; i++) ...[
+            if (i > 0) const Divider(color: DunkColors.stroke, height: 1),
+            _PointRow(
+              icon: points[i].$1,
+              title: points[i].$2,
+              body: points[i].$3,
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -112,6 +132,10 @@ class HowItWorksScreen extends StatelessWidget {
 /// The headline idea, stated plainly: hang time alone determines jump
 /// height. Showing the actual relation is more persuasive than a star
 /// rating we don't have — and it's true.
+///
+/// Laid out as a row (icon beside the claim) rather than a centred stack:
+/// this screen carries five cards of prose and has to fit one page, so the
+/// hero card spends its height on words, not on vertical centring.
 class _PhysicsCard extends StatelessWidget {
   const _PhysicsCard();
 
@@ -119,43 +143,67 @@ class _PhysicsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 18),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: BoxDecoration(
         color: DunkColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: DunkColors.stroke),
+        border: Border.all(color: DunkColors.primary.withValues(alpha: 0.35)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.timer_outlined, color: DunkColors.primary, size: 30),
-          const SizedBox(height: 12),
-          Text(
-            l10n.hangTimeLabel,
-            style: const TextStyle(
-              color: DunkColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: DunkColors.primary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(Icons.timer_outlined,
+                    color: DunkColors.primary, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.hangTimeLabel,
+                      style: const TextStyle(
+                        color: DunkColors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.hangTimeDecides,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        height: 1.15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            l10n.hangTimeDecides,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
             decoration: BoxDecoration(
               color: DunkColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               l10n.hangTimeFormula,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 color: DunkColors.primary,
                 fontSize: 13,
@@ -163,14 +211,13 @@ class _PhysicsCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           Text(
             l10n.hangTimeNote,
-            textAlign: TextAlign.center,
             style: const TextStyle(
               color: DunkColors.textSecondary,
-              fontSize: 13,
-              height: 1.35,
+              fontSize: 12,
+              height: 1.25,
             ),
           ),
         ],
@@ -179,12 +226,12 @@ class _PhysicsCard extends StatelessWidget {
   }
 }
 
-class _PointCard extends StatelessWidget {
+class _PointRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String body;
 
-  const _PointCard({
+  const _PointRow({
     required this.icon,
     required this.title,
     required this.body,
@@ -192,26 +239,22 @@ class _PointCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: DunkColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: DunkColors.stroke),
-      ),
+    final compact = LayoutDensity.of(context).isCompact;
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: compact ? 5 : 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               color: DunkColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: DunkColors.primary, size: 21),
+            child: Icon(icon, color: DunkColors.primary, size: 18),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,17 +263,18 @@ class _PointCard extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 15,
+                    fontSize: 14,
+                    height: 1.2,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   body,
                   style: const TextStyle(
                     color: DunkColors.textSecondary,
-                    fontSize: 13,
-                    height: 1.35,
+                    fontSize: 12,
+                    height: 1.25,
                   ),
                 ),
               ],

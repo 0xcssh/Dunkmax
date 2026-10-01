@@ -6,7 +6,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
-import '../widgets/staggered_entrance.dart';
+import '../widgets/option_list.dart';
 
 class GoalScreen extends StatelessWidget {
   final Set<DunkGoal> selected;
@@ -46,24 +46,22 @@ class GoalScreen extends StatelessWidget {
       onContinue: selected.isEmpty ? null : onContinue,
       // The cards arrive one after another instead of as a single block.
       staggerBody: false,
-      child: ListView.separated(
-        padding: EdgeInsets.zero,
-        itemCount: DunkGoal.values.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, i) {
-          final goal = DunkGoal.values[i];
-          final (icon, tint) = _icons[goal]!;
-          return StaggerItem(
-            index: OnboardingScaffold.bodyStaggerIndex + i,
-            child: SelectableCard(
-              leading: IconTile(icon: icon, tint: tint),
-              title: goal.title,
-              subtitle: goal.subtitle,
+      child: OptionList(
+        cards: [
+          for (final goal in DunkGoal.values)
+            SelectableCard(
+              leading: IconTile(
+                icon: _icons[goal]!.$1,
+                tint: _icons[goal]!.$2,
+              ),
+              // Translated here, keyed on the enum name: the core getters
+              // are English-only (core/ has no Flutter, so no l10n).
+              title: l10n.dunkGoalTitle(goal.name),
+              subtitle: l10n.dunkGoalSubtitle(goal.name),
               selected: selected.contains(goal),
               onTap: () => onToggle(goal),
             ),
-          );
-        },
+        ],
       ),
     );
   }

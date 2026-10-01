@@ -15,6 +15,19 @@ void main() {
       expect(trend!.latestVerticalInches, 24);
       expect(trend.deltaFromFirstInches, 0);
       expect(trend.isImproving, isFalse);
+      expect(trend.entryCount, 1);
+      expect(trend.isFirstTest, isTrue);
+    });
+
+    test('two entries with a flat delta are not a first test', () {
+      final entries = [
+        JumpLogEntry(verticalInches: 24, recordedAt: DateTime(2026, 8, 1)),
+        JumpLogEntry(verticalInches: 24, recordedAt: DateTime(2026, 8, 2)),
+      ];
+      final trend = JumpTrendCalculator.compute(entries);
+      expect(trend!.entryCount, 2);
+      expect(trend.deltaFromFirstInches, 0);
+      expect(trend.isFirstTest, isFalse);
     });
 
     test('multiple entries out of chronological order still resolve correct first/latest', () {

@@ -55,8 +55,21 @@ abstract class DunkTheme {
   }
 
   /// Big all-caps headline used on onboarding screens.
+  ///
+  /// Sized so a two-line headline plus its subtitle, five option cards and
+  /// the CTA share one 844 pt screen without scrolling; see
+  /// `features/shared/layout_density.dart` for the shorter-phone variant.
   static const TextStyle onboardingTitle = TextStyle(
-    fontSize: 34,
+    fontSize: 30,
+    height: 1.08,
+    fontWeight: FontWeight.w800,
+    letterSpacing: 0.5,
+    color: DunkColors.textPrimary,
+  );
+
+  /// [onboardingTitle] for phones in the iPhone SE class.
+  static const TextStyle onboardingTitleCompact = TextStyle(
+    fontSize: 26,
     height: 1.08,
     fontWeight: FontWeight.w800,
     letterSpacing: 0.5,
@@ -64,20 +77,30 @@ abstract class DunkTheme {
   );
 
   static const TextStyle onboardingSubtitle = TextStyle(
-    fontSize: 17,
+    fontSize: 15,
     height: 1.3,
     fontWeight: FontWeight.w400,
     color: DunkColors.textSecondary,
   );
 
+  /// [onboardingSubtitle] for phones in the iPhone SE class.
+  static const TextStyle onboardingSubtitleCompact = TextStyle(
+    fontSize: 14,
+    height: 1.25,
+    fontWeight: FontWeight.w400,
+    color: DunkColors.textSecondary,
+  );
+
   static const TextStyle cardTitle = TextStyle(
-    fontSize: 20,
+    fontSize: 17,
+    height: 1.2,
     fontWeight: FontWeight.w700,
     color: DunkColors.textPrimary,
   );
 
   static const TextStyle cardSubtitle = TextStyle(
-    fontSize: 15,
+    fontSize: 13,
+    height: 1.25,
     fontWeight: FontWeight.w400,
     color: DunkColors.textSecondary,
   );

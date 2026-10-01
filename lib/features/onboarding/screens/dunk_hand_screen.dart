@@ -4,6 +4,9 @@ import '../../../core/models/dunk_hand.dart';
 import '../../../core/vert_assessment.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/layout_density.dart';
+import '../../shared/unit_scope.dart';
+import '../../shared/widgets/fit_or_scroll.dart';
 import '../widgets/onboarding_scaffold.dart';
 import '../widgets/staggered_entrance.dart';
 
@@ -43,55 +46,52 @@ class DunkHandScreen extends StatelessWidget {
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       staggerBody: false,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: StaggerItem(
-                    index: OnboardingScaffold.bodyStaggerIndex,
-                    child: _HandCard(
-                      hand: DunkHand.left,
-                      selected: selected == DunkHand.left,
-                      onTap: () => onSelect(DunkHand.left),
-                      square: true,
-                    ),
+      child: FitOrScrollColumn(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: StaggerItem(
+                  index: OnboardingScaffold.bodyStaggerIndex,
+                  child: _HandCard(
+                    hand: DunkHand.left,
+                    selected: selected == DunkHand.left,
+                    onTap: () => onSelect(DunkHand.left),
+                    square: true,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StaggerItem(
-                    index: OnboardingScaffold.bodyStaggerIndex + 1,
-                    child: _HandCard(
-                      hand: DunkHand.right,
-                      selected: selected == DunkHand.right,
-                      onTap: () => onSelect(DunkHand.right),
-                      square: true,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            StaggerItem(
-              index: OnboardingScaffold.bodyStaggerIndex + 2,
-              child: _HandCard(
-                hand: DunkHand.both,
-                selected: selected == DunkHand.both,
-                onTap: () => onSelect(DunkHand.both),
-                square: false,
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: StaggerItem(
+                  index: OnboardingScaffold.bodyStaggerIndex + 1,
+                  child: _HandCard(
+                    hand: DunkHand.right,
+                    selected: selected == DunkHand.right,
+                    onTap: () => onSelect(DunkHand.right),
+                    square: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          StaggerItem(
+            index: OnboardingScaffold.bodyStaggerIndex + 2,
+            child: _HandCard(
+              hand: DunkHand.both,
+              selected: selected == DunkHand.both,
+              onTap: () => onSelect(DunkHand.both),
+              square: false,
             ),
-            const SizedBox(height: 16),
-            StaggerItem(
-              index: OnboardingScaffold.bodyStaggerIndex + 3,
-              child: const _ClearanceNote(),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          const StaggerItem(
+            index: OnboardingScaffold.bodyStaggerIndex + 3,
+            child: _ClearanceNote(),
+          ),
+        ],
       ),
     );
   }
@@ -116,6 +116,7 @@ class _HandCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final border = BorderRadius.circular(16);
+    final l10n = AppLocalizations.of(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -131,15 +132,18 @@ class _HandCard extends StatelessWidget {
               width: selected ? 1.6 : 1,
             ),
           ),
-          child: square ? _squareBody() : _wideBody(),
+          child: square ? _squareBody(context, l10n) : _wideBody(l10n),
         ),
       ),
     );
   }
 
-  Widget _squareBody() {
+  Widget _squareBody(BuildContext context, AppLocalizations l10n) {
     return AspectRatio(
-      aspectRatio: 1,
+      // "Square" on a regular phone; a touch wider than tall on a short one,
+      // where two full squares plus the wide card would push the note below
+      // the fold.
+      aspectRatio: LayoutDensity.of(context).pick(1, 1.3),
       child: Stack(
         children: [
           Padding(
@@ -149,13 +153,14 @@ class _HandCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _HandGlyph(hand: hand, selected: selected),
-                const SizedBox(height: 16),
-                Text(hand.title, style: DunkTheme.cardTitle),
+                SizedBox(height: LayoutDensity.of(context).pick(12, 8)),
+                Text(l10n.dunkHandOptionTitle(hand.name),
+                    style: DunkTheme.cardTitle),
                 const SizedBox(height: 2),
                 // One line only: the square card has a fixed height and the
                 // one-hand caption is short enough not to need wrapping.
                 Text(
-                  hand.subtitle,
+                  l10n.dunkHandOptionSubtitle(hand.name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -176,9 +181,9 @@ class _HandCard extends StatelessWidget {
     );
   }
 
-  Widget _wideBody() {
+  Widget _wideBody(AppLocalizations l10n) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
           _HandGlyph(hand: hand, selected: selected),
@@ -188,9 +193,11 @@ class _HandCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(hand.title, style: DunkTheme.cardTitle),
+                Text(l10n.dunkHandOptionTitle(hand.name),
+                    style: DunkTheme.cardTitle),
                 const SizedBox(height: 2),
-                Text(hand.subtitle, style: DunkTheme.cardSubtitle),
+                Text(l10n.dunkHandOptionSubtitle(hand.name),
+                    style: DunkTheme.cardSubtitle),
               ],
             ),
           ),
@@ -214,9 +221,10 @@ class _HandGlyph extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tint = selected ? DunkColors.primary : DunkColors.accentPurple;
+    final size = LayoutDensity.of(context).pick(48.0, 40.0);
     return Container(
-      width: 48,
-      height: 48,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: tint.withValues(alpha: 0.18),
@@ -292,6 +300,7 @@ class _ClearanceNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final units = UnitScope.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -299,8 +308,10 @@ class _ClearanceNote extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            AppLocalizations.of(context)
-                .dunkHandClearanceNote(VertAssessment.twoHandExtraClearance),
+            AppLocalizations.of(context).dunkHandClearanceNote(
+              units.name,
+              units.lengthValue(VertAssessment.twoHandExtraClearance),
+            ),
             style: const TextStyle(
               color: DunkColors.textTertiary,
               fontSize: 12,

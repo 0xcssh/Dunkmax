@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
+import '../layout_density.dart';
 
 /// A tappable option row (onboarding lists). Shows a leading icon tile, a
 /// title + optional subtitle, and a trailing check when [selected].
@@ -22,6 +23,9 @@ class SelectableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Vertical padding is the one knob that decides whether five of these fit
+    // above the CTA; it tightens on short phones.
+    final density = LayoutDensity.of(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -29,7 +33,10 @@ class SelectableCard extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          padding: EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: density.pick(12, 10),
+          ),
           decoration: BoxDecoration(
             color: DunkColors.surface,
             borderRadius: BorderRadius.circular(16),

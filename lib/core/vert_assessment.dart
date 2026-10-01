@@ -58,6 +58,18 @@ class VertAssessment {
   /// How the athlete intends to finish. Null keeps the one-hand target.
   final DunkHand? dunkHand;
 
+  /// How far below the rim a "below the rim" athlete's fingertips are taken
+  /// to get, in inches.
+  ///
+  /// "Below the rim" is the whole beginner bucket — a hand's width short to a
+  /// foot and more — and any single figure is a stand-in for it. It used to
+  /// be 4", which made "below" read as barely different from "touch" and
+  /// flattered everyone who is nowhere near. Asking the athlete for the
+  /// number was tried and dropped: someone who cannot touch the rim has no
+  /// way to know how far off they are. So the stand-in is simply further
+  /// below, and the first analysed jump replaces it with a measurement.
+  static const int belowRimShortfall = 8;
+
   VertAssessment({
     required this.heightInches,
     required this.ageYears,
@@ -87,7 +99,7 @@ class VertAssessment {
     int v;
     switch (hops) {
       case HopsLevel.belowRim:
-        v = touchRimVert - 4;
+        v = touchRimVert - belowRimShortfall;
         break;
       case HopsLevel.touchRim:
         v = touchRimVert;

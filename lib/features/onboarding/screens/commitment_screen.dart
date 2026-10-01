@@ -6,7 +6,7 @@ import '../../../theme/app_theme.dart';
 import '../../shared/widgets/selectable_card.dart';
 import '../widgets/icon_tile.dart';
 import '../widgets/onboarding_scaffold.dart';
-import '../widgets/staggered_entrance.dart';
+import '../widgets/option_list.dart';
 
 class CommitmentScreen extends StatelessWidget {
   final CommitmentLevel? selected;
@@ -43,24 +43,22 @@ class CommitmentScreen extends StatelessWidget {
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       staggerBody: false,
-      child: ListView.separated(
-        padding: EdgeInsets.zero,
-        itemCount: CommitmentLevel.values.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, i) {
-          final level = CommitmentLevel.values[i];
-          final (icon, tint) = _icons[level]!;
-          return StaggerItem(
-            index: OnboardingScaffold.bodyStaggerIndex + i,
-            child: SelectableCard(
-              leading: IconTile(icon: icon, tint: tint),
-              title: level.title,
-              subtitle: level.subtitle,
+      child: OptionList(
+        cards: [
+          for (final level in CommitmentLevel.values)
+            SelectableCard(
+              leading: IconTile(
+                icon: _icons[level]!.$1,
+                tint: _icons[level]!.$2,
+              ),
+              // Translated here, keyed on the enum name: the core getters
+              // are English-only (core/ has no Flutter, so no l10n).
+              title: l10n.commitmentLevelTitle(level.name),
+              subtitle: l10n.commitmentLevelSubtitle(level.name),
               selected: selected == level,
               onTap: () => onSelect(level),
             ),
-          );
-        },
+        ],
       ),
     );
   }

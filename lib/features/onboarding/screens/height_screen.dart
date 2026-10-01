@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/unit_scope.dart';
 import '../widgets/onboarding_scaffold.dart';
 
-/// Height picker: two wheels (feet + inches). Reports total inches upward.
+/// Height picker. Imperial regions get two wheels (feet + inches), metric
+/// regions one centimetre wheel; either way the value reported upward is
+/// total inches, the unit everything downstream stores and computes in.
 class HeightScreen extends StatefulWidget {
   final int heightInches;
   final ValueChanged<int> onChanged;
@@ -30,29 +33,44 @@ class HeightScreen extends StatefulWidget {
 }
 
 class _HeightScreenState extends State<HeightScreen> {
-  static const _minFeet = 4;
+  static const _minFeet = UnitInputRanges.minHeightFeet;
+  static const _maxFeet = UnitInputRanges.maxHeightFeet;
+  static const _minCm = UnitInputRanges.minHeightCm;
+  static const _maxCm = UnitInputRanges.maxHeightCm;
 
   /// The shortest the body is ever laid out: the value box and its caption
   /// plus roughly two wheel rows. A layout figure, not a measurement.
   static const double _minBodyHeight = 250;
-  late int _feet = (widget.heightInches ~/ 12).clamp(_minFeet, 7);
+
+  // Imperial state.
+  late int _feet = (widget.heightInches ~/ 12).clamp(_minFeet, _maxFeet);
   late int _inches = widget.heightInches % 12;
 
-  late final _ftCtrl = FixedExtentScrollController(initialItem: _feet - _minFeet);
+  // Metric state: the same stored height, in whole centimetres.
+  late int _cm =
+      UnitConversions.inchesToCm(widget.heightInches).clamp(_minCm, _maxCm);
+
+  late final _ftCtrl =
+      FixedExtentScrollController(initialItem: _feet - _minFeet);
   late final _inCtrl = FixedExtentScrollController(initialItem: _inches);
+  late final _cmCtrl = FixedExtentScrollController(initialItem: _cm - _minCm);
 
   @override
   void dispose() {
     _ftCtrl.dispose();
     _inCtrl.dispose();
+    _cmCtrl.dispose();
     super.dispose();
   }
 
-  void _emit() => widget.onChanged(_feet * 12 + _inches);
+  void _emitImperial() => widget.onChanged(_feet * 12 + _inches);
+
+  void _emitMetric() => widget.onChanged(UnitConversions.cmToInches(_cm));
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
     return OnboardingScaffold(
       step: widget.step,
       totalSteps: widget.totalSteps,
@@ -69,21 +87,24 @@ class _HeightScreenState extends State<HeightScreen> {
             constraints: BoxConstraints(
               maxHeight: math.max(constraints.maxHeight, _minBodyHeight),
             ),
-            child: _buildBody(l10n),
+            child: _buildBody(l10n, units),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBody(AppLocalizations l10n) {
+  Widget _buildBody(AppLocalizations l10n, UnitSystem units) {
+    final unit = units.name;
+    final value = units.isMetric
+        ? l10n.heightValue(unit, 0, 0, _cm)
+        : l10n.heightValue(unit, _feet, _inches, 0);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _ValueBox(
-            child: Text(l10n.heightValue(_feet, _inches), style: _bigStyle)),
+        _ValueBox(child: Text(value, style: _bigStyle)),
         const SizedBox(height: 8),
-        Text(l10n.heightUnitLabel,
+        Text(l10n.heightUnitLabel(unit),
             style: const TextStyle(
                 color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
         const SizedBox(height: 18),
@@ -93,32 +114,42 @@ class _HeightScreenState extends State<HeightScreen> {
         Flexible(
           child: SizedBox(
             height: 160,
-            child: Row(
-              children: [
-                Expanded(
-                  child: _Wheel(
-                    controller: _ftCtrl,
-                    count: 7 - _minFeet + 1,
-                    label: (i) => l10n.heightFeetOption(_minFeet + i),
+            child: units.isMetric
+                ? _Wheel(
+                    controller: _cmCtrl,
+                    count: _maxCm - _minCm + 1,
+                    label: (i) => l10n.heightCmOption(_minCm + i),
                     onSelected: (i) => setState(() {
-                      _feet = _minFeet + i;
-                      _emit();
+                      _cm = _minCm + i;
+                      _emitMetric();
                     }),
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _Wheel(
+                          controller: _ftCtrl,
+                          count: _maxFeet - _minFeet + 1,
+                          label: (i) => l10n.heightFeetOption(_minFeet + i),
+                          onSelected: (i) => setState(() {
+                            _feet = _minFeet + i;
+                            _emitImperial();
+                          }),
+                        ),
+                      ),
+                      Expanded(
+                        child: _Wheel(
+                          controller: _inCtrl,
+                          count: 12,
+                          label: (i) => l10n.heightInchesOption(i),
+                          onSelected: (i) => setState(() {
+                            _inches = i;
+                            _emitImperial();
+                          }),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Expanded(
-                  child: _Wheel(
-                    controller: _inCtrl,
-                    count: 12,
-                    label: (i) => l10n.heightInchesOption(i),
-                    onSelected: (i) => setState(() {
-                      _inches = i;
-                      _emit();
-                    }),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ],

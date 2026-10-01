@@ -121,6 +121,7 @@ class _DayChip extends StatelessWidget {
           aspectRatio: 0.82,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 140),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: DunkColors.surface,
               borderRadius: BorderRadius.circular(16),
@@ -129,29 +130,37 @@ class _DayChip extends StatelessWidget {
                 width: selected ? 1.6 : 1,
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    color: selected ? DunkColors.primary : Colors.white,
+            // Scaled down as one unit if the chip is ever shorter than its
+            // three rows (a narrow phone makes the square small, and the
+            // number used to overflow it by a hair).
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 30,
+                      height: 1.1,
+                      fontWeight: FontWeight.w800,
+                      color: selected ? DunkColors.primary : Colors.white,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  AppLocalizations.of(context).daysChipUnit,
-                  style: const TextStyle(
-                      color: DunkColors.textSecondary, fontSize: 14),
-                ),
-                const SizedBox(height: 6),
-                if (selected)
-                  const Icon(Icons.check_circle, color: DunkColors.primary, size: 22)
-                else
-                  const SizedBox(height: 22),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    AppLocalizations.of(context).daysChipUnit,
+                    style: const TextStyle(
+                        color: DunkColors.textSecondary, fontSize: 14),
+                  ),
+                  const SizedBox(height: 6),
+                  if (selected)
+                    const Icon(Icons.check_circle,
+                        color: DunkColors.primary, size: 22)
+                  else
+                    const SizedBox(height: 22),
+                ],
+              ),
             ),
           ),
         ),

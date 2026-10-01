@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/unit_scope.dart';
 import '../widgets/onboarding_scaffold.dart';
 
-/// Weight picker: a slider in pounds (75–300), matching the reference.
+/// Weight picker: a slider in pounds (75–300) in imperial regions, in
+/// kilograms (35–150) in metric ones. The value reported upward is always
+/// pounds, the unit the profile stores.
 class WeightScreen extends StatelessWidget {
   final int weightLbs;
   final ValueChanged<int> onChanged;
@@ -26,6 +29,14 @@ class WeightScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
+    final min = units.isMetric
+        ? UnitInputRanges.minWeightKg
+        : UnitInputRanges.minWeightLbs;
+    final max = units.isMetric
+        ? UnitInputRanges.maxWeightKg
+        : UnitInputRanges.maxWeightLbs;
+    final shown = units.weight(weightLbs).value.clamp(min, max);
     return OnboardingScaffold(
       step: step,
       totalSteps: totalSteps,
@@ -51,11 +62,11 @@ class WeightScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Text('$weightLbs',
+                  Text('$shown',
                       style: const TextStyle(
                           fontSize: 54, fontWeight: FontWeight.w800, color: Colors.white)),
                   const SizedBox(height: 2),
-                  Text(l10n.weightUnitLabel,
+                  Text(l10n.weightUnitLabel(units.name),
                       style: const TextStyle(
                           color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
                 ],
@@ -71,17 +82,22 @@ class WeightScreen extends StatelessWidget {
                 trackHeight: 6,
               ),
               child: Slider(
-                min: 75,
-                max: 300,
-                value: weightLbs.clamp(75, 300).toDouble(),
-                onChanged: (v) => onChanged(v.round()),
+                min: min.toDouble(),
+                max: max.toDouble(),
+                value: shown.toDouble(),
+                // Stored in pounds whatever the slider shows.
+                onChanged: (v) => onChanged(units.lbsFromWeight(v.round())),
               ),
             ),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('75', style: TextStyle(color: DunkColors.textTertiary, fontSize: 13)),
-                Text('300', style: TextStyle(color: DunkColors.textTertiary, fontSize: 13)),
+                Text('$min',
+                    style: const TextStyle(
+                        color: DunkColors.textTertiary, fontSize: 13)),
+                Text('$max',
+                    style: const TextStyle(
+                        color: DunkColors.textTertiary, fontSize: 13)),
               ],
             ),
           ],

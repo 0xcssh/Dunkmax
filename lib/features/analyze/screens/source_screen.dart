@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/models/video_attempt_type.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../shared/layout_density.dart';
 import '../../shared/widgets/primary_button.dart';
 
 /// Entry point of the Analyze flow: film a jump or import an existing clip.
@@ -86,9 +87,12 @@ class _SourceScreenState extends State<SourceScreen> {
             const SizedBox(height: 8),
             Text(
               l10n.analyzeIntro,
-              style: DunkTheme.onboardingSubtitle,
+              style: LayoutDensity.of(context).pick(
+                DunkTheme.onboardingSubtitle,
+                DunkTheme.onboardingSubtitleCompact,
+              ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: LayoutDensity.of(context).pick(20, 14)),
             Row(
               children: [
                 Expanded(
@@ -111,17 +115,20 @@ class _SourceScreenState extends State<SourceScreen> {
               ],
             ),
             const Spacer(),
+            // The illustration is the one thing on this screen with no
+            // information in it, so it is what gives way on a short phone.
             Center(
               child: Container(
-                width: 140,
-                height: 140,
+                width: LayoutDensity.of(context).pick(140, 104),
+                height: LayoutDensity.of(context).pick(140, 104),
                 decoration: BoxDecoration(
                   color: DunkColors.surface,
                   shape: BoxShape.circle,
                   border: Border.all(color: DunkColors.stroke),
                 ),
-                child: const Icon(Icons.videocam_outlined,
-                    color: DunkColors.primary, size: 56),
+                child: Icon(Icons.videocam_outlined,
+                    color: DunkColors.primary,
+                    size: LayoutDensity.of(context).pick(56, 44)),
               ),
             ),
             const Spacer(),
@@ -195,6 +202,9 @@ class _AttemptTypeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Translated here, keyed on the enum name: the core getters are
+    // English-only (core/ has no Flutter, so no l10n).
+    final l10n = AppLocalizations.of(context);
     return Material(
       color: selected ? DunkColors.primary.withValues(alpha: 0.12) : DunkColors.surface,
       borderRadius: BorderRadius.circular(14),
@@ -214,7 +224,7 @@ class _AttemptTypeChip extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                type.title.toUpperCase(),
+                l10n.videoAttemptTypeTitle(type.name).toUpperCase(),
                 style: TextStyle(
                   color: selected ? DunkColors.primary : Colors.white,
                   fontSize: 12,
@@ -224,7 +234,7 @@ class _AttemptTypeChip extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                type.subtitle,
+                l10n.videoAttemptTypeSubtitle(type.name),
                 style: const TextStyle(color: DunkColors.textTertiary, fontSize: 11),
               ),
             ],
