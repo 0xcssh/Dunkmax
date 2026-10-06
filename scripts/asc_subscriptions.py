@@ -262,7 +262,13 @@ def main():
             n_price = len(get_all(f"/v1/subscriptions/{s_['id']}/prices")[0])
             n_intro = len(get_all(f"/v1/subscriptions/{s_['id']}/introductoryOffers")[0])
             n_loc = len(get_all(f"/v1/subscriptions/{s_['id']}/subscriptionLocalizations")[0])
-            print(f"state {a['productId']}: {a.get('state')} · {a.get('subscriptionPeriod')} · "
+            try:
+                rs = call("GET", f"/v1/subscriptions/{s_['id']}/appStoreReviewScreenshot").get("data") or {}
+                shot_state = ((rs.get("attributes") or {}).get("assetDeliveryState") or {}).get("state")
+            except RuntimeError:
+                shot_state = None
+            print(f"state {a['productId']}: {a.get('state')} · review shot {shot_state} · "
+                  f"{a.get('subscriptionPeriod')} · "
                   f"level {a.get('groupLevel')} · {n_price} prices · {n_intro} intro offers · "
                   f"{n_loc} localizations")
     print("dry run, nothing written" if DRY else "done")
