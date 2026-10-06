@@ -33,6 +33,7 @@ import 'package:dunkmax/core/models/training_location.dart';
 import 'package:dunkmax/core/models/video_attempt_type.dart';
 import 'package:dunkmax/core/models/workout_session.dart';
 import 'package:dunkmax/core/pose_jump_detector.dart';
+import 'package:dunkmax/core/subscription_offer.dart';
 import 'package:dunkmax/core/program_catalog.dart';
 import 'package:dunkmax/core/training_schedule.dart';
 import 'package:dunkmax/core/vert_assessment.dart';
@@ -44,6 +45,7 @@ import 'package:dunkmax/features/onboarding/screens/gap_screen.dart';
 import 'package:dunkmax/features/onboarding/screens/plan_reveal_screen.dart';
 import 'package:dunkmax/features/onboarding/screens/potential_screen.dart';
 import 'package:dunkmax/features/onboarding/widgets/staggered_entrance.dart';
+import 'package:dunkmax/features/paywall/paywall_screen.dart';
 import 'package:dunkmax/features/shared/unit_scope.dart';
 import 'package:dunkmax/features/train/screens/exercise_detail_screen.dart';
 import 'package:dunkmax/features/train/screens/log_exercise_screen.dart';
@@ -51,6 +53,7 @@ import 'package:dunkmax/l10n/app_localizations.dart';
 import 'package:dunkmax/services/athlete_profile_store.dart';
 import 'package:dunkmax/services/jump_log_store.dart';
 import 'package:dunkmax/services/leaderboard_service.dart';
+import 'package:dunkmax/services/subscription_service.dart';
 import 'package:dunkmax/services/workout_session_store.dart';
 import 'package:dunkmax/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -318,6 +321,19 @@ void main() {
         onAnalyzeAnother: noop,
       ),
     );
+    // The paywall with the configured offering — also the App Review
+    // screenshot every subscription needs (scripts/asc_subscriptions.py).
+    await _shoot(
+      tester,
+      'paywall',
+      (_) => PaywallScreen(
+        profile: _profile,
+        subscriptionService: _OfferService(),
+        onUnlocked: noop,
+        onBack: noop,
+      ),
+      scaffold: false,
+    );
     await _shoot(tester, 'source',
         (_) => SourceScreen(onVideoSelected: (_, __) {}, onSkip: noop));
     await _shoot(
@@ -410,4 +426,27 @@ void main() {
           scaffold: false, after: tapTab(i));
     }
   });
+}
+
+/// Serves the configured prices, as RevenueCat does once set up.
+class _OfferService extends SubscriptionService {
+  @override
+  Future<SubscriptionOffer?> fetchOffer() async => const SubscriptionOffer([
+        SubscriptionPlan(
+          packageId: r'$rc_annual',
+          priceString: r'$59.99',
+          price: 59.99,
+          currencyCode: 'USD',
+          period: BillingPeriod(BillingUnit.year, 1),
+          freeTrial: BillingPeriod(BillingUnit.day, 3),
+        ),
+        SubscriptionPlan(
+          packageId: r'$rc_weekly',
+          priceString: r'$7.99',
+          price: 7.99,
+          currencyCode: 'USD',
+          period: BillingPeriod(BillingUnit.week, 1),
+          freeTrial: BillingPeriod(BillingUnit.day, 3),
+        ),
+      ]);
 }

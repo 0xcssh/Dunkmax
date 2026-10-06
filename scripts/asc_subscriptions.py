@@ -19,7 +19,9 @@ euro countries, which get the round euro price below.
 
 Env: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (PEM), BUNDLE_ID, DRY_RUN.
 """
+import hashlib
 import os
+import pathlib
 import sys
 import time
 
@@ -34,6 +36,10 @@ DRY = os.environ.get("DRY_RUN", "0") == "1"
 BASE = "https://api.appstoreconnect.apple.com"
 
 GROUP = "Dunk It Pro"
+# The App Review screenshot every subscription needs before it leaves
+# MISSING_METADATA: the real paywall, rendered by
+# tool/store_screenshots/capture_test.dart at the 6.9" size.
+REVIEW_SHOT = pathlib.Path(__file__).resolve().parent.parent / "tool/store_screenshots/assets/review_paywall.png"
 EURO = ["AUT", "BEL", "CYP", "DEU", "ESP", "EST", "FIN", "FRA", "GRC", "HRV",
         "IRL", "ITA", "LTU", "LUX", "LVA", "MLT", "NLD", "PRT", "SVK", "SVN"]
 
@@ -212,6 +218,28 @@ def main():
                             "subscription": {"data": ref("subscriptions", sid)},
                             "subscriptionPricePoint": {"data": ref("subscriptionPricePoints", target[t])},
                         }}})
+
+        try:
+            shot = call("GET", f"/v1/subscriptions/{sid}/appStoreReviewScreenshot").get("data")
+        except RuntimeError:
+            shot = None
+        if not shot:
+            data = REVIEW_SHOT.read_bytes()
+            print(f"    + review screenshot ({len(data)} bytes)")
+            if not DRY:
+                made = call("POST", "/v1/subscriptionAppStoreReviewScreenshots", {"data": {
+                    "type": "subscriptionAppStoreReviewScreenshots",
+                    "attributes": {"fileName": REVIEW_SHOT.name, "fileSize": len(data)},
+                    "relationships": {"subscription": {"data": ref("subscriptions", sid)}}}})["data"]
+                for op in made["attributes"]["uploadOperations"]:
+                    chunk = data[op["offset"]:op["offset"] + op["length"]]
+                    headers = {h["name"]: h["value"] for h in op.get("requestHeaders", [])}
+                    requests.request(op["method"], op["url"], data=chunk, headers=headers,
+                                     timeout=300).raise_for_status()
+                call("PATCH", f"/v1/subscriptionAppStoreReviewScreenshots/{made['id']}", {"data": {
+                    "type": "subscriptionAppStoreReviewScreenshots", "id": made["id"],
+                    "attributes": {"uploaded": True,
+                                   "sourceFileChecksum": hashlib.md5(data).hexdigest()}}})
 
         if trial:
             offers, _ = get_all(f"/v1/subscriptions/{sid}/introductoryOffers")
