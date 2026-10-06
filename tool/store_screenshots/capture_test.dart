@@ -194,7 +194,11 @@ Future<void> _loadFonts() async {
     }
     await loader.load();
   }
-  final icons = File('$fonts/materialicons-regular.otf');
+  // Bundled beside this file (Apache-2.0, licence alongside): a CI runner's
+  // SDK cache has no material_fonts, and every icon would draw as a box.
+  final bundled = File('tool/store_screenshots/assets/materialicons-regular.otf');
+  final icons =
+      bundled.existsSync() ? bundled : File('$fonts/materialicons-regular.otf');
   if (icons.existsSync()) {
     final loader = FontLoader('MaterialIcons')
       ..addFont(Future.value(icons.readAsBytesSync().buffer.asByteData()));
