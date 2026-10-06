@@ -64,6 +64,8 @@ flutter:
   # must compile whether or not the toolchain regenerates it.
   generate: true
   assets:
+    # The paywall's hero art: the dunker from the app icon, owned outright.
+    - assets/paywall/
     # Start/end demonstration frames per exercise. Flutter only bundles
     # files directly inside a listed directory, never its subfolders, so
     # every drill folder has to be named here.

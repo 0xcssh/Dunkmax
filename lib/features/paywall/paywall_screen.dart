@@ -3,13 +3,14 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/legal_urls.dart';
 import '../../core/models/onboarding_profile.dart';
-import '../../core/program_catalog.dart';
 import '../../core/subscription_offer.dart';
+import '../../core/vert_assessment.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/analytics.dart';
 import '../../services/subscription_service.dart';
 import '../../theme/app_theme.dart';
 import '../shared/layout_density.dart';
+import '../shared/unit_scope.dart';
 import '../shared/widgets/fit_or_scroll.dart';
 
 /// The paywall. A hard gate — the app itself is only reachable by holding the
@@ -67,20 +68,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
   bool _busy = false;
   bool _showOtherPlans = false;
   String? _message;
-
-  List<(String, String, IconData)> _benefits(AppLocalizations l10n) => [
-        (
-          l10n.paywallBenefit1Title,
-          l10n.paywallBenefit1Body,
-          Icons.monitor_heart_outlined
-        ),
-        (
-          l10n.paywallBenefit2Title,
-          l10n.paywallBenefit2Body,
-          Icons.directions_run
-        ),
-        (l10n.paywallBenefit3Title, l10n.paywallBenefit3Body, Icons.show_chart),
-      ];
 
   @override
   void initState() {
@@ -223,7 +210,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final program = ProgramCatalog.recommend(widget.profile);
     final offer = _offer;
     final plans = _plans;
     final selected = _selected;
@@ -242,167 +228,216 @@ class _PaywallScreenState extends State<PaywallScreen> {
       ctaTap = widget.onUnlocked;
     }
 
-    // The trial length is whatever the store reported; only the sentence
-    // around it is translated.
-    final trial = selected?.freeTrial;
-    final subheadline = trial == null
-        ? l10n.paywallPlanBuilt(program.sessionsPerWeek)
-        : l10n.paywallPlanBuiltWithTrial(
-            program.sessionsPerWeek,
-            _capitalize(trial.label),
-          );
-
-    // One page on the target phones: wordmark, headline, three benefits,
-    // the plan card(s), CTA and the legal lines. The middle column scrolls
-    // only when "view other plans" is open on a short phone.
     final density = LayoutDensity.of(context);
+    final heroHeight = MediaQuery.sizeOf(context).height * 0.42;
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -0.6),
-            radius: 1.2,
-            colors: [Color(0xFF241109), DunkColors.background],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(24, 4, 24, density.pick(12, 8)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: IconButton(
-                    onPressed: _busy ? null : widget.onBack,
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 36, minHeight: 36),
-                    icon: const Icon(Icons.chevron_left,
-                        color: Colors.white, size: 28),
-                  ),
+      body: Stack(
+        children: [
+          // The dunker from the app icon, faded into the page: the brand's
+          // own art where the reference app puts a stock photo.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: heroHeight,
+            child: ShaderMask(
+              shaderCallback: (rect) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.white, Colors.transparent],
+                stops: [0.45, 1],
+              ).createShader(rect),
+              blendMode: BlendMode.dstIn,
+              child: Opacity(
+                opacity: 0.42,
+                child: Image.asset(
+                  'assets/paywall/dunker.png',
+                  fit: BoxFit.cover,
+                  alignment: const Alignment(0, -0.4),
                 ),
-                Expanded(
-                  child: FitOrScrollColumn(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const _Wordmark(),
-                      SizedBox(height: density.pick(14, 10)),
-                      Text(
-                        l10n.paywallHeadline,
-                        style: TextStyle(
-                          fontSize: density.pick(30, 26),
-                          height: 1.05,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, density.pick(10, 6)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: IconButton(
+                      onPressed: _busy ? null : widget.onBack,
+                      padding: EdgeInsets.zero,
+                      constraints:
+                          const BoxConstraints(minWidth: 36, minHeight: 36),
+                      icon: const Icon(Icons.chevron_left,
+                          color: Colors.white, size: 28),
+                    ),
+                  ),
+                  Expanded(
+                    child: FitOrScrollColumn(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(height: density.pick(14, 4)),
+                        const _Wordmark(),
+                        SizedBox(height: density.pick(6, 4)),
+                        Text(
+                          l10n.paywallTagline,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: DunkColors.textSecondary,
+                            fontSize: density.pick(17, 15),
+                          ),
                         ),
-                      ),
-                      SizedBox(height: density.pick(8, 6)),
-                      Text(
-                        subheadline,
-                        style: TextStyle(
-                          color: DunkColors.textSecondary,
-                          fontSize: density.pick(15, 14),
-                          height: 1.3,
+                        SizedBox(height: density.pick(16, 10)),
+                        Center(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final line in [
+                                l10n.paywallCheck1,
+                                l10n.paywallCheck2,
+                                l10n.paywallCheck3,
+                              ]) ...[
+                                _CheckRow(text: line),
+                                SizedBox(height: density.pick(9, 6)),
+                              ],
+                            ],
+                          ),
                         ),
-                      ),
-                      SizedBox(height: density.pick(16, 12)),
-                      for (final (title, subtitle, icon) in _benefits(l10n)) ...[
-                        _BenefitRow(title: title, subtitle: subtitle, icon: icon),
-                        SizedBox(height: density.pick(12, 8)),
-                      ],
-                      SizedBox(height: density.pick(4, 2)),
-                      if (_loading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 28),
-                          child: Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                color: DunkColors.primary,
+                        // Gives its room to the plans once all of them are
+                        // open, so both cards fit without a scroll.
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                          alignment: Alignment.topCenter,
+                          child: _showOtherPlans
+                              ? const SizedBox(width: double.infinity)
+                              : Padding(
+                                  padding: EdgeInsets.only(
+                                    top: density.pick(4, 2),
+                                    bottom: density.pick(16, 10),
+                                  ),
+                                  child: _GapStat(profile: widget.profile),
+                                ),
+                        ),
+                        if (_loading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 28),
+                            child: Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: DunkColors.primary,
+                                ),
                               ),
                             ),
-                          ),
-                        )
-                      else if (plans.isEmpty)
-                        _UnavailableCard(
-                          configured: service.isConfigured,
-                          onRetry: service.isConfigured ? _retryLoad : null,
-                        )
-                      else
-                        ..._buildPlanCards(l10n, offer!, plans),
-                    ],
+                          )
+                        else if (plans.isEmpty)
+                          _UnavailableCard(
+                            configured: service.isConfigured,
+                            onRetry: service.isConfigured ? _retryLoad : null,
+                          )
+                        else
+                          ..._buildPlanCards(l10n, offer!, plans),
+                      ],
+                    ),
                   ),
-                ),
-                if (_message != null) ...[
+                  if (_message != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _message!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: _errorColor,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
+                  _Cta(
+                    enabled: ctaEnabled,
+                    busy: _busy,
+                    label: _ctaLabel(l10n, selected, canSkip),
+                    subLabel: canSkip ? _skipNote(l10n) : null,
+                    onTap: ctaTap,
+                  ),
+                  SizedBox(height: density.pick(10, 8)),
                   Text(
-                    _message!,
+                    _disclosure(l10n, selected, canSkip, service.isConfigured),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: _errorColor,
-                      fontSize: 12,
-                      height: 1.35,
+                        color: DunkColors.textTertiary,
+                        fontSize: 12,
+                        height: 1.3),
+                  ),
+                  SizedBox(height: density.pick(8, 6)),
+                  // Scaled down as one unit only when the links are wider than
+                  // the screen (longer French labels on a narrow phone).
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          l10n.paywallAlreadyPurchased,
+                          style: const TextStyle(
+                              color: DunkColors.textTertiary, fontSize: 12),
+                        ),
+                        const SizedBox(width: 4),
+                        _LegalLink(
+                          label: l10n.paywallRestorePurchases,
+                          onTap: _busy ? null : _restore,
+                        ),
+                        const _LegalDot(),
+                        _LegalLink(
+                          label: l10n.paywallPrivacy,
+                          onTap: () => _openLegal(
+                            title: l10n.paywallPrivacyPolicyTitle,
+                            url: LegalUrls.privacyPolicy,
+                            published: LegalUrls.privacyPolicyPublished,
+                          ),
+                        ),
+                        const _LegalDot(),
+                        _LegalLink(
+                          label: l10n.paywallTerms,
+                          onTap: () => _openLegal(
+                            title: l10n.paywallTermsOfUseTitle,
+                            url: LegalUrls.termsOfUse,
+                            published: LegalUrls.termsOfUsePublished,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-                const SizedBox(height: 8),
-                _Cta(
-                  enabled: ctaEnabled,
-                  busy: _busy,
-                  label: _ctaLabel(l10n, selected, canSkip),
-                  subLabel: _ctaSubLabel(l10n, selected, canSkip),
-                  onTap: ctaTap,
-                ),
-                SizedBox(height: density.pick(10, 8)),
-                Text(
-                  _disclosure(l10n, selected, canSkip, service.isConfigured),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: DunkColors.textTertiary, fontSize: 11, height: 1.3),
-                ),
-                SizedBox(height: density.pick(8, 6)),
-                // Scaled down as one unit only when the three links are wider
-                // than the screen (longer French labels on a narrow phone);
-                // centred and untouched otherwise.
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _LegalLink(
-                        label: l10n.paywallRestorePurchases,
-                        onTap: _busy ? null : _restore,
-                      ),
-                      const _LegalDot(),
-                      _LegalLink(
-                        label: l10n.paywallPrivacy,
-                        onTap: () => _openLegal(
-                          title: l10n.paywallPrivacyPolicyTitle,
-                          url: LegalUrls.privacyPolicy,
-                          published: LegalUrls.privacyPolicyPublished,
-                        ),
-                      ),
-                      const _LegalDot(),
-                      _LegalLink(
-                        label: l10n.paywallTerms,
-                        onTap: () => _openLegal(
-                          title: l10n.paywallTermsOfUseTitle,
-                          url: LegalUrls.termsOfUse,
-                          published: LegalUrls.termsOfUsePublished,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
+  }
+
+  /// The trial in whole days, when the store reports it in days or weeks
+  /// (the configured 3-day trial). Anything else falls back to core's label.
+  static int? _trialDays(SubscriptionPlan plan) {
+    final trial = plan.freeTrial;
+    if (trial == null) return null;
+    if (trial.unit == BillingUnit.day) return trial.count;
+    if (trial.unit == BillingUnit.week) return trial.count * 7;
+    return null;
+  }
+
+  /// The ICU select key for a one-unit billing period ("year", "week"…).
+  static String _periodKey(SubscriptionPlan plan) {
+    final p = plan.period;
+    return p != null && p.count == 1 ? p.unit.name : 'other';
   }
 
   List<Widget> _buildPlanCards(
@@ -411,22 +446,26 @@ class _PaywallScreenState extends State<PaywallScreen> {
     List<SubscriptionPlan> plans,
   ) {
     final bestValueId = offer.bestValue?.packageId;
-    final headline = plans.first;
-    final rest = plans.skip(1).toList();
+    // The best-value plan leads, as on the reference paywall: one card and a
+    // "see all plans" link; the others unfold under it.
+    final headline = plans.firstWhere((p) => p.packageId == bestValueId,
+        orElse: () => plans.first);
+    final rest = plans.where((p) => p != headline).toList();
 
     Widget card(SubscriptionPlan plan) {
-      final savings = offer.savingsPercentFor(plan);
+      final period = _periodKey(plan);
+      final days = _trialDays(plan);
+      final weekly = plan.weeklyPriceString;
       return _PlanCard(
-        badge: plan.packageId == bestValueId ? l10n.paywallBestValue : null,
-        // The plan title and every price line are built by
-        // core/subscription_offer.dart from the store's own strings, and are
-        // not translated here — see CLAUDE.md.
-        title: plan.title,
-        priceLine: plan.headlineLine,
-        subLine: plan.billedLine,
-        trialLine: plan.trialLine,
-        savePercent:
-            savings == null ? null : l10n.paywallSavePercent(savings),
+        badge: plan.packageId == bestValueId && plans.length > 1
+            ? l10n.paywallBestValue
+            : null,
+        title: l10n.paywallPlanName(period),
+        trialLine: days != null ? l10n.paywallTrialDays(days) : plan.trialLine,
+        detailLine: plan.freeTrial != null
+            ? l10n.paywallThenPrice(plan.priceString, period)
+            : l10n.paywallBilledEvery(period),
+        price: weekly == null ? plan.priceString : l10n.paywallPerWeek(weekly),
         selected: plan.packageId == _selectedPackageId,
         onTap: _busy
             ? null
@@ -436,8 +475,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
     return [
       card(headline),
-      if (rest.isNotEmpty && !_showOtherPlans) ...[
-        const SizedBox(height: 12),
+      if (rest.isNotEmpty && !_showOtherPlans)
         Center(
           child: TextButton(
             onPressed: () => setState(() => _showOtherPlans = true),
@@ -446,12 +484,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
               style: const TextStyle(
                 color: DunkColors.textSecondary,
                 decoration: TextDecoration.underline,
-                fontSize: 14,
+                decorationColor: DunkColors.textSecondary,
+                fontSize: 15,
               ),
             ),
           ),
         ),
-      ],
       if (_showOtherPlans)
         for (final plan in rest) ...[
           const SizedBox(height: 12),
@@ -462,27 +500,18 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   String _ctaLabel(
       AppLocalizations l10n, SubscriptionPlan? selected, bool canSkip) {
-    // `selected.ctaLabel` comes from core/subscription_offer.dart and is not
-    // translated yet.
-    if (selected != null) return selected.ctaLabel;
+    if (selected != null) {
+      return selected.freeTrial == null
+          ? l10n.paywallCtaSubscribe
+          : l10n.paywallCtaTryFree;
+    }
     if (canSkip) return l10n.paywallCtaContinueWithoutPurchase;
     return l10n.paywallCtaUnavailable;
   }
 
-  String _ctaSubLabel(
-      AppLocalizations l10n, SubscriptionPlan? selected, bool canSkip) {
-    if (selected != null) {
-      return selected.freeTrial == null
-          ? l10n.paywallCancelAnytime
-          : l10n.paywallNoCommitment;
-    }
-    if (canSkip) {
-      return SubscriptionService.previewUnlock
-          ? l10n.paywallPreviewBuildNote
-          : l10n.paywallDebugBuildNote;
-    }
-    return l10n.paywallNoPurchasesInBuild;
-  }
+  String _skipNote(AppLocalizations l10n) => SubscriptionService.previewUnlock
+      ? l10n.paywallPreviewBuildNote
+      : l10n.paywallDebugBuildNote;
 
   String _disclosure(
     AppLocalizations l10n,
@@ -490,25 +519,30 @@ class _PaywallScreenState extends State<PaywallScreen> {
     bool canSkip,
     bool configured,
   ) {
-    // The Apple-required disclosure: what is bought, at what price, over what
-    // period, and that it auto-renews — all read off the fetched product, and
-    // assembled (untranslated for now) in core/subscription_offer.dart.
-    if (selected != null) return selected.renewalDisclosure;
+    // The Apple-required disclosure: price, period, auto-renewal — all read
+    // off the fetched product.
+    if (selected != null) {
+      if (selected.period == null) return selected.renewalDisclosure;
+      final period = _periodKey(selected);
+      final days = _trialDays(selected);
+      if (days != null) {
+        return l10n.paywallFooterTrial(days, selected.priceString, period);
+      }
+      if (selected.freeTrial != null) return selected.renewalDisclosure;
+      return l10n.paywallFooterNoTrial(selected.priceString, period);
+    }
     if (canSkip) return l10n.paywallDisclosureNoConfig;
     return configured
         ? l10n.paywallDisclosureLoadFailed
         : l10n.paywallDisclosureUnavailable;
   }
-
-  static String _capitalize(String value) =>
-      value.isEmpty ? value : value[0].toUpperCase() + value.substring(1);
 }
 
 class _Cta extends StatelessWidget {
   final bool enabled;
   final bool busy;
   final String label;
-  final String subLabel;
+  final String? subLabel;
   final VoidCallback? onTap;
 
   const _Cta({
@@ -562,12 +596,13 @@ class _Cta extends StatelessWidget {
                           letterSpacing: 0.5,
                         ),
                       ),
-                      Text(
-                        subLabel,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 11),
-                      ),
+                      if (subLabel != null)
+                        Text(
+                          subLabel!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 11),
+                        ),
                     ],
                   ),
           ),
@@ -655,76 +690,102 @@ class _Wordmark extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Text.rich(
       TextSpan(
+        style: TextStyle(
+          fontWeight: FontWeight.w900,
+          fontSize: 46,
+          letterSpacing: -1,
+          height: 1,
+        ),
         children: [
-          TextSpan(
-            text: 'DUNK',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: 22,
-              letterSpacing: 0.5,
-            ),
-          ),
-          TextSpan(
-            text: 'IT',
-            style: TextStyle(
-              color: DunkColors.primary,
-              fontWeight: FontWeight.w900,
-              fontSize: 22,
-              letterSpacing: 0.5,
-            ),
-          ),
+          TextSpan(text: 'DUNK', style: TextStyle(color: Colors.white)),
+          TextSpan(text: 'IT', style: TextStyle(color: DunkColors.primary)),
         ],
       ),
+      textAlign: TextAlign.center,
     );
   }
 }
 
-class _BenefitRow extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
+class _CheckRow extends StatelessWidget {
+  final String text;
 
-  const _BenefitRow({required this.title, required this.subtitle, required this.icon});
+  const _CheckRow({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: DunkColors.primary.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(10),
+          width: 26,
+          height: 26,
+          decoration: const BoxDecoration(
+            color: DunkColors.primary,
+            shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: DunkColors.primary, size: 19),
+          child: const Icon(Icons.check, color: Colors.white, size: 17),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: DunkColors.textSecondary,
-                  fontSize: 13,
-                  height: 1.3,
-                ),
-              ),
-            ],
+        const SizedBox(width: 14),
+        Flexible(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.w500,
+            ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Where the reference app shows "4.8 ★ · 37,000+ dunkers", a number that is
+/// true about this athlete: their own estimated gap to a dunk, from the same
+/// VertAssessment the onboarding gap screen uses. Hidden when there is no gap
+/// to show — no made-up figure ever takes its place.
+class _GapStat extends StatelessWidget {
+  final OnboardingProfile profile;
+
+  const _GapStat({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final units = UnitScope.of(context);
+    final gap = VertAssessment(
+      heightInches: profile.heightInches,
+      ageYears: profile.ageYears,
+      hops: profile.hopsLevel,
+      measuredStandingReach: profile.standingReachInches,
+      dunkHand: profile.dunkHand,
+    ).gapInches;
+    if (gap <= 0) return const SizedBox.shrink();
+    return Column(
+      children: [
+        Text(
+          l10n.length(units.name, units.lengthValue(gap)),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 44,
+            fontWeight: FontWeight.w900,
+            height: 1,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.paywallGapLabel,
+          style: const TextStyle(
+            color: DunkColors.primary,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          l10n.paywallGapNote,
+          style: const TextStyle(color: DunkColors.textTertiary, fontSize: 12),
         ),
       ],
     );
@@ -734,39 +795,37 @@ class _BenefitRow extends StatelessWidget {
 class _PlanCard extends StatelessWidget {
   final String? badge;
   final String title;
-  final String priceLine;
-  final String? subLine;
   final String? trialLine;
-  final String? savePercent;
+  final String detailLine;
+  final String price;
   final bool selected;
   final VoidCallback? onTap;
 
   const _PlanCard({
     required this.badge,
     required this.title,
-    required this.priceLine,
-    required this.subLine,
     required this.trialLine,
-    required this.savePercent,
+    required this.detailLine,
+    required this.price,
     required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final card = Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
           decoration: BoxDecoration(
             color: DunkColors.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: selected ? DunkColors.primary : DunkColors.stroke,
-              width: selected ? 1.6 : 1,
+              width: selected ? 2 : 1,
             ),
           ),
           child: Row(
@@ -775,97 +834,72 @@ class _PlanCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (badge != null) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: DunkColors.primary,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          badge!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
                     Text(
                       title,
                       style: const TextStyle(
-                        color: DunkColors.textTertiary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      priceLine,
-                      style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (subLine != null)
-                      Text(
-                        subLine!,
-                        style: const TextStyle(color: DunkColors.textTertiary, fontSize: 12),
-                      ),
                     if (trialLine != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         trialLine!,
                         style: const TextStyle(
-                          color: DunkColors.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
+                    const SizedBox(height: 4),
+                    Text(
+                      detailLine,
+                      style: const TextStyle(
+                          color: DunkColors.textSecondary, fontSize: 14),
+                    ),
                   ],
                 ),
               ),
-              if (savePercent != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: DunkColors.accentGreen,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    savePercent!,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: selected ? DunkColors.primary : Colors.transparent,
-                    border: Border.all(
-                      color: selected ? DunkColors.primary : DunkColors.stroke,
-                      width: 1.6,
-                    ),
-                  ),
-                  child: selected
-                      ? const Icon(Icons.check, color: Colors.white, size: 14)
-                      : null,
+              const SizedBox(width: 12),
+              Text(
+                price,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
                 ),
+              ),
             ],
           ),
         ),
       ),
+    );
+    if (badge == null) return card;
+    // The tab sits on the card's top edge, as on the reference paywall. Its
+    // word is BEST VALUE — derived from the prices — never "most popular",
+    // which would be a claim about other customers this app cannot make.
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+          decoration: const BoxDecoration(
+            color: DunkColors.primary,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+          ),
+          child: Text(
+            badge!,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        card,
+      ],
     );
   }
 }

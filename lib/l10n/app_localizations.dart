@@ -947,8 +947,104 @@ abstract class AppLocalizations {
   /// Link on the paywall that reveals the plan cards hidden below the headline plan.
   ///
   /// In en, this message translates to:
-  /// **'View other plans'**
+  /// **'See all plans'**
   String get paywallViewOtherPlans;
+
+  /// Paywall: one line under the centred DUNKIT wordmark, above the three check lines.
+  ///
+  /// In en, this message translates to:
+  /// **'Your dunk plan starts now.'**
+  String get paywallTagline;
+
+  /// Paywall: first check-mark line. True today: the program is picked from the athlete's experience, training days and equipment.
+  ///
+  /// In en, this message translates to:
+  /// **'Workouts matched to your level'**
+  String get paywallCheck1;
+
+  /// Paywall: second check-mark line (the jump analysis).
+  ///
+  /// In en, this message translates to:
+  /// **'Measure every jump you film'**
+  String get paywallCheck2;
+
+  /// Paywall: third check-mark line (the Progress tab). 'vert' = vertical jump height.
+  ///
+  /// In en, this message translates to:
+  /// **'Track your vert week by week'**
+  String get paywallCheck3;
+
+  /// Paywall: caption under the big personal number (the athlete's own estimated gap to a dunk, e.g. 6" or 15 cm). Replaces the competitor's rating badge with something true about this athlete.
+  ///
+  /// In en, this message translates to:
+  /// **'to your first dunk'**
+  String get paywallGapLabel;
+
+  /// Paywall: small grey note under the gap caption, saying the number is an estimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated from your height and hops'**
+  String get paywallGapNote;
+
+  /// Paywall plan card title, from the store's billing period.
+  ///
+  /// In en, this message translates to:
+  /// **'{period, select, year{Yearly} week{Weekly} month{Monthly} day{Daily} other{Plan}}'**
+  String paywallPlanName(String period);
+
+  /// Paywall plan card: the free-trial line, read from the store product.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =1{1-day free trial} other{{days}-day free trial}}'**
+  String paywallTrialDays(int days);
+
+  /// Paywall plan card: grey line under the trial, e.g. 'then 69,99 €/year'. {price} is the store's own formatted price.
+  ///
+  /// In en, this message translates to:
+  /// **'then {price}/{period, select, year{year} week{week} month{month} day{day} other{period}}'**
+  String paywallThenPrice(String price, String period);
+
+  /// Paywall plan card: grey line for a plan with no trial shown.
+  ///
+  /// In en, this message translates to:
+  /// **'Billed {period, select, year{yearly} week{weekly} month{monthly} day{daily} other{per period}}. Cancel anytime.'**
+  String paywallBilledEvery(String period);
+
+  /// Paywall plan card: the price normalised to one week, right-aligned. {price} is store-formatted.
+  ///
+  /// In en, this message translates to:
+  /// **'{price}/week'**
+  String paywallPerWeek(String price);
+
+  /// Paywall main button when the selected plan has a free trial the athlete is eligible for.
+  ///
+  /// In en, this message translates to:
+  /// **'TRY FOR FREE'**
+  String get paywallCtaTryFree;
+
+  /// Paywall main button when the selected plan has no free trial.
+  ///
+  /// In en, this message translates to:
+  /// **'SUBSCRIBE'**
+  String get paywallCtaSubscribe;
+
+  /// Paywall footer, before the Restore Purchases link.
+  ///
+  /// In en, this message translates to:
+  /// **'Already purchased?'**
+  String get paywallAlreadyPurchased;
+
+  /// Paywall: the subscription disclosure under the button when a trial applies. Apple requires price, period and auto-renewal.
+  ///
+  /// In en, this message translates to:
+  /// **'Free for {days, plural, =1{1 day} other{{days} days}}, then {price}/{period, select, year{year} week{week} month{month} day{day} other{period}}. Renews automatically. Cancel anytime.'**
+  String paywallFooterTrial(int days, String price, String period);
+
+  /// Paywall: the subscription disclosure under the button when no trial applies.
+  ///
+  /// In en, this message translates to:
+  /// **'{price}/{period, select, year{year} week{week} month{month} day{day} other{period}}. Renews automatically. Cancel anytime.'**
+  String paywallFooterNoTrial(String price, String period);
 
   /// Footer link on the paywall that restores a previous subscription. Apple requires this to be present.
   ///

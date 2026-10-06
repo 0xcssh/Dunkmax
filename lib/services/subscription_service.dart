@@ -167,7 +167,17 @@ class SubscriptionService {
           current.availablePackages.map((p) => MapEntry(p.identifier, p)),
         );
 
-      final plans = current.availablePackages.map(_toPlan).toList();
+      // Apple applies an introductory offer only to customers who have never
+      // used one in this subscription group. Promising "3 days free" to
+      // someone who already had theirs is misleading (and an App Review
+      // rejection), so the trial is shown only where StoreKit says the
+      // athlete is eligible. Unknown keeps it: StoreKit 2 knows in practice,
+      // and a failed check must not hide a trial the athlete really has.
+      final ineligible = await _ineligibleForTrial(current.availablePackages);
+      final plans = current.availablePackages
+          .map((p) => _toPlan(p,
+              trialAllowed: !ineligible.contains(p.storeProduct.identifier)))
+          .toList();
       return SubscriptionOffer(plans);
     } catch (_) {
       return null;
@@ -233,7 +243,7 @@ class SubscriptionService {
   bool _isEntitled(CustomerInfo info) =>
       info.entitlements.active.containsKey(entitlementId);
 
-  SubscriptionPlan _toPlan(Package package) {
+  SubscriptionPlan _toPlan(Package package, {bool trialAllowed = true}) {
     final product = package.storeProduct;
     return SubscriptionPlan(
       packageId: package.identifier,
@@ -241,8 +251,31 @@ class SubscriptionService {
       price: product.price,
       currencyCode: product.currencyCode,
       period: BillingPeriod.parseIso8601(product.subscriptionPeriod),
-      freeTrial: _freeTrialOf(product),
+      freeTrial: trialAllowed ? _freeTrialOf(product) : null,
     );
+  }
+
+  /// Product ids whose introductory offer this customer can no longer get.
+  /// Empty when the check fails — see [fetchOffer].
+  Future<Set<String>> _ineligibleForTrial(List<Package> packages) async {
+    final ids = [
+      for (final p in packages)
+        if (p.storeProduct.introductoryPrice != null) p.storeProduct.identifier,
+    ];
+    if (ids.isEmpty) return const {};
+    try {
+      final result = await Purchases.checkTrialOrIntroductoryPriceEligibility(
+              ids)
+          .timeout(_storeTimeout);
+      return {
+        for (final e in result.entries)
+          if (e.value.status ==
+              IntroEligibilityStatus.introEligibilityStatusIneligible)
+            e.key,
+      };
+    } catch (_) {
+      return const {};
+    }
   }
 
   /// The product's introductory period, but only when it is actually free.

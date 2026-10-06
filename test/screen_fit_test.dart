@@ -34,6 +34,7 @@ import 'package:dunkmax/core/models/video_attempt_type.dart';
 import 'package:dunkmax/core/models/workout_session.dart';
 import 'package:dunkmax/core/pose_jump_detector.dart';
 import 'package:dunkmax/core/program_catalog.dart';
+import 'package:dunkmax/core/subscription_offer.dart';
 import 'package:dunkmax/core/training_schedule.dart';
 import 'package:dunkmax/core/vert_assessment.dart';
 import 'package:dunkmax/features/analyze/screens/jump_result_screen.dart';
@@ -672,6 +673,55 @@ void main() {
     _expectAllFit();
   });
 
+  testWidgets('paywall with plans', (tester) async {
+    // The real layout only appears with an offering, which needs RevenueCat;
+    // a stand-in service serves the configured prices instead.
+    final service = _OfferService(const SubscriptionOffer([
+      SubscriptionPlan(
+        packageId: r'$rc_annual',
+        priceString: '69,99 €',
+        price: 69.99,
+        currencyCode: 'EUR',
+        period: BillingPeriod(BillingUnit.year, 1),
+        freeTrial: BillingPeriod(BillingUnit.day, 3),
+      ),
+      SubscriptionPlan(
+        packageId: r'$rc_weekly',
+        priceString: '8,99 €',
+        price: 8.99,
+        currencyCode: 'EUR',
+        period: BillingPeriod(BillingUnit.week, 1),
+        freeTrial: BillingPeriod(BillingUnit.day, 3),
+      ),
+    ]));
+    await _probe(
+      tester,
+      'PaywallPlans',
+      (_, __) => PaywallScreen(
+        profile: _profile,
+        subscriptionService: service,
+        onUnlocked: noop,
+        onBack: noop,
+      ),
+      scaffold: false,
+    );
+    await _probe(
+      tester,
+      'PaywallAllPlans',
+      (_, __) => PaywallScreen(
+        profile: _profile,
+        subscriptionService: service,
+        onUnlocked: noop,
+        onBack: noop,
+      ),
+      scaffold: false,
+      after: (tester) async {
+        await tester.tap(find.byType(TextButton).last);
+      },
+    );
+    _expectAllFit();
+  });
+
   testWidgets('app shell tabs', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final sessionStore = await WorkoutSessionStore.load();
@@ -915,4 +965,13 @@ void main() {
     );
     _expectAllFit();
   });
+}
+
+/// Serves a fixed offering, as RevenueCat would once configured.
+class _OfferService extends SubscriptionService {
+  final SubscriptionOffer offer;
+  _OfferService(this.offer);
+
+  @override
+  Future<SubscriptionOffer?> fetchOffer() async => offer;
 }

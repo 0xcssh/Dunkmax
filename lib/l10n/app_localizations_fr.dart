@@ -834,7 +834,131 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get paywallViewOtherPlans => 'Voir les autres formules';
+  String get paywallViewOtherPlans => 'Voir toutes les formules';
+
+  @override
+  String get paywallTagline => 'Ton plan dunk commence maintenant.';
+
+  @override
+  String get paywallCheck1 => 'Des séances adaptées à ton niveau';
+
+  @override
+  String get paywallCheck2 => 'Mesure chaque saut que tu filmes';
+
+  @override
+  String get paywallCheck3 => 'Suis ta détente semaine après semaine';
+
+  @override
+  String get paywallGapLabel => 'avant ton premier dunk';
+
+  @override
+  String get paywallGapNote => 'Estimé d\'après ta taille et ta détente';
+
+  @override
+  String paywallPlanName(String period) {
+    String _temp0 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'Annuel',
+        'week': 'Hebdo',
+        'month': 'Mensuel',
+        'day': 'Quotidien',
+        'other': 'Abonnement',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String paywallTrialDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days jours d\'essai gratuits',
+      one: '1 jour d\'essai gratuit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String paywallThenPrice(String price, String period) {
+    String _temp0 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'an',
+        'week': 'semaine',
+        'month': 'mois',
+        'day': 'jour',
+        'other': 'période',
+      },
+    );
+    return 'puis $price/$_temp0';
+  }
+
+  @override
+  String paywallBilledEvery(String period) {
+    String _temp0 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'chaque année',
+        'week': 'chaque semaine',
+        'month': 'chaque mois',
+        'day': 'chaque jour',
+        'other': 'à chaque période',
+      },
+    );
+    return 'Facturé $_temp0. Annulable à tout moment.';
+  }
+
+  @override
+  String paywallPerWeek(String price) {
+    return '$price/sem.';
+  }
+
+  @override
+  String get paywallCtaTryFree => 'ESSAYER GRATUITEMENT';
+
+  @override
+  String get paywallCtaSubscribe => 'S\'ABONNER';
+
+  @override
+  String get paywallAlreadyPurchased => 'Déjà abonné ?';
+
+  @override
+  String paywallFooterTrial(int days, String price, String period) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days jours',
+      one: '1 jour',
+    );
+    String _temp1 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'an',
+        'week': 'semaine',
+        'month': 'mois',
+        'day': 'jour',
+        'other': 'période',
+      },
+    );
+    return 'Gratuit pendant $_temp0, puis $price/$_temp1. Renouvellement automatique. Annulable à tout moment.';
+  }
+
+  @override
+  String paywallFooterNoTrial(String price, String period) {
+    String _temp0 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'an',
+        'week': 'semaine',
+        'month': 'mois',
+        'day': 'jour',
+        'other': 'période',
+      },
+    );
+    return '$price/$_temp0. Renouvellement automatique. Annulable à tout moment.';
+  }
 
   @override
   String get paywallRestorePurchases => 'Restaurer les achats';

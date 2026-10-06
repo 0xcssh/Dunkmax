@@ -829,7 +829,131 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get paywallViewOtherPlans => 'View other plans';
+  String get paywallViewOtherPlans => 'See all plans';
+
+  @override
+  String get paywallTagline => 'Your dunk plan starts now.';
+
+  @override
+  String get paywallCheck1 => 'Workouts matched to your level';
+
+  @override
+  String get paywallCheck2 => 'Measure every jump you film';
+
+  @override
+  String get paywallCheck3 => 'Track your vert week by week';
+
+  @override
+  String get paywallGapLabel => 'to your first dunk';
+
+  @override
+  String get paywallGapNote => 'Estimated from your height and hops';
+
+  @override
+  String paywallPlanName(String period) {
+    String _temp0 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'Yearly',
+        'week': 'Weekly',
+        'month': 'Monthly',
+        'day': 'Daily',
+        'other': 'Plan',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String paywallTrialDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days-day free trial',
+      one: '1-day free trial',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String paywallThenPrice(String price, String period) {
+    String _temp0 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'year',
+        'week': 'week',
+        'month': 'month',
+        'day': 'day',
+        'other': 'period',
+      },
+    );
+    return 'then $price/$_temp0';
+  }
+
+  @override
+  String paywallBilledEvery(String period) {
+    String _temp0 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'yearly',
+        'week': 'weekly',
+        'month': 'monthly',
+        'day': 'daily',
+        'other': 'per period',
+      },
+    );
+    return 'Billed $_temp0. Cancel anytime.';
+  }
+
+  @override
+  String paywallPerWeek(String price) {
+    return '$price/week';
+  }
+
+  @override
+  String get paywallCtaTryFree => 'TRY FOR FREE';
+
+  @override
+  String get paywallCtaSubscribe => 'SUBSCRIBE';
+
+  @override
+  String get paywallAlreadyPurchased => 'Already purchased?';
+
+  @override
+  String paywallFooterTrial(int days, String price, String period) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    String _temp1 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'year',
+        'week': 'week',
+        'month': 'month',
+        'day': 'day',
+        'other': 'period',
+      },
+    );
+    return 'Free for $_temp0, then $price/$_temp1. Renews automatically. Cancel anytime.';
+  }
+
+  @override
+  String paywallFooterNoTrial(String price, String period) {
+    String _temp0 = intl.Intl.selectLogic(
+      period,
+      {
+        'year': 'year',
+        'week': 'week',
+        'month': 'month',
+        'day': 'day',
+        'other': 'period',
+      },
+    );
+    return '$price/$_temp0. Renews automatically. Cancel anytime.';
+  }
 
   @override
   String get paywallRestorePurchases => 'Restore Purchases';
