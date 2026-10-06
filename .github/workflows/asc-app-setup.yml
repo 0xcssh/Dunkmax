@@ -1,0 +1,51 @@
+name: ASC app setup
+
+# Fills the App Store Connect fields that block "Add for Review": privacy
+# policy URL (every locale), free price, copyright, App Review contact and
+# notes. Idempotent; empty inputs are left alone. Dry run by default.
+on:
+  workflow_dispatch:
+    inputs:
+      copyright:
+        description: "Copyright line, e.g. 2026 First Last"
+        required: false
+      first_name:
+        description: "App Review contact first name"
+        required: false
+      last_name:
+        description: "App Review contact last name"
+        required: false
+      phone:
+        description: "App Review contact phone (international format)"
+        required: false
+      email:
+        description: "App Review contact email"
+        required: false
+      dry_run:
+        description: "Print the changes without writing"
+        type: boolean
+        default: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyjwt cryptography requests
+      - name: Apply
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          COPYRIGHT: ${{ inputs.copyright }}
+          CONTACT_FIRST_NAME: ${{ inputs.first_name }}
+          CONTACT_LAST_NAME: ${{ inputs.last_name }}
+          CONTACT_PHONE: ${{ inputs.phone }}
+          CONTACT_EMAIL: ${{ inputs.email }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: |
+          export ASC_KEY_P8="$(echo "$ASC_KEY_P8_B64" | base64 -d)"
+          python scripts/asc_app_setup.py
