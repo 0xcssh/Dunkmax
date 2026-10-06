@@ -10,14 +10,13 @@ Builds:
                are account-level) and the App Store Connect API key, so
                RevenueCat can validate StoreKit 2 transactions and import
                product metadata;
-  products     the four App Store subscriptions (scripts/asc_subscriptions.py);
-  entitlement  `pro` — must equal SubscriptionService.entitlementId — with all
-               four products attached;
+  products     the two App Store subscriptions (scripts/asc_subscriptions.py);
+  entitlement  `pro` — must equal SubscriptionService.entitlementId — with
+               both products attached;
   offering     `default`, current, with `$rc_annual` and `$rc_weekly` on the
-               trial products. Who actually gets the trial is decided by
+               two products. Who actually gets the trial is decided by
                StoreKit's eligibility, which the paywall checks before it
-               promises one; the `.notrial` products are attached to `pro`
-               only so a purchase of either can never fail to unlock.
+               promises one.
 
 Prints the app's public SDK key (appl_…) at the end: that is the value of
 the REVENUECAT_API_KEY repo secret the release build passes to the app.
@@ -39,9 +38,7 @@ ENTITLEMENT = "pro"
 
 PRODUCTS = [
     ("com.awdia.dunkmax.pro.yearly", "Pro Yearly (3-day trial)"),
-    ("com.awdia.dunkmax.pro.yearly.notrial", "Pro Yearly (no trial)"),
     ("com.awdia.dunkmax.pro.weekly", "Pro Weekly (3-day trial)"),
-    ("com.awdia.dunkmax.pro.weekly.notrial", "Pro Weekly (no trial)"),
 ]
 PACKAGES = [  # lookup key, display name, position, product
     ("$rc_annual", "Yearly", 1, "com.awdia.dunkmax.pro.yearly"),

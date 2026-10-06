@@ -5,13 +5,15 @@ Runs in CI (.github/workflows/asc-subscriptions.yml). Idempotent: anything
 that already exists (group, product, localization, availability, price,
 trial) is left alone, so re-running only fills gaps.
 
-What it builds — the trial / no-trial cascade of docs/revenuecat-setup.md:
-one group "Dunk It Pro", four auto-renewable products,
+What it builds: one group "Dunk It Pro", two auto-renewable products,
 
-  com.awdia.dunkmax.pro.yearly          1 year   3-day free trial
-  com.awdia.dunkmax.pro.yearly.notrial  1 year   —
-  com.awdia.dunkmax.pro.weekly          1 week   3-day free trial
-  com.awdia.dunkmax.pro.weekly.notrial  1 week   —
+  com.awdia.dunkmax.pro.yearly   1 year   3-day free trial
+  com.awdia.dunkmax.pro.weekly   1 week   3-day free trial
+
+Apple grants an intro offer once per group per customer; the paywall asks
+StoreKit for eligibility and only promises the trial to the eligible, so no
+separate no-trial products are needed (a .notrial pair existed briefly and
+was deleted, owner's decision 2026-10-06 — those ids can never be reused).
 
 Prices (owner's call, 2026-10-06: "like the competitor"): the US price is
 set and every other territory takes Apple's equalized equivalent, except the
@@ -46,9 +48,7 @@ EURO = ["AUT", "BEL", "CYP", "DEU", "ESP", "EST", "FIN", "FRA", "GRC", "HRV",
 # product id, reference name, period, group level, trial, USD, EUR
 PRODUCTS = [
     ("com.awdia.dunkmax.pro.yearly", "Pro Yearly (trial)", "ONE_YEAR", 1, True, "59.99", "69.99"),
-    ("com.awdia.dunkmax.pro.yearly.notrial", "Pro Yearly (no trial)", "ONE_YEAR", 1, False, "59.99", "69.99"),
     ("com.awdia.dunkmax.pro.weekly", "Pro Weekly (trial)", "ONE_WEEK", 2, True, "7.99", "8.99"),
-    ("com.awdia.dunkmax.pro.weekly.notrial", "Pro Weekly (no trial)", "ONE_WEEK", 2, False, "7.99", "8.99"),
 ]
 
 # What the App Store shows in the subscription sheet and in Settings.

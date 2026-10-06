@@ -1,5 +1,12 @@
 # RevenueCat + App Store subscriptions — owner setup
 
+> **Status 2026-10-06: done by API.** `scripts/asc_subscriptions.py` created
+> the two products (yearly + weekly, 3-day trial) and
+> `scripts/revenuecat_setup.py` configured RevenueCat; both have workflows.
+> The four-product trial / no-trial cascade described below was dropped: the
+> paywall checks trial eligibility with StoreKit instead. What follows is
+> kept as background on the manual route.
+
 The app code is done. Everything below is account/portal work that only the
 account owner can do — none of it can be automated from this repo, and none of
 it belongs in git.
