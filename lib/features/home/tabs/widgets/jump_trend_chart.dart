@@ -55,6 +55,10 @@ class JumpTrendChart extends StatelessWidget {
           // A three-digit centimetre label needs more room than a two-digit
           // inch one.
           leftMargin: units.isMetric ? 40 : 28,
+          // The ambient style carries the app's font family; a bare
+          // TextStyle in a painter would not.
+          labelStyle: DefaultTextStyle.of(context).style.merge(
+              const TextStyle(color: DunkColors.textTertiary, fontSize: 10)),
         ),
         size: Size.infinite,
       ),
@@ -75,11 +79,15 @@ class _JumpTrendPainter extends CustomPainter {
   /// Room reserved for the gridline labels on the left.
   final double _leftMargin;
 
+  /// Gridline and date label style, resolved from the widget tree.
+  final TextStyle labelStyle;
+
   _JumpTrendPainter({
     required this.entries,
     required this.dateLabels,
     required this.inchesLabel,
     required double leftMargin,
+    required this.labelStyle,
   }) : _leftMargin = leftMargin;
   static const double _bottomMargin = 20;
 
@@ -200,7 +208,7 @@ class _JumpTrendPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(color: DunkColors.textTertiary, fontSize: 10),
+        style: labelStyle,
       ),
       textAlign: align,
       textDirection: TextDirection.ltr,

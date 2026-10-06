@@ -348,8 +348,8 @@ class _VerticalCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          RichText(
-            text: TextSpan(
+          Text.rich(
+            TextSpan(
               children: [
                 TextSpan(
                   text: trend == null
@@ -578,8 +578,8 @@ class _StreakCard extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: RichText(
-              text: TextSpan(
+            child: Text.rich(
+              TextSpan(
                 children: [
                   TextSpan(
                     text: '$streak',

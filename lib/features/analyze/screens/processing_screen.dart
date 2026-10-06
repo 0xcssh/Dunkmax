@@ -177,8 +177,8 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
             children: [
               const _PulsingIcon(),
               const SizedBox(height: 24),
-              RichText(
-                text: TextSpan(
+              Text.rich(
+                TextSpan(
                   children: [
                     TextSpan(
                       text: l10n.processingHeadline,

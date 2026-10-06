@@ -1,0 +1,72 @@
+name: ASC listing
+
+# Pushes the App Store product page through the App Store Connect API:
+# name, subtitle, keywords, description, promo text, what's new for every
+# locale in scripts/listing/<listing>.json — and, optionally, the
+# screenshots, regenerated here from the real app screens
+# (tool/store_screenshots: capture_test.dart → compose.py), so nothing
+# binary is committed. Linux runner, no macOS minutes. Run with dry_run
+# first; the composed screenshots are kept as an artifact either way.
+on:
+  workflow_dispatch:
+    inputs:
+      listing:
+        description: "Listing file (scripts/listing/<name>.json)"
+        required: true
+        default: "1.0"
+      screenshots:
+        description: "Regenerate and upload the screenshots too"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Print the changes without writing"
+        type: boolean
+        default: true
+
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyjwt cryptography requests pillow
+
+      - uses: subosito/flutter-action@v2
+        if: inputs.screenshots
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+          cache: true
+
+      - name: Capture the real screens
+        if: inputs.screenshots
+        env:
+          STORE_SHOTS_DIR: build/store_screenshots/raw
+        run: |
+          flutter pub get
+          flutter test tool/store_screenshots/capture_test.dart
+
+      - name: Compose the store screenshots
+        if: inputs.screenshots
+        run: python tool/store_screenshots/compose.py
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.screenshots
+        with:
+          name: store-screenshots
+          path: build/store_screenshots/final
+
+      - name: Apply listing
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          LISTING_FILE: scripts/listing/${{ inputs.listing }}.json
+          SCREENSHOTS_DIR: ${{ inputs.screenshots && 'build/store_screenshots/final' || '' }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: |
+          export ASC_KEY_P8="$(echo "$ASC_KEY_P8_B64" | base64 -d)"
+          python scripts/asc_listing.py

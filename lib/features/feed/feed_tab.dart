@@ -415,8 +415,8 @@ class _GlobalAthleteRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                RichText(
-                  text: TextSpan(
+                Text.rich(
+                  TextSpan(
                     children: [
                       TextSpan(
                         text: l10n.feedJumpStat(units.name,
@@ -530,8 +530,8 @@ class _RankedJumpRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    RichText(
-                      text: TextSpan(
+                    Text.rich(
+                      TextSpan(
                         children: [
                           TextSpan(
                             text: l10n.feedJumpStat(units.name,

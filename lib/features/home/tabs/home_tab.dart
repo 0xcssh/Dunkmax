@@ -130,8 +130,8 @@ class _HeaderRow extends StatelessWidget {
           child: const Icon(Icons.sports_basketball, color: Colors.white, size: 22),
         ),
         const SizedBox(width: 10),
-        RichText(
-          text: const TextSpan(
+        Text.rich(
+          const TextSpan(
             children: [
               TextSpan(
                 text: 'DUNK',
