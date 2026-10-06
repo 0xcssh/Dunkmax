@@ -28,7 +28,10 @@ def get(path, params=None):
 
 
 app = get("/v1/apps", {"filter[bundleId]": os.environ.get("BUNDLE_ID", "com.awdia.dunkmax")})["data"][0]
+# Every state, explicitly: a build that failed processing is otherwise easy
+# to miss, and that is exactly the one worth seeing.
 builds = get("/v1/builds", {"filter[app]": app["id"], "sort": "-uploadedDate", "limit": 5,
+                            "filter[processingState]": "PROCESSING,FAILED,INVALID,VALID",
                             "include": "buildBetaDetail,preReleaseVersion"})
 details = {i["id"]: i["attributes"] for i in builds.get("included", []) if i["type"] == "buildBetaDetails"}
 versions = {i["id"]: i["attributes"]["version"] for i in builds.get("included", [])
