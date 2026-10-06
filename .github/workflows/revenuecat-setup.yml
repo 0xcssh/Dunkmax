@@ -1,0 +1,36 @@
+name: RevenueCat setup
+
+# Configures the RevenueCat project through its REST API v2: the App Store
+# app (with the account's In-App Purchase key), the four products, the `pro`
+# entitlement, and the current `default` offering. Idempotent; dry run by
+# default. Prints the public SDK key that goes in REVENUECAT_API_KEY.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print what would be created without writing"
+        type: boolean
+        default: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Configure RevenueCat
+        env:
+          RC_SECRET_KEY: ${{ secrets.REVENUECAT_SECRET_KEY }}
+          IAP_KEY_P8_B64: ${{ secrets.REVENUECAT_IAP_KEY_P8_BASE64 }}
+          IAP_KEY_ID: QL2P7M4WRG
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: |
+          export IAP_KEY_P8="$(echo "$IAP_KEY_P8_B64" | base64 -d)"
+          export ASC_KEY_P8="$(echo "$ASC_KEY_P8_B64" | base64 -d)"
+          python scripts/revenuecat_setup.py
