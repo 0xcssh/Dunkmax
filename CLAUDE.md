@@ -758,6 +758,25 @@ TODO (rough priority):
       missing icon never breaks a build — it just looks unset. Still TODO: a
       condensed display font (currently the system font).
 
+## Product analytics (TelemetryDeck)
+
+Anonymous counts only — no identifier, no ATT, nothing linkable to a person —
+through `telemetrydecksdk`, **pinned to 4.0.0**: 5.x ships its iOS side as a
+Swift package only (no podspec), which this CocoaPods build cannot use. Every
+call goes through `lib/services/analytics.dart`; the event vocabulary is the
+`AnalyticsEvent` enum there (add events there, never call the SDK directly).
+`Analytics.appID` is the App ID from the TelemetryDeck dashboard (ships in the
+binary by design, like RevenueCat's public key); while it is empty, and always
+on the web preview and in tests, every call is a no-op. Debug builds send in
+test mode. Instrumented: launch (pro flag), every onboarding step +
+completion (experience, days, location, hops, hand), paywall shown (plan
+count), purchase started/result, restore, clip selected (attempt type),
+analysis result (measured / implausible / unmeasured + rejection reason,
+vertical in 4-inch buckets — never the exact number), session
+started/completed/discarded. The privacy policy (0xcssh/dunkit-legal) names
+TelemetryDeck; App Store privacy answers must declare "Product Interaction"
+collected, not linked to identity, not used for tracking.
+
 ## Units follow the REGION, not the language
 
 `core/units.dart` (pure, tested): `UnitSystem.forRegion(country, language)` —
@@ -850,6 +869,8 @@ screens only; it must not set the look on a normal one.
 | Team ID | `8L8G4P4Z9X` (shared; GitHub var `APPLE_TEAM_ID`) |
 | Signing secrets | In the repo (see iOS section). Supabase and RevenueCat secrets are NOT |
 | RevenueCat | App-side wired; dashboard/account not created yet. Entitlement id `pro`; secret `REVENUECAT_API_KEY` → `--dart-define`. See `docs/revenuecat-setup.md` |
-| Subscriptions | Yearly + weekly, each in a trial / no-trial pair (cascade); 3-day trial; price TBD. Not created in App Store Connect yet |
+| Subscriptions | Group "Dunk It Pro", 4 products (yearly / weekly × trial / no-trial cascade), 3-day free trial on the trial pair. 59.99 USD / 69.99 EUR a year, 7.99 USD / 8.99 EUR a week, other territories equalized. **Created** by `scripts/asc_subscriptions.py` (workflow "ASC subscriptions", idempotent). Still owner-side: review screenshot per product, RevenueCat project/offerings, `REVENUECAT_API_KEY` |
+| Analytics | TelemetryDeck via `lib/services/analytics.dart` — see "Product analytics" |
+| Listing | 11 locales + screenshots pushed by the "ASC listing" workflow — see `docs/app-store-listing.md` |
 | Legal URLs | `lib/core/legal_urls.dart`. Terms = Apple's standard EULA (real). Privacy = `.invalid` placeholder, **must be published before submission** |
 | Permissions | Camera, Microphone, Photo Library (read + add) — usage strings patched into Info.plist by both iOS workflows |

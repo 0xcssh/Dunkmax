@@ -44,6 +44,9 @@ dependencies:
   # those links and expects a real page, so showing the URL for copying is not
   # enough — this is a submission requirement, not a nicety.
   url_launcher: ^6.3.0
+  # Anonymous product analytics (lib/services/analytics.dart). Pinned: 5.x
+  # ships its iOS half as a Swift package only, with no podspec for CocoaPods.
+  telemetrydecksdk: 4.0.0
 
 dev_dependencies:
   flutter_test:

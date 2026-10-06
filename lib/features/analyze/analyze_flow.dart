@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
+import '../../services/analytics.dart';
 import '../../core/jump_result.dart';
 import '../../core/jump_trend.dart';
 import '../../core/models/jump_log_entry.dart';
@@ -76,6 +77,8 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
   JumpAnalysis _analysis = JumpAnalysis.empty;
 
   void _onVideoSelected(File video, VideoAttemptType attemptType) {
+    Analytics.track(
+        AnalyticsEvent.analysisClipSelected, {'attempt': attemptType.name});
     setState(() {
       _video = video;
       _trim = null;
@@ -95,6 +98,10 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
     setState(() => _analysis = analysis);
     final measurement = analysis.measurement;
     if (measurement == null) {
+      Analytics.track(AnalyticsEvent.analysisResult, {
+        'result': 'unmeasured',
+        'reason': analysis.pose.rejection.name,
+      });
       // No measurement. The athlete used to be handed the clip and asked to
       // tap the takeoff and landing frames; that is a fiddly job offered at
       // the moment the app failed at its headline feature, and identifying
@@ -115,6 +122,10 @@ class _AnalyzeFlowState extends State<AnalyzeFlow> {
       dunkHand: widget.profile.dunkHand,
     );
     final result = JumpResult(measurement: measurement, assessment: assessment);
+    Analytics.track(AnalyticsEvent.analysisResult, {
+      'result': measurement.isValid ? 'measured' : 'implausible',
+      if (measurement.isValid) 'vertBucket': vertBucket(result.verticalInches),
+    });
     if (measurement.isValid) {
       // Both files go into the application documents directory and only their
       // NAMES are persisted. The absolute path is not a durable identifier on

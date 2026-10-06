@@ -11,6 +11,7 @@ import 'services/athlete_profile_store.dart';
 import 'services/jump_log_store.dart';
 import 'services/leaderboard_service.dart';
 import 'services/onboarding_store.dart';
+import 'services/analytics.dart';
 import 'services/subscription_service.dart';
 import 'services/workout_session_store.dart';
 import 'theme/app_theme.dart';
@@ -97,6 +98,13 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
   }
 
   Future<void> _onOnboardingCompleted(OnboardingProfile profile) async {
+    Analytics.track(AnalyticsEvent.onboardingCompleted, {
+      'experience': profile.experience.name,
+      'daysPerWeek': profile.daysPerWeek,
+      'location': profile.trainingLocation.name,
+      'hops': profile.hopsLevel.name,
+      'dunkHand': profile.dunkHand?.name,
+    });
     await widget.store.complete(profile);
     if (!mounted) return;
     setState(() {

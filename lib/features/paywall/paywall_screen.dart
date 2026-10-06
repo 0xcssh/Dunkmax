@@ -6,6 +6,7 @@ import '../../core/models/onboarding_profile.dart';
 import '../../core/program_catalog.dart';
 import '../../core/subscription_offer.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/analytics.dart';
 import '../../services/subscription_service.dart';
 import '../../theme/app_theme.dart';
 import '../shared/layout_density.dart';
@@ -103,6 +104,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
     // Never throws and is bounded by its own timeout — see
     // SubscriptionService. Unconfigured builds get null immediately.
     final offer = await widget.subscriptionService.fetchOffer();
+    Analytics.track(
+        AnalyticsEvent.paywallShown, {'plans': offer?.ordered.length ?? 0});
     if (!mounted) return;
     setState(() {
       _offer = offer;
@@ -135,7 +138,10 @@ class _PaywallScreenState extends State<PaywallScreen> {
       _busy = true;
       _message = null;
     });
+    Analytics.track(AnalyticsEvent.purchaseStarted, {'plan': plan.packageId});
     final outcome = await widget.subscriptionService.purchaseById(plan.packageId);
+    Analytics.track(AnalyticsEvent.purchaseResult,
+        {'plan': plan.packageId, 'result': outcome.name});
     if (!mounted) return;
     setState(() => _busy = false);
 
@@ -160,6 +166,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
       _message = null;
     });
     final restored = await widget.subscriptionService.restore();
+    Analytics.track(AnalyticsEvent.restoreResult,
+        {'result': restored ? 'restored' : 'nothing'});
     if (!mounted) return;
     setState(() => _busy = false);
     if (restored) {

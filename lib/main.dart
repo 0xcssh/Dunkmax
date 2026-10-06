@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app.dart';
+import 'services/analytics.dart';
 import 'features/shared/unit_scope.dart';
 import 'services/athlete_profile_store.dart';
 import 'services/jump_log_store.dart';
@@ -39,6 +40,11 @@ Future<void> main() async {
   // subscriber must not see the paywall flash on launch.
   final subscriptionService = SubscriptionService();
   await subscriptionService.initialize();
+  // Anonymous product analytics (TelemetryDeck). Inert with no App ID, on the
+  // web preview and in tests; never throws.
+  await Analytics.start();
+  Analytics.track(AnalyticsEvent.appLaunched,
+      {'pro': subscriptionService.isSubscribed.value});
   // Metric or imperial, from the device's REGION (US, Liberia and Myanmar
   // keep feet/inches/lbs; everyone else reads cm/kg). Read off the platform
   // locale here, which still carries the country — the locale MaterialApp

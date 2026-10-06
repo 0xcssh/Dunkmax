@@ -28,6 +28,7 @@ import 'screens/weight_screen.dart';
 import 'widgets/court_backdrop.dart';
 import 'widgets/shared_axis_switcher.dart';
 import 'widgets/staggered_entrance.dart';
+import '../../services/analytics.dart';
 
 /// Declared in flow order — [_go] reads the ordering to work out whether the
 /// athlete advanced or went back, which is what points the transition.
@@ -101,10 +102,13 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   static const _totalQuizSteps = 11;
 
-  void _go(_Step step) => setState(() {
-        _movingBack = step.index < _step.index;
-        _step = step;
-      });
+  void _go(_Step step) {
+    setState(() {
+      _movingBack = step.index < _step.index;
+      _step = step;
+    });
+    Analytics.track(AnalyticsEvent.onboardingStep, {'step': step.name});
+  }
 
   OnboardingProfile get _draftProfile => OnboardingProfile(
         goals: _goals,

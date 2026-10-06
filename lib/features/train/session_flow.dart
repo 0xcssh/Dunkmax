@@ -4,6 +4,7 @@ import '../../core/models/training_program.dart';
 import '../../core/models/workout_session.dart';
 import '../../core/training_schedule.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/analytics.dart';
 import '../../services/workout_session_store.dart';
 import '../../theme/app_theme.dart';
 import 'screens/log_exercise_screen.dart';
@@ -49,7 +50,11 @@ class _SessionFlowState extends State<SessionFlow> {
 
   int get _week => _schedule.weekOfSession(widget.sessionNumber);
 
-  void _startExercises() => setState(() => _step = _Step.exercise);
+  void _startExercises() {
+    Analytics.track(
+        AnalyticsEvent.sessionStarted, {'focus': _day.focus, 'week': _week});
+    setState(() => _step = _Step.exercise);
+  }
 
   void _onExerciseLogged(LoggedExercise logged) {
     setState(() {
@@ -78,6 +83,8 @@ class _SessionFlowState extends State<SessionFlow> {
         completedAt: DateTime.now(),
         exercises: _logged,
       ));
+      Analytics.track(AnalyticsEvent.sessionCompleted,
+          {'focus': _day.focus, 'week': _week, 'exercises': _logged.length});
     } catch (_) {
       // Let the athlete try again rather than leaving the button dead.
       _saving = false;
@@ -122,6 +129,8 @@ class _SessionFlowState extends State<SessionFlow> {
     );
     _confirmingDiscard = false;
     if (discard != true || !mounted || _saving) return;
+    Analytics.track(AnalyticsEvent.sessionDiscarded,
+        {'focus': _day.focus, 'week': _week, 'logged': _logged.length});
     Navigator.of(context).pop(false);
   }
 
