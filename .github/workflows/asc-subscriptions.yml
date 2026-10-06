@@ -1,0 +1,32 @@
+name: ASC subscriptions
+
+# Creates the Dunk It Pro subscription group and its four products (trial /
+# no-trial cascade, see docs/revenuecat-setup.md) through the App Store
+# Connect API: localizations, availability, prices, 3-day free trial.
+# Idempotent — re-running only fills what is missing. Dry run by default.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print what would be created without writing"
+        type: boolean
+        default: true
+
+jobs:
+  subscriptions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyjwt cryptography requests
+      - name: Create subscriptions
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: |
+          export ASC_KEY_P8="$(echo "$ASC_KEY_P8_B64" | base64 -d)"
+          python scripts/asc_subscriptions.py
