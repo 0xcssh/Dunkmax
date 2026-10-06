@@ -19,6 +19,7 @@ import sys
 
 HERE = pathlib.Path(__file__).parent
 VERSION = "1.0"
+FIRST_RELEASE = True  # set False from the second version on
 PRIVACY = "https://0xcssh.github.io/dunkit-legal/privacy.html"
 TERMS = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
 SUPPORT = "https://0xcssh.github.io/dunkit-legal/"
@@ -318,8 +319,12 @@ def main():
             errors.append(f"{loc}: repeated words {sorted(dup)}")
         print(f"{loc:6} name {len(name):2}/30  sub {len(sub):2}/30  kw {len(kw):3}/100  "
               f"desc {len(desc):4}/4000  promo {len(promo):3}/170")
-        out["localizations"][loc] = {"description": desc, "keywords": kw, "whatsNew": new,
+        out["localizations"][loc] = {"description": desc, "keywords": kw,
                                      "promotionalText": promo, "supportUrl": SUPPORT}
+        # App Store Connect rejects "What's New" on an app's first version
+        # (409 "cannot be edited at this time"); it ships from the next one.
+        if not FIRST_RELEASE:
+            out["localizations"][loc]["whatsNew"] = new
         out["appInfo"][loc] = {"name": name, "subtitle": sub}
     if errors:
         sys.exit("\n".join(errors))
