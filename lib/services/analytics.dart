@@ -18,7 +18,7 @@ import 'package:telemetrydecksdk/telemetrydecksdk.dart';
 abstract final class Analytics {
   /// TelemetryDeck App ID (dashboard → app → Settings). Like the RevenueCat
   /// public key it ships in the binary by design: it only allows sending.
-  static const appID = '';
+  static const appID = '853467F7-BB94-4365-AAA4-D05CBC69165A';
 
   static bool _started = false;
 

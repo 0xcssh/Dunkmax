@@ -765,7 +765,7 @@ through `telemetrydecksdk`, **pinned to 4.0.0**: 5.x ships its iOS side as a
 Swift package only (no podspec), which this CocoaPods build cannot use. Every
 call goes through `lib/services/analytics.dart`; the event vocabulary is the
 `AnalyticsEvent` enum there (add events there, never call the SDK directly).
-`Analytics.appID` is the App ID from the TelemetryDeck dashboard (ships in the
+`Analytics.appID` is the App ID from the TelemetryDeck dashboard (set; ships in the
 binary by design, like RevenueCat's public key); while it is empty, and always
 on the web preview and in tests, every call is a no-op. Debug builds send in
 test mode. Instrumented: launch (pro flag), every onboarding step +
