@@ -228,6 +228,9 @@ def main():
                                 "territory": {"data": ref("territories", t)},
                             }}})
                 print(f"    + 3-day free trial in {len(territories)} territories")
+    if not group["id"].startswith("dry"):
+        for s_ in get_all(f"/v1/subscriptionGroups/{group['id']}/subscriptions")[0]:
+            print(f"state {s_['attributes']['productId']}: {s_['attributes'].get('state')}")
     print("dry run, nothing written" if DRY else "done")
 
 
