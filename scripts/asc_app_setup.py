@@ -94,17 +94,23 @@ def main():
         points = call("GET", f"/v1/apps/{app_id}/appPricePoints",
                       {"filter[territory]": "USA", "limit": 200})["data"]
         free = next(p for p in points if float(p["attributes"]["customerPrice"]) == 0)
-        write("POST", "/v1/appPriceSchedules", {
-            "data": {"type": "appPriceSchedules",
-                     "relationships": {
-                         "app": {"data": {"type": "apps", "id": app_id}},
-                         "baseTerritory": {"data": {"type": "territories", "id": "USA"}},
-                         "manualPrices": {"data": [{"type": "appPrices", "id": "${free}"}]}}},
-            "included": [{"type": "appPrices", "id": "${free}",
-                          "attributes": {"startDate": None},
-                          "relationships": {"appPricePoint": {
-                              "data": {"type": "appPricePoints", "id": free["id"]}}}}],
-        }, "price: free")
+        try:
+            write("POST", "/v1/appPriceSchedules", {
+                "data": {"type": "appPriceSchedules",
+                         "relationships": {
+                             "app": {"data": {"type": "apps", "id": app_id}},
+                             "baseTerritory": {"data": {"type": "territories", "id": "USA"}},
+                             "manualPrices": {"data": [{"type": "appPrices", "id": "${free}"}]}}},
+                "included": [{"type": "appPrices", "id": "${free}",
+                              "attributes": {"startDate": None},
+                              "relationships": {"appPricePoint": {
+                                  "data": {"type": "appPricePoints", "id": free["id"]}}}}],
+            }, "price: free")
+        except RuntimeError as e:
+            # The price-schedule payload is picky; a free price is two clicks
+            # in App Store Connect (Pricing → Free), so this must not block the
+            # rest of the run.
+            print(f"  price: NOT SET ({e}) — set it to Free by hand")
     else:
         print("  price: already set")
 
