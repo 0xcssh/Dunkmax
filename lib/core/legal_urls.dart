@@ -5,9 +5,9 @@
 /// obvious place — so publishing them is a one-line change rather than a hunt
 /// through the paywall widget tree.
 ///
-/// **TODO(owner): publish a privacy policy and put its real URL in
-/// [privacyPolicy], then flip [privacyPolicyPublished] to true.**
-/// It must be a public page (no login, no redirect chain) that describes what
+/// The privacy policy is published from the `0xcssh/dunkit-legal` repo
+/// (GitHub Pages); edit it there when what the app sends changes.
+/// It must stay a public page (no login, no redirect chain) that describes what
 /// DunkIt collects. Today that is: the onboarding answers and workout/jump
 /// history, which stay on the device; a display name and a vertical-jump
 /// number, published to the leaderboard only when the athlete opts in; and
@@ -29,11 +29,11 @@ abstract class LegalUrls {
       'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 
   /// Not published yet — see the TODO above.
-  static const String privacyPolicy = 'https://dunkit.invalid/privacy';
+  static const String privacyPolicy = 'https://0xcssh.github.io/dunkit-legal/privacy.html';
 
   /// Whether [privacyPolicy] points at something real. While false the UI
   /// says the policy is not published yet instead of offering a dead link.
-  static const bool privacyPolicyPublished = false;
+  static const bool privacyPolicyPublished = true;
 
   static const String termsOfUse = appleStandardEula;
 

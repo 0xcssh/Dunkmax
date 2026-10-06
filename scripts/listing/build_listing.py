@@ -19,9 +19,9 @@ import sys
 
 HERE = pathlib.Path(__file__).parent
 VERSION = "1.0"
-PRIVACY = "{{PRIVACY_URL}}"  # see lib/core/legal_urls.dart — not published yet
+PRIVACY = "https://0xcssh.github.io/dunkit-legal/privacy.html"
 TERMS = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
-SUPPORT = "https://github.com/0xcssh/Dunkmax"  # TODO: a real support page
+SUPPORT = "https://0xcssh.github.io/dunkit-legal/"
 
 LIMITS = {"name": 30, "subtitle": 30, "keywords": 100, "promotionalText": 170,
           "description": 4000, "whatsNew": 4000}

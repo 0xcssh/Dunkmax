@@ -50,6 +50,15 @@ subscription notice (Guideline 2.3.2); the vertical is always "estimated".
 
 Captions are code: change copy in `compose.CAPTIONS`, re-run, re-upload.
 
+`compose.py` also renders the two product-page artworks per caption set, to
+`build/store_screenshots/final/<set>/artwork/`:
+- `header.png` 3840x1646 — the wide art at the top of the page. The store lays
+  the icon, name and Get button over its lower part, so the words sit top-left.
+- `search.png` 3840x2560 — shown in search results instead of the first
+  screenshots: headline, the measured number, two phones.
+These are dragged into App Store Connect by hand (one per locale); the upload
+script does not handle them.
+
 ## Pushing it — `.github/workflows/asc-listing.yml`
 
 Manual workflow, Linux runner. Inputs: listing file, `screenshots` (regenerate
@@ -61,11 +70,12 @@ localizations, and replaces each locale's screenshots per display size.
 gh workflow run "ASC listing" --ref main -f listing=1.0 -f screenshots=true -f dry_run=true
 ```
 
-## Blockers before a real (non-dry) push
+## Before a real (non-dry) push
 
-- **Privacy policy URL** — the descriptions carry `{{PRIVACY_URL}}` and the
-  script refuses to write while it does. Publish the page, put the URL in
-  `build_listing.py` and `lib/core/legal_urls.dart`.
-- **Support URL** — currently the GitHub repo; replace with a real page.
+- Privacy policy and support pages are published from the public
+  `0xcssh/dunkit-legal` repo (GitHub Pages):
+  https://0xcssh.github.io/dunkit-legal/privacy.html and
+  https://0xcssh.github.io/dunkit-legal/. Update the policy there whenever
+  what the app sends changes (Supabase, RevenueCat, ML Kit today).
 - **Category** (Health & Fitness primary, Sports secondary), age rating, App
   Privacy questionnaire — set once in App Store Connect.

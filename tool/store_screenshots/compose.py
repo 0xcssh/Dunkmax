@@ -195,6 +195,16 @@ html,body{width:%(w)dpx;height:%(h)dpx;overflow:hidden;background:#0A0A0B;color:
 """
 
 
+def unit_html(unit, size):
+    """The unit beside a giant number: "cm" sits on the baseline, the inch
+    mark (″) hangs high and tight, as it is written."""
+    if unit == "″":
+        return (f'<span style="font-family:Inter,sans-serif;font-weight:800;font-size:{size*0.5}px;'
+                f'vertical-align:{size*0.38}px;margin-left:{size*0.02}px">″</span>')
+    return (f'<span style="font-size:{size*0.42}px;margin-left:{size*0.05}px;'
+            f'text-transform:none">{unit}</span>')
+
+
 def device_frame(raw_png, device, x, y, w, rot=0, scroll=0.0):
     """A phone or tablet with the real capture inside; may bleed off-canvas."""
     if device == "iphone69":
@@ -260,7 +270,7 @@ def slide_html(slide, device, set_name, raw_dir):
         body = (headline(cap["proof"], 0, H * 0.05, hs, W, "center")
                 + f'<div class="h o" style="position:absolute;top:{H*0.155}px;left:0;right:0;text-align:center;'
                   f'font-size:{num_size}px;line-height:1;text-shadow:0 0 {W*0.09}px rgba(242,106,33,.55)">'
-                  f'{num}<span style="font-size:{num_size*0.42}px;margin-left:{W*0.01}px;text-transform:none">{unit}</span></div>'
+                  f'{num}{unit_html(unit, num_size)}</div>'
                 + frame(W * 0.15, H * 0.40, W * 0.70)
                 )
         fine = cap["fine1"]
@@ -314,6 +324,54 @@ def slide_html(slide, device, set_name, raw_dir):
             f'{fine}{ruler}</div></html>')
 
 
+# Product-page artwork beyond the screenshots, per caption set:
+#   header  3840x1646 — the wide art at the top of the product page. The store
+#           lays the app's icon, name and Get button over its lower part, so
+#           the words sit high and the bottom-left stays dark and quiet.
+#   search  3840x2560 — the card shown in search results instead of the first
+#           screenshots. It is seen small: one headline, one number, two phones.
+ARTWORK = {"header": (3840, 1646), "search": (3840, 2560)}
+
+
+def artwork_html(kind, set_name, raw_dir):
+    W, H = ARTWORK[kind]
+    ui, (num, unit), _ = SETS[set_name]
+    cap = CAPTIONS[CAPTION_LANG[set_name]]
+    shot = lambda name: raw_dir / "iphone69" / ui / f"{name}.png"
+    dunker = (HERE / "assets" / "dunker.png").as_uri()
+    ruler = f'<div class="ruler" style="right:{W*0.03}px"></div>'
+    if kind == "header":
+        # Three zones across the 2.33:1 band: words | the dunker | the phones.
+        pw = H * 0.36
+        body = (f'<div class="glow" style="left:{W*0.30}px;top:{-H*0.2}px;width:{W*0.45}px;height:{H*1.3}px;'
+                f'background:radial-gradient(closest-side,rgba(242,106,33,.30),rgba(242,106,33,0))"></div>'
+                f'<img src="{dunker}" style="position:absolute;top:{H*0.02}px;left:{W*0.34}px;height:{H*1.05}px;opacity:.95">'
+                + device_frame(shot("tab_analyze"), "iphone69", W * 0.615, H * 0.20, pw, rot=-7)
+                + device_frame(shot("tab_progress"), "iphone69", W * 0.795, H * 0.20, pw, rot=7)
+                + device_frame(shot("result"), "iphone69", W * 0.70, H * 0.08, pw * 1.1)
+                + f'<div style="position:absolute;left:0;right:0;bottom:0;height:{H*0.34}px;'
+                  f'background:linear-gradient(180deg,rgba(10,10,11,0),#0A0A0B 85%)"></div>'
+                + headline(cap["closer"], W * 0.045, H * 0.10, H * 0.15, W * 0.36,
+                           sub_size=H * 0.040, gap=H * 0.05))
+    else:
+        pw = W * 0.21
+        body = (f'<div class="glow" style="left:{W*0.48}px;top:{H*0.05}px;width:{W*0.5}px;height:{H*0.9}px;'
+                f'background:radial-gradient(closest-side,rgba(242,106,33,.30),rgba(242,106,33,0))"></div>'
+                f'<img src="{dunker}" style="position:absolute;bottom:{-H*0.05}px;left:{-W*0.06}px;height:{H*0.62}px;opacity:.16">'
+                + headline(cap["proof"], W * 0.06, H * 0.10, H * 0.115, W * 0.44, sub="")
+                + f'<div class="h o" style="position:absolute;left:{W*0.055}px;top:{H*0.37}px;font-size:{H*0.40}px;'
+                  f'line-height:1;text-shadow:0 0 {H*0.06}px rgba(242,106,33,.5)">{num}{unit_html(unit, H * 0.40)}</div>'
+                + device_frame(shot("result"), "iphone69", W * 0.52, H * 0.10, pw)
+                + device_frame(shot("plan"), "iphone69", W * 0.75, H * 0.20, pw * 0.92, rot=6)
+                + f'<div style="position:absolute;left:0;right:0;bottom:0;height:{H*0.12}px;'
+                  f'background:linear-gradient(180deg,rgba(10,10,11,0),#0A0A0B 75%)"></div>'
+                + f'<div class="fine" style="left:{W*0.06}px;right:auto;text-align:left;bottom:{H*0.05}px;'
+                  f'font-size:{H*0.026}px">{cap["fine1"]}</div>')
+    css = CSS % {"w": W, "h": H, "rim": 4}
+    return (f'<!doctype html><html lang="{CAPTION_LANG[set_name]}"><meta charset="utf-8"><style>{css}</style>'
+            f'<div class="s" style="background:#0A0A0B">{body}{ruler}</div></html>')
+
+
 def chrome():
     for c in CHROME_CANDIDATES:
         if pathlib.Path(c).exists() or shutil.which(c):
@@ -346,11 +404,15 @@ def main():
     ap.add_argument("--out", default=str(REPO / "build" / "store_screenshots" / "final"))
     ap.add_argument("--only", help="comma-separated caption sets")
     ap.add_argument("--devices", default=",".join(DEVICES))
-    ap.add_argument("--slides", help="comma-separated 1-based slide numbers")
+    ap.add_argument("--slides", help="comma-separated 1-based slide numbers; 0 = none")
+    ap.add_argument("--artwork", default=",".join(ARTWORK),
+                    help="comma-separated header/search artwork to render; empty = none")
     args = ap.parse_args()
     raw, out = pathlib.Path(args.raw), pathlib.Path(args.out)
     sets = args.only.split(",") if args.only else list(SETS)
-    slides = [int(s) for s in args.slides.split(",")] if args.slides else range(1, len(SLIDES) + 1)
+    slides = ([int(s) for s in args.slides.split(",") if s != "0"] if args.slides
+              else range(1, len(SLIDES) + 1))
+    artwork = [a for a in args.artwork.split(",") if a]
     browser = chrome()
     for set_name in sets:
         for device in args.devices.split(","):
@@ -359,6 +421,10 @@ def main():
                 target = out / set_name / device / f"{n:02d}_{slide}.png"
                 render(slide_html(slide, device, set_name, raw), target, DEVICES[device], browser)
                 print(target.relative_to(out))
+        for kind in artwork:
+            target = out / set_name / "artwork" / f"{kind}.png"
+            render(artwork_html(kind, set_name, raw), target, ARTWORK[kind], browser)
+            print(target.relative_to(out))
 
 
 if __name__ == "__main__":
