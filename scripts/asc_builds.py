@@ -36,6 +36,10 @@ builds = get("/v1/builds", {"filter[app]": app["id"], "sort": "-uploadedDate", "
 details = {i["id"]: i["attributes"] for i in builds.get("included", []) if i["type"] == "buildBetaDetails"}
 versions = {i["id"]: i["attributes"]["version"] for i in builds.get("included", [])
             if i["type"] == "preReleaseVersions"}
+if os.environ.get("BUILD"):
+    one = get("/v1/builds", {"filter[app]": app["id"], "filter[version]": os.environ["BUILD"],
+                             "filter[processingState]": "PROCESSING,FAILED,INVALID,VALID"})
+    print(f"build {os.environ['BUILD']}: {[(b['attributes']['processingState'], b['attributes']['uploadedDate']) for b in one['data']] or 'not found'}")
 for b in builds["data"]:
     a = b["attributes"]
     rel = b["relationships"]

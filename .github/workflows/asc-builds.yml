@@ -4,6 +4,10 @@ name: ASC builds
 # state, to know when a freshly uploaded build is installable.
 on:
   workflow_dispatch:
+    inputs:
+      build:
+        description: "Also look up this build number (any state)"
+        required: false
 
 jobs:
   builds:
@@ -19,6 +23,7 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8_B64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          BUILD: ${{ inputs.build }}
         run: |
           export ASC_KEY_P8="$(echo "$ASC_KEY_P8_B64" | base64 -d)"
           python scripts/asc_builds.py
