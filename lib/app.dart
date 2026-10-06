@@ -146,7 +146,7 @@ class _DunkMaxAppState extends State<DunkMaxApp> {
     return MaterialApp(
       // The wordmark, not a translated string — the app is called the same
       // thing in every locale.
-      title: 'DunkMax',
+      title: 'Dunk It',
       debugShowCheckedModeBanner: false,
       theme: DunkTheme.build(),
       // No `locale:` override — the device language decides, falling back to

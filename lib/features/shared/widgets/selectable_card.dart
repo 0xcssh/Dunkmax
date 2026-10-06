@@ -37,6 +37,10 @@ class SelectableCard extends StatelessWidget {
             horizontal: 14,
             vertical: density.pick(12, 10),
           ),
+          // Grows to the share its option list hands it; the content stays
+          // centred in the extra height.
+          constraints: BoxConstraints(minHeight: OptionCardHeight.of(context)),
+          alignment: Alignment.centerLeft,
           decoration: BoxDecoration(
             color: DunkColors.surface,
             borderRadius: BorderRadius.circular(16),
@@ -91,4 +95,24 @@ class _Check extends StatelessWidget {
       child: const Icon(Icons.check, size: 17, color: Colors.black),
     );
   }
+}
+
+/// The height an option list (onboarding's `OptionList`) would like each of
+/// its cards to be. Zero, or no ancestor at all, means "natural height".
+class OptionCardHeight extends InheritedWidget {
+  final double height;
+
+  const OptionCardHeight({
+    super.key,
+    required this.height,
+    required super.child,
+  });
+
+  static double of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<OptionCardHeight>()?.height ??
+      0;
+
+  @override
+  bool updateShouldNotify(OptionCardHeight oldWidget) =>
+      oldWidget.height != height;
 }

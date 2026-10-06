@@ -82,23 +82,28 @@ class _AgeScreenState extends State<AgeScreen> {
           decoration: BoxDecoration(
             color: DunkColors.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: DunkColors.primary.withValues(alpha: 0.7)),
+            border:
+                Border.all(color: DunkColors.primary.withValues(alpha: 0.7)),
           ),
           child: Text('$_age',
               style: const TextStyle(
-                  fontSize: 52, fontWeight: FontWeight.w800, color: Colors.white)),
+                  fontSize: 52,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white)),
         ),
         const SizedBox(height: 8),
         Text(l10n.ageUnitLabel,
             style: const TextStyle(
-                color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
+                color: DunkColors.textSecondary,
+                letterSpacing: 2,
+                fontSize: 13)),
         const SizedBox(height: 18),
-        // Flexible, so on a very short screen (320x568) the wheel gives up
-        // height instead of painting over the Continue button. With room to
-        // spare it is exactly 160 tall, as before.
-        Flexible(
+        // The wheel takes every pixel the body has left, so a tall phone
+        // shows a taller picker instead of an empty band above Continue; on
+        // a short screen (320x568) it gives up height instead of painting
+        // over the button.
+        Expanded(
           child: SizedBox(
-            height: 160,
             child: ShaderMask(
               shaderCallback: (rect) => const LinearGradient(
                 begin: Alignment.topCenter,
@@ -124,8 +129,8 @@ class _AgeScreenState extends State<AgeScreen> {
                   childCount: _maxAge - _minAge + 1,
                   builder: (context, i) => Center(
                     child: Text(l10n.ageOption(_minAge + i),
-                        style: const TextStyle(
-                            fontSize: 22, color: Colors.white)),
+                        style:
+                            const TextStyle(fontSize: 22, color: Colors.white)),
                   ),
                 ),
               ),

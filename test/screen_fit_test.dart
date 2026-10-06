@@ -57,7 +57,6 @@ import 'package:dunkmax/features/onboarding/screens/gap_screen.dart';
 import 'package:dunkmax/features/onboarding/screens/goal_screen.dart';
 import 'package:dunkmax/features/onboarding/screens/height_screen.dart';
 import 'package:dunkmax/features/onboarding/screens/hops_screen.dart';
-import 'package:dunkmax/features/onboarding/screens/how_it_works_screen.dart';
 import 'package:dunkmax/features/onboarding/screens/intro_carousel_screen.dart';
 import 'package:dunkmax/features/onboarding/screens/plan_reveal_screen.dart';
 import 'package:dunkmax/features/onboarding/screens/position_screen.dart';
@@ -66,6 +65,7 @@ import 'package:dunkmax/features/onboarding/screens/training_location_screen.dar
 import 'package:dunkmax/features/onboarding/screens/weight_screen.dart';
 import 'package:dunkmax/features/onboarding/widgets/staggered_entrance.dart';
 import 'package:dunkmax/features/paywall/paywall_screen.dart';
+import 'package:dunkmax/features/shared/widgets/primary_button.dart';
 import 'package:dunkmax/features/progress/jump_history_screen.dart';
 import 'package:dunkmax/features/progress/jump_video_screen.dart';
 import 'package:dunkmax/features/train/screens/exercise_detail_screen.dart';
@@ -304,6 +304,7 @@ Future<void> _probe(
   Widget Function(Locale locale, String device) build, {
   bool scaffold = true,
   Future<void> Function(WidgetTester tester)? after,
+  _Anchor? fillAnchor,
 }) async {
   for (final size in _sizes.entries) {
     for (final locale in _locales) {
@@ -365,6 +366,16 @@ Future<void> _probe(
             '${pos.viewportDimension.toStringAsFixed(0)}px');
       }
       final tag = '$name @${size.key}/${locale.languageCode}';
+      if (fillAnchor != null && size.key == _primaryDevice) {
+        final anchorY = fillAnchor(tester, size.value);
+        final bottom = _contentBottomAbove(tester, anchorY);
+        final gap = anchorY - bottom;
+        final line = '${gap <= _maxFillGap ? 'FILLS   ' : 'PROBLEM '} $tag '
+            'gap ${gap.toStringAsFixed(0)}px above the '
+            '${fillAnchor == _tabBarAnchor ? 'tab bar' : 'CTA'}';
+        _report.add(line);
+        if (_assertionsOn && gap > _maxFillGap) _failures.add(line);
+      }
       final scrollAllowed = _mayScroll.contains(name);
       if (overflows.isEmpty && scrolls.isEmpty) {
         _report.add('FIT      $tag');
@@ -394,6 +405,60 @@ Future<void> _probe(
 }
 
 Widget _onboarding(Widget screen) => StaggeredEntrance(child: screen);
+
+/// Where a page's content is expected to reach, in global y: the top of the
+/// pinned CTA, or the top of the tab bar.
+typedef _Anchor = double Function(WidgetTester tester, _Device device);
+
+/// "Uses the whole screen": the last painted content above the anchor must
+/// end within this many pixels of it on the primary device. The owner's
+/// complaint was pages that ended at ~70 % of the height with an empty band
+/// above the tab bar — that is a gap of 150 px+, not a margin.
+const double _maxFillGap = 48;
+
+double _ctaAnchor(WidgetTester tester, _Device device) =>
+    tester.getRect(find.byType(PrimaryButton).last).top;
+
+/// Height of RootShell's floating tab bar, measured from the real shell per
+/// device by the tab test; the tab screens are pumped above a spacer of it.
+final Map<Size, double> _tabBarHeights = {};
+
+double _tabBarAnchor(WidgetTester tester, _Device device) =>
+    device.size.height - _tabBarHeights[device.size]!;
+
+/// The lowest bottom edge of anything painted that ends above [anchorY]:
+/// text, icons, images, decorated boxes, custom paint. Full-screen layers
+/// (the court backdrop, the Scaffold) end below the anchor and so never
+/// count; a picker wheel counts as its viewport, not its off-screen rows.
+double _contentBottomAbove(WidgetTester tester, double anchorY) {
+  var lowest = 0.0;
+  void visit(RenderObject node) {
+    if (node is RenderBox && node.hasSize && node.attached) {
+      final painted = node is RenderParagraph ||
+          node is RenderImage ||
+          node is RenderEditable ||
+          node is RenderListWheelViewport ||
+          (node is RenderDecoratedBox &&
+              node.decoration is BoxDecoration &&
+              ((node.decoration as BoxDecoration).color != null ||
+                  (node.decoration as BoxDecoration).gradient != null ||
+                  (node.decoration as BoxDecoration).border != null)) ||
+          (node is RenderCustomPaint && node.painter != null);
+      if (painted && node.size.height > 0) {
+        final rect = MatrixUtils.transformRect(
+            node.getTransformTo(null), Offset.zero & node.size);
+        if (rect.bottom <= anchorY + 0.5 && rect.bottom > lowest) {
+          lowest = rect.bottom;
+        }
+      }
+      if (node is RenderListWheelViewport) return;
+    }
+    node.visitChildren(visit);
+  }
+
+  visit(tester.binding.renderViews.first);
+  return lowest;
+}
 
 void main() {
   late JumpAnalysis analysis;
@@ -442,7 +507,8 @@ void main() {
               onToggle: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Experience',
@@ -453,7 +519,8 @@ void main() {
               onSelect: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Position',
@@ -464,7 +531,8 @@ void main() {
               onSelect: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Days',
@@ -475,7 +543,8 @@ void main() {
               onSelect: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Location',
@@ -486,7 +555,8 @@ void main() {
               onSelect: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Hops',
@@ -497,7 +567,8 @@ void main() {
               onSelect: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Height',
@@ -508,7 +579,8 @@ void main() {
               onChanged: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Weight',
@@ -519,7 +591,8 @@ void main() {
               onChanged: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Age',
@@ -530,7 +603,8 @@ void main() {
               onChanged: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'DunkHand',
@@ -541,7 +615,8 @@ void main() {
               onSelect: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Commitment',
@@ -552,22 +627,20 @@ void main() {
               onSelect: (_) {},
               onBack: noop,
               onContinue: noop,
-            )));
+            )),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Gap',
         (_, __) => _onboarding(
-            GapScreen(profile: _profile, onBack: noop, onContinue: noop)));
+            GapScreen(profile: _profile, onBack: noop, onContinue: noop)),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Potential',
-        (_, __) => _onboarding(PotentialScreen(
-            profile: _profile, onBack: noop, onContinue: noop)));
-    await _probe(
-        tester,
-        'HowItWorks',
-        (_, __) =>
-            _onboarding(HowItWorksScreen(onBack: noop, onContinue: noop)));
+        (_, __) => _onboarding(
+            PotentialScreen(profile: _profile, onBack: noop, onContinue: noop)),
+        fillAnchor: _ctaAnchor);
     await _probe(
         tester,
         'Building',
@@ -577,7 +650,8 @@ void main() {
         tester,
         'PlanReveal',
         (_, __) => _onboarding(PlanRevealScreen(
-            profile: _profile, onBack: noop, onContinue: noop)));
+            profile: _profile, onBack: noop, onContinue: noop)),
+        fillAnchor: _ctaAnchor);
     _expectAllFit();
   });
 
@@ -646,8 +720,9 @@ void main() {
       await tester
           .pumpWidget(_host(shell(), const Locale('fr'), scaffold: false));
       await _pumpFixed(tester);
-      barHeight[size.key] = size.value.size.height -
-          tester.getSize(find.byType(IndexedStack)).height;
+      _tabBarHeights[size.value.size] = barHeight[size.key] =
+          size.value.size.height -
+              tester.getSize(find.byType(IndexedStack)).height;
       await tester.pumpWidget(const SizedBox());
     }
     tester.view.resetPhysicalSize();
@@ -675,6 +750,7 @@ void main() {
         device,
       ),
       scaffold: false,
+      fillAnchor: _tabBarAnchor,
     );
     await _probe(
       tester,
@@ -682,6 +758,7 @@ void main() {
       (_, device) =>
           tab(TrainTab(program: program, sessionStore: sessionStore), device),
       scaffold: false,
+      fillAnchor: _tabBarAnchor,
     );
     await _probe(
       tester,
@@ -712,6 +789,7 @@ void main() {
         device,
       ),
       scaffold: false,
+      fillAnchor: _tabBarAnchor,
     );
     await _probe(
       tester,

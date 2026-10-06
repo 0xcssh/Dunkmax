@@ -11,9 +11,9 @@ import '../../../shared/unit_scope.dart';
 class JumpTrendChart extends StatelessWidget {
   final List<JumpLogEntry> entries;
 
-  /// Plot height, including the date-label row. The card that holds the
-  /// chart sets it from the room the screen has.
-  final double height;
+  /// Plot height, including the date-label row. Null fills the height the
+  /// parent gives it (the Progress card hands the chart its spare height).
+  final double? height;
 
   const JumpTrendChart({super.key, required this.entries, this.height = 180});
 
@@ -21,10 +21,10 @@ class JumpTrendChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final units = UnitScope.of(context);
-    final sorted = [...entries]..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final plotted = sorted.length > 8
-        ? sorted.sublist(sorted.length - 8)
-        : sorted;
+    final sorted = [...entries]
+      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+    final plotted =
+        sorted.length > 8 ? sorted.sublist(sorted.length - 8) : sorted;
 
     if (plotted.length < 2) {
       return SizedBox(
@@ -178,7 +178,8 @@ class _JumpTrendPainter extends CustomPainter {
     }
   }
 
-  void _drawGridlines(Canvas canvas, Rect plotRect, double minInches, double maxInches) {
+  void _drawGridlines(
+      Canvas canvas, Rect plotRect, double minInches, double maxInches) {
     final gridPaint = Paint()
       ..color = DunkColors.stroke
       ..strokeWidth = 1;
@@ -187,7 +188,8 @@ class _JumpTrendPainter extends CustomPainter {
     for (final v in steps) {
       final t = (v - minInches) / (maxInches - minInches);
       final y = plotRect.bottom - t * plotRect.height;
-      canvas.drawLine(Offset(plotRect.left, y), Offset(plotRect.right, y), gridPaint);
+      canvas.drawLine(
+          Offset(plotRect.left, y), Offset(plotRect.right, y), gridPaint);
       _drawText(
         canvas,
         inchesLabel(v.round()),

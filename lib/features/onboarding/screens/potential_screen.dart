@@ -64,28 +64,34 @@ class PotentialScreen extends StatelessWidget {
           ),
         ),
         SizedBox(height: density.pick(16, 12)),
-        Container(
-          height: density.pick(210, 176),
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-          decoration: BoxDecoration(
-            color: DunkColors.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: DunkColors.stroke),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (var i = 0; i < weeks.length; i++)
-                Expanded(
-                  child: _Bar(
-                    value: values[i],
-                    minV: minV,
-                    maxV: maxV,
-                    weekLabel: l10n.potentialWeekLabel(weeks[i]),
-                    highlight: i == weeks.length - 1,
-                  ),
-                ),
-            ],
+        // The chart takes the height left above the headline card; the
+        // floor keeps the bars readable when there is none to spare.
+        Expanded(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: density.pick(180, 150)),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              decoration: BoxDecoration(
+                color: DunkColors.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: DunkColors.stroke),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var i = 0; i < weeks.length; i++)
+                    Expanded(
+                      child: _Bar(
+                        value: values[i],
+                        minV: minV,
+                        maxV: maxV,
+                        weekLabel: l10n.potentialWeekLabel(weeks[i]),
+                        highlight: i == weeks.length - 1,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
         SizedBox(height: density.pick(14, 10)),
@@ -105,7 +111,8 @@ class PotentialScreen extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1)),
               const SizedBox(height: 4),
-              Text(l10n.lengthApprox(units.name, units.lengthValue(values.last)),
+              Text(
+                  l10n.lengthApprox(units.name, units.lengthValue(values.last)),
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 38,
@@ -179,7 +186,8 @@ class _Bar extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(weekLabel,
-              style: const TextStyle(color: DunkColors.textSecondary, fontSize: 11)),
+              style: const TextStyle(
+                  color: DunkColors.textSecondary, fontSize: 11)),
         ],
       ),
     );

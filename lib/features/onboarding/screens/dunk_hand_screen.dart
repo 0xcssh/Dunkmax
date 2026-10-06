@@ -46,35 +46,40 @@ class DunkHandScreen extends StatelessWidget {
       onBack: onBack,
       onContinue: selected == null ? null : onContinue,
       staggerBody: false,
-      child: FitOrScrollColumn(
+      // The left/right pair takes the height the wide card and the note do
+      // not need, so the step reaches down to Continue on a tall phone.
+      child: FitOrScrollColumn.fill(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: StaggerItem(
-                  index: OnboardingScaffold.bodyStaggerIndex,
-                  child: _HandCard(
-                    hand: DunkHand.left,
-                    selected: selected == DunkHand.left,
-                    onTap: () => onSelect(DunkHand.left),
-                    square: true,
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: StaggerItem(
+                    index: OnboardingScaffold.bodyStaggerIndex,
+                    child: _HandCard(
+                      hand: DunkHand.left,
+                      selected: selected == DunkHand.left,
+                      onTap: () => onSelect(DunkHand.left),
+                      square: true,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StaggerItem(
-                  index: OnboardingScaffold.bodyStaggerIndex + 1,
-                  child: _HandCard(
-                    hand: DunkHand.right,
-                    selected: selected == DunkHand.right,
-                    onTap: () => onSelect(DunkHand.right),
-                    square: true,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: StaggerItem(
+                    index: OnboardingScaffold.bodyStaggerIndex + 1,
+                    child: _HandCard(
+                      hand: DunkHand.right,
+                      selected: selected == DunkHand.right,
+                      onTap: () => onSelect(DunkHand.right),
+                      square: true,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 10),
           StaggerItem(
@@ -139,12 +144,14 @@ class _HandCard extends StatelessWidget {
   }
 
   Widget _squareBody(BuildContext context, AppLocalizations l10n) {
-    return AspectRatio(
-      // "Square" on a regular phone; a touch wider than tall on a short one,
-      // where two full squares plus the wide card would push the note below
-      // the fold.
-      aspectRatio: LayoutDensity.of(context).pick(1, 1.3),
+    // As tall as the page lets the pair be, never shorter than this floor
+    // (which is also its height when the page has nothing to spare).
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: LayoutDensity.of(context).pick(150.0, 112.0),
+      ),
       child: Stack(
+        fit: StackFit.expand,
         children: [
           Padding(
             padding: const EdgeInsets.all(14),

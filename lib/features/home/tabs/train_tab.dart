@@ -23,7 +23,8 @@ class TrainTab extends StatefulWidget {
   final TrainingProgram program;
   final WorkoutSessionStore sessionStore;
 
-  const TrainTab({super.key, required this.program, required this.sessionStore});
+  const TrainTab(
+      {super.key, required this.program, required this.sessionStore});
 
   @override
   State<TrainTab> createState() => _TrainTabState();
@@ -76,14 +77,16 @@ class _TrainTabState extends State<TrainTab> {
     );
     final week = schedule.weekAt(plan.week, completedSessions: completed);
 
-    // Laid out to share one page with the tab bar: program card (with its
-    // progress), the week strip, today's drills and the CTA. Nothing scrolls
-    // on the phones this targets; a shorter one degrades to a scroll.
+    // One page, all of it: program card (with its progress) and the week
+    // strip at their natural height, today's drills take the rest, and the
+    // CTA sits at the foot above the tab bar. A taller phone gets roomier
+    // drill rows, not an empty band; a shorter one degrades to a scroll.
     final density = LayoutDensity.of(context);
     final gap = density.pick(10.0, 8.0);
     return SafeArea(
-      child: FitOrScrollColumn(
-        padding: EdgeInsets.fromLTRB(20, density.pick(8, 4), 20, density.pick(12, 10)),
+      child: FitOrScrollColumn.fill(
+        padding: EdgeInsets.fromLTRB(
+            20, density.pick(8, 4), 20, density.pick(12, 10)),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
@@ -95,7 +98,8 @@ class _TrainTabState extends State<TrainTab> {
                   color: DunkColors.primary,
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(Icons.fitness_center, color: Colors.white, size: 20),
+                child: const Icon(Icons.fitness_center,
+                    color: Colors.white, size: 20),
               ),
               const SizedBox(width: 10),
               Text(
@@ -114,15 +118,16 @@ class _TrainTabState extends State<TrainTab> {
           SizedBox(height: gap),
           _WeekStrip(week: week, todayWeekday: plan.weekday),
           SizedBox(height: gap),
-          if (plan.isRestDay)
-            _RestDayCard(nextFocus: plan.day.focus)
-          else
-            _TodaysExercises(
-              focus: plan.day.focus,
-              warmUp: plan.day.warmUp,
-              exercises: plan.day.exercises,
-              isDeload: plan.isDeloadWeek,
-            ),
+          Expanded(
+            child: plan.isRestDay
+                ? _RestDayCard(nextFocus: plan.day.focus)
+                : _TodaysExercises(
+                    focus: plan.day.focus,
+                    warmUp: plan.day.warmUp,
+                    exercises: plan.day.exercises,
+                    isDeload: plan.isDeloadWeek,
+                  ),
+          ),
           SizedBox(height: density.pick(12, 10)),
           _CompleteButton(
             done: progress.isComplete,
@@ -203,7 +208,8 @@ class _EnrolledCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             l10n.trainProgramMeta(position, plan.totalWeeks),
-            style: const TextStyle(color: DunkColors.textSecondary, fontSize: 13),
+            style:
+                const TextStyle(color: DunkColors.textSecondary, fontSize: 13),
           ),
           if (plan.isDeloadWeek) ...[
             const SizedBox(height: 8),
@@ -363,8 +369,7 @@ class _WeekStrip extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  AppLocalizations.of(context)
-                      .trainWeekNumber(week.weekNumber),
+                  AppLocalizations.of(context).trainWeekNumber(week.weekNumber),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
@@ -615,7 +620,8 @@ class _TodaysExercises extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: DunkColors.surfaceRaised,
                   borderRadius: BorderRadius.circular(20),
@@ -649,10 +655,18 @@ class _TodaysExercises extends StatelessWidget {
             ),
           ],
           SizedBox(height: compact ? 6 : 8),
+          // Each drill row takes an equal share of the card's height, so the
+          // list fills the card on a tall phone and packs tight on a short
+          // one (where the shares shrink to the rows' natural height).
           for (var i = 0; i < exercises.length; i++) ...[
             if (i > 0)
-              Divider(color: DunkColors.stroke, height: compact ? 10 : 14),
-            _ExerciseRow(exercise: exercises[i]),
+              Divider(color: DunkColors.stroke, height: compact ? 8 : 14),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _ExerciseRow(exercise: exercises[i]),
+              ),
+            ),
           ],
         ],
       ),
@@ -676,7 +690,7 @@ class _ExerciseThumbnail extends StatelessWidget {
     final frames = ExerciseLibrary.guideForExercise(exercise)?.demoFrames;
     final radius = BorderRadius.circular(10);
 
-    final size = LayoutDensity.of(context).pick(40.0, 36.0);
+    final size = LayoutDensity.of(context).pick(46.0, 36.0);
     return Container(
       width: size,
       height: size,

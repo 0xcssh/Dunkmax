@@ -495,66 +495,6 @@
     "description": "Button at the bottom of the jump-potential screen."
   },
 
-  "howItWorksTitle": "HOW YOUR VERT\nGETS MEASURED",
-  "@howItWorksTitle": {
-    "description": "Headline of the third onboarding sell screen, which sells the measurement method. Keep two short lines."
-  },
-  "howItWorksSubtitle": "No wearables, no markers on the floor. Just physics and your phone camera.",
-  "@howItWorksSubtitle": {
-    "description": "Subtitle of the how-it-works screen."
-  },
-  "hangTimeLabel": "HANG TIME",
-  "@hangTimeLabel": {
-    "description": "Small caps label at the top of the physics card on the how-it-works screen. 'Hang time' is the airborne duration of a jump."
-  },
-  "hangTimeDecides": "decides your height",
-  "@hangTimeDecides": {
-    "description": "Second line of the physics card headline on the how-it-works screen; reads as one sentence with the HANG TIME label above it."
-  },
-  "hangTimeFormula": "longer in the air  =  higher jump",
-  "@hangTimeFormula": {
-    "description": "Pill inside the physics card on the how-it-works screen. The double spaces around the equals sign are intentional."
-  },
-  "hangTimeNote": "Two athletes with the same hang time jumped the same height. That is what we measure.",
-  "@hangTimeNote": {
-    "description": "Closing sentence of the physics card on the how-it-works screen."
-  },
-  "howItWorksPoint1Title": "We watch your body, not the pixels",
-  "@howItWorksPoint1Title": {
-    "description": "Title of the first bullet card on the how-it-works screen (on-device pose tracking)."
-  },
-  "howItWorksPoint1Body": "On-device tracking follows your feet frame by frame and finds the exact instants they leave the floor and meet it again.",
-  "@howItWorksPoint1Body": {
-    "description": "Body of the first bullet card on the how-it-works screen."
-  },
-  "howItWorksPoint2Title": "Measured, not guessed",
-  "@howItWorksPoint2Title": {
-    "description": "Title of the second bullet card on the how-it-works screen (physics, not estimation)."
-  },
-  "howItWorksPoint2Body": "Your hang time gives your height through gravity alone — no camera calibration, no markers, no eyeballing.",
-  "@howItWorksPoint2Body": {
-    "description": "Body of the second bullet card on the how-it-works screen."
-  },
-  "howItWorksPoint3Title": "A plan you can actually run",
-  "@howItWorksPoint3Title": {
-    "description": "Title of the third bullet card on the how-it-works screen (program fits the athlete's real setup)."
-  },
-  "howItWorksPoint3Body": "Your experience, your training days and whether you have a gym decide your programme — no barbell drills if you train at home.",
-  "@howItWorksPoint3Body": {
-    "description": "Body of the third bullet card on the how-it-works screen. Names exactly the three answers that reach the program catalog — do not add height or age, they do not."
-  },
-  "howItWorksPoint4Title": "Progress you can check",
-  "@howItWorksPoint4Title": {
-    "description": "Title of the fourth bullet card on the how-it-works screen (everything is logged)."
-  },
-  "howItWorksPoint4Body": "Every session and every analysed jump is logged, so the trend you see is your own history, not a motivational number.",
-  "@howItWorksPoint4Body": {
-    "description": "Body of the fourth bullet card on the how-it-works screen."
-  },
-  "howItWorksCta": "START MY PLAN",
-  "@howItWorksCta": {
-    "description": "Button at the bottom of the how-it-works screen."
-  },
 
   "buildingPlanTitle": "BUILDING YOUR PLAN",
   "@buildingPlanTitle": {

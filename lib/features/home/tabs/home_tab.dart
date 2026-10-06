@@ -35,7 +35,11 @@ class HomeTab extends StatelessWidget {
     required this.jumpLogStore,
     required this.onStartTraining,
     required this.onOpenSettings,
+    this.now,
   });
+
+  /// The clock, for tests; null means [DateTime.now].
+  final DateTime Function()? now;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +49,7 @@ class HomeTab extends StatelessWidget {
     final currentSessionNumber =
         (completedForProgram + 1).clamp(1, program.totalSessions);
     final isProgramComplete = completedForProgram >= program.totalSessions;
-    final todayDate = _dateOnly(DateTime.now());
+    final todayDate = _dateOnly((now ?? DateTime.now)());
     // The same call, fed the same "already trained today?" fact, as the Train
     // tab — so the two can't disagree. Without it Home kept offering a full
     // START SESSION hero right after a session while Train showed a rest day.
@@ -55,8 +59,8 @@ class HomeTab extends StatelessWidget {
     final schedule = TrainingSchedule(program);
     final plan = schedule.today(
       completedSessions: completedForProgram,
-      restToday: programSessions
-          .any((s) => _dateOnly(s.completedAt) == todayDate),
+      restToday:
+          programSessions.any((s) => _dateOnly(s.completedAt) == todayDate),
     );
     final today = plan.day;
     final streak = WorkoutStreak.currentStreak(
@@ -64,21 +68,25 @@ class HomeTab extends StatelessWidget {
     );
     final trend = JumpTrendCalculator.compute(jumpLogStore.entries);
     final weekNumber = schedule.weekOfSession(currentSessionNumber);
-    final completedDaySet = sessionStore.sessions
-        .map((s) => _dateOnly(s.completedAt))
-        .toSet();
+    final completedDaySet =
+        sessionStore.sessions.map((s) => _dateOnly(s.completedAt)).toSet();
     // The day the athlete started training. A day before it was never
     // "missed" — there was nothing to miss yet.
     final firstLoggedDay = completedDaySet.isEmpty
         ? null
         : completedDaySet.reduce((a, b) => a.isBefore(b) ? a : b);
 
-    // One page: header, the 5-day strip, today's hero card and the two
-    // stat tiles share the room above the tab bar. The column only scrolls
-    // if a phone is shorter than the ones this is laid out for.
+    // One page, all of it: header and the 5-day strip at their natural
+    // height, then today's hero card and the two stat tiles share whatever
+    // is left above the tab bar between the strip and the stat tiles, so a
+    // tall phone gets a bigger hero rather than an empty band. A phone too
+    // short for the natural heights scrolls instead. (One flexible child on
+    // purpose: a Flex reports its intrinsic height by scaling every flexible
+    // child to the largest height-per-flex among them, so two flexible
+    // blocks in the wrong ratio make the page scroll on a phone it fits.)
     final density = LayoutDensity.of(context);
     return SafeArea(
-      child: FitOrScrollColumn(
+      child: FitOrScrollColumn.fill(
         padding: EdgeInsets.fromLTRB(20, density.pick(12, 8), 20, 12),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -90,17 +98,20 @@ class HomeTab extends StatelessWidget {
             todayDate: todayDate,
             completedDaySet: completedDaySet,
             firstLoggedDay: firstLoggedDay,
+            trainingWeekdays: schedule.trainingWeekdays.toSet(),
             isProgramComplete: isProgramComplete,
           ),
           SizedBox(height: density.pick(14, 10)),
-          _HeroCard(
-            today: today,
-            weekNumber: weekNumber,
-            currentSessionNumber: currentSessionNumber,
-            totalSessions: program.totalSessions,
-            isProgramComplete: isProgramComplete,
-            isRestDay: plan.isRestDay,
-            onStartTraining: onStartTraining,
+          Expanded(
+            child: _HeroCard(
+              today: today,
+              weekNumber: weekNumber,
+              currentSessionNumber: currentSessionNumber,
+              totalSessions: program.totalSessions,
+              isProgramComplete: isProgramComplete,
+              isRestDay: plan.isRestDay,
+              onStartTraining: onStartTraining,
+            ),
           ),
           SizedBox(height: density.pick(14, 10)),
           _StatsRow(trend: trend, streak: streak),
@@ -127,11 +138,12 @@ class _HeaderRow extends StatelessWidget {
             gradient: DunkColors.primaryGradient,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.sports_basketball, color: Colors.white, size: 22),
+          child: const Icon(Icons.sports_basketball,
+              color: Colors.white, size: 22),
         ),
         const SizedBox(width: 10),
-        Text.rich(
-          const TextSpan(
+        const Text.rich(
+          TextSpan(
             children: [
               TextSpan(
                 text: 'DUNK',
@@ -165,7 +177,8 @@ class _HeaderRow extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.local_fire_department, color: DunkColors.primary, size: 16),
+              const Icon(Icons.local_fire_department,
+                  color: DunkColors.primary, size: 16),
               const SizedBox(width: 4),
               Text(
                 '$streak',
@@ -187,7 +200,8 @@ class _HeaderRow extends StatelessWidget {
             onTap: onOpenSettings,
             child: const Padding(
               padding: EdgeInsets.all(10),
-              child: Icon(Icons.settings_outlined, color: Colors.white, size: 20),
+              child:
+                  Icon(Icons.settings_outlined, color: Colors.white, size: 20),
             ),
           ),
         ),
@@ -204,6 +218,10 @@ class _DayStrip extends StatelessWidget {
 
   /// Date of the first session ever logged, or null before any.
   final DateTime? firstLoggedDay;
+
+  /// The weekdays the program trains on — the same placement the Train tab's
+  /// week strip draws (TrainingSchedule.trainingWeekdays).
+  final Set<int> trainingWeekdays;
   final bool isProgramComplete;
 
   const _DayStrip({
@@ -212,6 +230,7 @@ class _DayStrip extends StatelessWidget {
     required this.todayDate,
     required this.completedDaySet,
     required this.firstLoggedDay,
+    required this.trainingWeekdays,
     required this.isProgramComplete,
   });
 
@@ -225,8 +244,6 @@ class _DayStrip extends StatelessWidget {
       5,
       (i) => DateTime(todayDate.year, todayDate.month, todayDate.day + i - 2),
     );
-    final first = firstLoggedDay;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -269,12 +286,13 @@ class _DayStrip extends StatelessWidget {
               Expanded(
                 child: _DayCard(
                   date: dates[i],
-                  isToday: dates[i] == todayDate,
-                  isPast: dates[i].isBefore(todayDate),
-                  wasCompleted: completedDaySet.contains(dates[i]),
-                  // Only a day the athlete was already training by can have
-                  // been missed.
-                  countsAsMissed: first != null && !dates[i].isBefore(first),
+                  status: HomeDayStatus.of(
+                    date: dates[i],
+                    today: todayDate,
+                    completedDays: completedDaySet,
+                    firstLoggedDay: firstLoggedDay,
+                    trainingWeekdays: trainingWeekdays,
+                  ),
                   isProgramComplete: isProgramComplete,
                 ),
               ),
@@ -286,23 +304,60 @@ class _DayStrip extends StatelessWidget {
   }
 }
 
+/// What one card of Home's 5-day strip says about its date.
+enum HomeDayStatus {
+  /// The date is today.
+  today,
+
+  /// A session was logged that day.
+  completed,
+
+  /// A past day the schedule had a session on, on or after the athlete's
+  /// first logged session, with nothing logged. The only status drawn red.
+  missed,
+
+  /// A past training day from before the first logged session: there was
+  /// nothing to miss yet.
+  beforeStart,
+
+  /// A day the schedule does not train on, past or future.
+  rest,
+
+  /// A future day the schedule trains on.
+  upcoming;
+
+  /// The strip's verdict for [date].
+  ///
+  /// Rest days come from the same weekday placement the Train tab's week
+  /// strip draws ([trainingWeekdays], i.e. TrainingSchedule.trainingWeekdays),
+  /// so a scheduled rest day can never be drawn as missed — which is what
+  /// Home used to do to every untrained past day, rest day or not.
+  static HomeDayStatus of({
+    required DateTime date,
+    required DateTime today,
+    required Set<DateTime> completedDays,
+    required DateTime? firstLoggedDay,
+    required Set<int> trainingWeekdays,
+  }) {
+    if (date == today) return HomeDayStatus.today;
+    if (completedDays.contains(date)) return HomeDayStatus.completed;
+    if (!trainingWeekdays.contains(date.weekday)) return HomeDayStatus.rest;
+    if (date.isAfter(today)) return HomeDayStatus.upcoming;
+    if (firstLoggedDay == null || date.isBefore(firstLoggedDay)) {
+      return HomeDayStatus.beforeStart;
+    }
+    return HomeDayStatus.missed;
+  }
+}
+
 class _DayCard extends StatelessWidget {
   final DateTime date;
-  final bool isToday;
-  final bool isPast;
-  final bool wasCompleted;
-
-  /// Whether an untrained past day is drawn as missed (red). False for days
-  /// before the athlete's first logged session, which stay neutral.
-  final bool countsAsMissed;
+  final HomeDayStatus status;
   final bool isProgramComplete;
 
   const _DayCard({
     required this.date,
-    required this.isToday,
-    required this.isPast,
-    required this.wasCompleted,
-    required this.countsAsMissed,
+    required this.status,
     required this.isProgramComplete,
   });
 
@@ -312,31 +367,33 @@ class _DayCard extends StatelessWidget {
     // DateTime.weekday, which is 1 = Monday.
     final weekdayInitials =
         AppLocalizations.of(context).weekdayInitials.split(',');
-    late final Color bg;
-    late final Widget statusIcon;
+    final isToday = status == HomeDayStatus.today;
+    var bg = DunkColors.surface;
+    final Widget statusIcon;
     Border? border;
 
-    if (isToday) {
-      statusIcon = Container(
-        width: 22,
-        height: 22,
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-        child: Icon(
-          isProgramComplete ? Icons.nightlight_round : Icons.bolt,
-          color: DunkColors.primaryDeep,
-          size: 14,
-        ),
-      );
-    } else if (isPast) {
-      if (wasCompleted) {
-        bg = DunkColors.surface;
-        statusIcon = const Icon(Icons.check_circle, color: DunkColors.accentGreen, size: 22);
-      } else if (!countsAsMissed) {
-        bg = DunkColors.surface;
-        statusIcon = const Icon(Icons.remove, color: DunkColors.textTertiary, size: 20);
-      } else {
+    switch (status) {
+      case HomeDayStatus.today:
+        statusIcon = Container(
+          width: 22,
+          height: 22,
+          decoration:
+              const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+          child: Icon(
+            isProgramComplete ? Icons.nightlight_round : Icons.bolt,
+            color: DunkColors.primaryDeep,
+            size: 14,
+          ),
+        );
+      case HomeDayStatus.completed:
+        statusIcon = const Icon(Icons.check_circle,
+            key: ValueKey('home-day-completed'),
+            color: DunkColors.accentGreen,
+            size: 22);
+      case HomeDayStatus.missed:
         bg = Colors.red.withValues(alpha: 0.12);
         statusIcon = Container(
+          key: const ValueKey('home-day-missed'),
           width: 22,
           height: 22,
           decoration: BoxDecoration(
@@ -345,10 +402,17 @@ class _DayCard extends StatelessWidget {
           ),
           child: const Icon(Icons.close, color: Colors.redAccent, size: 14),
         );
-      }
-    } else {
-      bg = DunkColors.surface;
-      statusIcon = const Icon(Icons.nightlight_round, color: DunkColors.textTertiary, size: 20);
+      case HomeDayStatus.beforeStart:
+        statusIcon =
+            const Icon(Icons.remove, color: DunkColors.textTertiary, size: 20);
+      case HomeDayStatus.rest:
+        statusIcon = const Icon(Icons.nightlight_round,
+            key: ValueKey('home-day-rest'),
+            color: DunkColors.textTertiary,
+            size: 20);
+      case HomeDayStatus.upcoming:
+        statusIcon = const Icon(Icons.fitness_center,
+            color: DunkColors.textSecondary, size: 18);
     }
 
     if (!isToday) {
@@ -451,8 +515,8 @@ class _HeroCard extends StatelessWidget {
       ctaLabel = l10n.trainCtaTrainAnyway;
     } else {
       headline = l10n.homeFocusDay(today.focus.toUpperCase());
-      body = l10n.homeWeekSession(
-          weekNumber, currentSessionNumber, totalSessions);
+      body =
+          l10n.homeWeekSession(weekNumber, currentSessionNumber, totalSessions);
       ctaLabel = l10n.homeCtaStartSession;
     }
     final secondary = resting ? DunkColors.textSecondary : Colors.white70;
@@ -469,9 +533,13 @@ class _HeroCard extends StatelessWidget {
       ),
       child: Column(
         children: [
+          // The page hands this card whatever height is spare: the message
+          // centres in it and the button stays at its foot. With no spare
+          // height both spacers are zero.
+          const Spacer(),
           Container(
-            width: compact ? 44 : 52,
-            height: compact ? 44 : 52,
+            width: compact ? 44 : 56,
+            height: compact ? 44 : 56,
             decoration: BoxDecoration(
               color: resting
                   ? DunkColors.surfaceRaised
@@ -483,10 +551,10 @@ class _HeroCard extends StatelessWidget {
                   ? Icons.emoji_events
                   : (resting ? Icons.nightlight_round : _focusIcon),
               color: resting ? DunkColors.primary : Colors.white,
-              size: compact ? 24 : 26,
+              size: compact ? 24 : 28,
             ),
           ),
-          SizedBox(height: compact ? 10 : 12),
+          SizedBox(height: compact ? 10 : 14),
           Text(
             headline,
             textAlign: TextAlign.center,
@@ -494,7 +562,7 @@ class _HeroCard extends StatelessWidget {
               color: Colors.white,
               fontStyle: FontStyle.italic,
               fontWeight: FontWeight.w900,
-              fontSize: compact ? 22 : 24,
+              fontSize: compact ? 22 : 26,
               height: 1.15,
             ),
           ),
@@ -516,6 +584,7 @@ class _HeroCard extends StatelessWidget {
               style: TextStyle(color: secondary, fontSize: 13),
             ),
           ],
+          const Spacer(),
           SizedBox(height: compact ? 12 : 16),
           Material(
             color: resting ? Colors.transparent : Colors.white,
@@ -524,15 +593,14 @@ class _HeroCard extends StatelessWidget {
               // Muted like Train's TRAIN ANYWAY: recovery is recommended,
               // not enforced, so the button stays but stops shouting.
               side: resting
-                  ? BorderSide(
-                      color: DunkColors.primary.withValues(alpha: 0.5))
+                  ? BorderSide(color: DunkColors.primary.withValues(alpha: 0.5))
                   : BorderSide.none,
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: onStartTraining,
               child: Container(
-                height: compact ? 46 : 50,
+                height: compact ? 46 : 52,
                 width: double.infinity,
                 alignment: Alignment.center,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -569,32 +637,36 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final units = UnitScope.of(context);
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            icon: Icons.straighten,
-            value: trend == null
-                ? '—'
-                : l10n.length(units.name,
-                    units.lengthValue(trend!.latestVerticalInches)),
-            label: l10n.homeLatestVert,
-            trailing: trend != null && trend!.isImproving
-                ? _GreenDelta(
-                    text: l10n.lengthPlus(units.name,
-                        units.lengthValue(trend!.deltaFromFirstInches)))
-                : null,
+    // Both tiles as tall as the taller one.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _StatCard(
+              icon: Icons.straighten,
+              value: trend == null
+                  ? '—'
+                  : l10n.length(units.name,
+                      units.lengthValue(trend!.latestVerticalInches)),
+              label: l10n.homeLatestVert,
+              trailing: trend != null && trend!.isImproving
+                  ? _GreenDelta(
+                      text: l10n.lengthPlus(units.name,
+                          units.lengthValue(trend!.deltaFromFirstInches)))
+                  : null,
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.local_fire_department,
-            value: '$streak',
-            label: l10n.homeDayStreak,
+          const SizedBox(width: 12),
+          Expanded(
+            child: _StatCard(
+              icon: Icons.local_fire_department,
+              value: '$streak',
+              label: l10n.homeDayStreak,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -659,23 +731,35 @@ class _StatCard extends StatelessWidget {
             ),
             child: Icon(icon, color: DunkColors.primary, size: 16),
           ),
+          // Icon at the top, figure at the foot, whatever height the tile
+          // is given.
+          const Spacer(),
           SizedBox(height: compact ? 8 : 10),
-          Row(
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: compact ? 24 : 26,
-                  height: 1.15,
-                  fontWeight: FontWeight.w900,
+          // One figure: scaled down as a unit rather than overflowing when a
+          // long unit and the delta pill share a narrow tile.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: compact ? 24 : 30,
+                    height: 1.15,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 8),
-                trailing!,
+                if (trailing != null) ...[
+                  const SizedBox(width: 8),
+                  trailing!,
+                ],
               ],
-            ],
+            ),
           ),
           const SizedBox(height: 4),
           Text(

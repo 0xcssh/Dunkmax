@@ -106,14 +106,16 @@ class _HeightScreenState extends State<HeightScreen> {
         const SizedBox(height: 8),
         Text(l10n.heightUnitLabel(unit),
             style: const TextStyle(
-                color: DunkColors.textSecondary, letterSpacing: 2, fontSize: 13)),
+                color: DunkColors.textSecondary,
+                letterSpacing: 2,
+                fontSize: 13)),
         const SizedBox(height: 18),
-        // Flexible, so on a short screen (320x568) the wheels give up height
-        // instead of painting over the Continue button. With room to spare
-        // they are exactly 160 tall, as before.
-        Flexible(
+        // The wheel takes every pixel the body has left, so a tall phone
+        // shows a taller picker instead of an empty band above Continue; on
+        // a short screen (320x568) it gives up height instead of painting
+        // over the button.
+        Expanded(
           child: SizedBox(
-            height: 160,
             child: units.isMetric
                 ? _Wheel(
                     controller: _cmCtrl,
@@ -157,7 +159,8 @@ class _HeightScreenState extends State<HeightScreen> {
   }
 }
 
-const _bigStyle = TextStyle(fontSize: 52, fontWeight: FontWeight.w800, color: Colors.white);
+const _bigStyle =
+    TextStyle(fontSize: 52, fontWeight: FontWeight.w800, color: Colors.white);
 
 class _ValueBox extends StatelessWidget {
   final Widget child;
@@ -198,7 +201,12 @@ class _Wheel extends StatelessWidget {
       shaderCallback: (rect) => const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
+        colors: [
+          Colors.transparent,
+          Colors.white,
+          Colors.white,
+          Colors.transparent
+        ],
         stops: [0.0, 0.3, 0.7, 1.0],
       ).createShader(rect),
       blendMode: BlendMode.dstIn,

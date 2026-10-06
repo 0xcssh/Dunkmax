@@ -629,57 +629,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get potentialCta => 'VOIR MON PLAN';
 
   @override
-  String get howItWorksTitle => 'COMMENT TA DÉTENTE\nEST MESURÉE';
-
-  @override
-  String get howItWorksSubtitle =>
-      'Pas de capteur, pas de repère au sol. Juste la physique et l\'appareil photo de ton téléphone.';
-
-  @override
-  String get hangTimeLabel => 'TEMPS DE SUSPENSION';
-
-  @override
-  String get hangTimeDecides => 'détermine ta hauteur';
-
-  @override
-  String get hangTimeFormula => 'plus longtemps en l\'air  =  saut plus haut';
-
-  @override
-  String get hangTimeNote =>
-      'Deux athlètes avec le même temps de suspension ont sauté à la même hauteur. C\'est exactement ce qu\'on mesure.';
-
-  @override
-  String get howItWorksPoint1Title => 'On suit ton corps, pas les pixels';
-
-  @override
-  String get howItWorksPoint1Body =>
-      'Le suivi sur ton appareil traque tes pieds image par image et repère les instants précis où ils quittent le sol puis le retrouvent.';
-
-  @override
-  String get howItWorksPoint2Title => 'Mesuré, pas deviné';
-
-  @override
-  String get howItWorksPoint2Body =>
-      'Ton temps de suspension donne ta hauteur par la seule gravité — sans calibrage de caméra, sans repère, sans estimation à l\'œil.';
-
-  @override
-  String get howItWorksPoint3Title => 'Un plan que tu peux vraiment suivre';
-
-  @override
-  String get howItWorksPoint3Body =>
-      'Ton expérience, tes jours d\'entraînement et le fait d\'avoir une salle ou non déterminent ton programme — aucun exercice à la barre si tu t\'entraînes chez toi.';
-
-  @override
-  String get howItWorksPoint4Title => 'Une progression vérifiable';
-
-  @override
-  String get howItWorksPoint4Body =>
-      'Chaque séance et chaque saut analysé sont enregistrés : la tendance que tu vois est ton propre historique, pas un chiffre de motivation.';
-
-  @override
-  String get howItWorksCta => 'LANCER MON PLAN';
-
-  @override
   String get buildingPlanTitle => 'CONSTRUCTION DE TON PLAN';
 
   @override

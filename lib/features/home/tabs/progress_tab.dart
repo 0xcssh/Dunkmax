@@ -36,9 +36,8 @@ class ProgressTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final programSessions = sessionStore.sessions
-        .where((s) => s.programId == program.id)
-        .toList();
+    final programSessions =
+        sessionStore.sessions.where((s) => s.programId == program.id).toList();
     final progress = ProgramProgress(
       totalSessions: program.totalSessions,
       completedSessions: programSessions.length,
@@ -54,9 +53,8 @@ class ProgressTab extends StatelessWidget {
     final trend = JumpTrendCalculator.compute(allJumpEntries);
     final recentEntries = [...allJumpEntries]
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-    final recentToShow = recentEntries.length > 5
-        ? recentEntries.sublist(0, 5)
-        : recentEntries;
+    final recentToShow =
+        recentEntries.length > 5 ? recentEntries.sublist(0, 5) : recentEntries;
 
     // Five blocks on one page above the tab bar: the headline vertical, the
     // trend chart, workouts and streak side by side, and the recent clips.
@@ -64,8 +62,11 @@ class ProgressTab extends StatelessWidget {
     // degrades to a scroll rather than a clip.
     final density = LayoutDensity.of(context);
     final gap = density.pick(10.0, 8.0);
+    // The trend chart takes whatever height the other blocks leave, so a
+    // tall phone gets a taller chart rather than an empty band above the
+    // tab bar.
     return SafeArea(
-      child: FitOrScrollColumn(
+      child: FitOrScrollColumn.fill(
         padding: EdgeInsets.fromLTRB(20, density.pick(12, 8), 20, 12),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -81,7 +82,7 @@ class ProgressTab extends StatelessWidget {
           SizedBox(height: density.pick(12, 8)),
           _VerticalCard(trend: trend, onGoToAnalyze: onGoToAnalyze),
           SizedBox(height: gap),
-          _TrendChartCard(entries: allJumpEntries),
+          Expanded(child: _TrendChartCard(entries: allJumpEntries)),
           SizedBox(height: gap),
           IntrinsicHeight(
             child: Row(
@@ -140,7 +141,14 @@ class _TrendChartCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: density.pick(10, 8)),
-          JumpTrendChart(entries: entries, height: density.pick(120, 84)),
+          // Fills the card, which the page sizes; the floor keeps it a
+          // readable chart when the page has no height to spare.
+          Expanded(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: density.pick(120, 84)),
+              child: JumpTrendChart(entries: entries, height: null),
+            ),
+          ),
         ],
       ),
     );
@@ -163,7 +171,8 @@ class _RecentAnalysesSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(Icons.videocam_outlined, color: DunkColors.primary, size: 18),
+            const Icon(Icons.videocam_outlined,
+                color: DunkColors.primary, size: 18),
             const SizedBox(width: 8),
             Text(
               AppLocalizations.of(context).progressRecentAnalyses,
@@ -196,12 +205,13 @@ class _RecentAnalysesSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: _RecentAnalysisThumb.height,
+          height: _RecentAnalysisThumb.heightFor(context),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: recentEntries.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => _RecentAnalysisThumb(entry: recentEntries[i]),
+            itemBuilder: (context, i) =>
+                _RecentAnalysisThumb(entry: recentEntries[i]),
           ),
         ),
       ],
@@ -214,11 +224,13 @@ class _RecentAnalysisThumb extends StatelessWidget {
 
   const _RecentAnalysisThumb({required this.entry});
 
-  static const double _thumbWidth = 96;
-  static const double _thumbHeight = 62;
+  /// The still's size: three stills fill the row on a regular phone.
+  static Size _thumbSize(BuildContext context) =>
+      LayoutDensity.of(context).pick(const Size(108, 76), const Size(96, 62));
 
   /// Still plus its date line, so the strip can be sized without guessing.
-  static const double height = _thumbHeight + 6 + 16;
+  static double heightFor(BuildContext context) =>
+      _thumbSize(context).height + 6 + 16;
 
   @override
   Widget build(BuildContext context) {
@@ -232,8 +244,11 @@ class _RecentAnalysisThumb extends StatelessWidget {
     final resolver = MediaFileResolver.instance;
     final video = resolver.resolve(entry.videoPath);
     final thumbnail = resolver.resolve(entry.thumbnailPath);
+    final thumb = _thumbSize(context);
+    final thumbWidth = thumb.width;
+    final thumbHeight = thumb.height;
     return SizedBox(
-      width: _thumbWidth,
+      width: thumbWidth,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -248,15 +263,15 @@ class _RecentAnalysisThumb extends StatelessWidget {
                       ),
                     )),
             child: SizedBox(
-              width: _thumbWidth,
-              height: _thumbHeight,
+              width: thumbWidth,
+              height: thumbHeight,
               child: Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
-                      width: _thumbWidth,
-                      height: _thumbHeight,
+                      width: thumbWidth,
+                      height: thumbHeight,
                       child: thumbnail != null
                           ? Image.file(
                               thumbnail,
@@ -282,7 +297,8 @@ class _RecentAnalysisThumb extends StatelessWidget {
                     right: 6,
                     bottom: 6,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: DunkColors.primary,
                         borderRadius: BorderRadius.circular(8),
@@ -390,7 +406,8 @@ class _VerticalCard extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               ),
               child: Text(
                 l10n.progressGoToAnalyze,
@@ -401,8 +418,8 @@ class _VerticalCard extends StatelessWidget {
           ] else
             Text(
               trend.deltaFromFirstInches > 0
-                  ? l10n.progressSinceFirstGain(units.name,
-                      units.lengthValue(trend.deltaFromFirstInches))
+                  ? l10n.progressSinceFirstGain(
+                      units.name, units.lengthValue(trend.deltaFromFirstInches))
                   : trend.deltaFromFirstInches < 0
                       ? l10n.progressSinceFirstLoss(units.name,
                           units.lengthValue(trend.deltaFromFirstInches))

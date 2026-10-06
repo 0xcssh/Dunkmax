@@ -98,11 +98,29 @@ class PlanRevealScreen extends StatelessWidget {
                 letterSpacing: 1,
                 fontSize: 12)),
         const SizedBox(height: 8),
-        for (var i = 0; i < week.length; i++) ...[
-          _DayRow(day: week[i]),
-          if (i < week.length - 1)
-            Divider(color: DunkColors.stroke, height: density.pick(10, 8)),
-        ],
+        // The seven days share the height left above the CTA, one equal row
+        // each, so the week reaches down to the button on a tall phone.
+        Expanded(
+          child: Column(
+            children: [
+              for (var i = 0; i < week.length; i++) ...[
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: density.pick(5.0, 4.0),
+                      ),
+                      child: _DayRow(day: week[i]),
+                    ),
+                  ),
+                ),
+                if (i < week.length - 1)
+                  const Divider(color: DunkColors.stroke, height: 1),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -139,9 +157,8 @@ class _DayRow extends StatelessWidget {
     // `ScheduledDay.weekdayLabel` is English-only).
     final weekdays = l10n.weekdayLabels.split(',');
     final weekday = weekdays[(day.weekday - 1).clamp(0, weekdays.length - 1)];
-    final label = training
-        ? l10n.programDayFocus(day.day!.focus)
-        : l10n.planDayRest;
+    final label =
+        training ? l10n.programDayFocus(day.day!.focus) : l10n.planDayRest;
     return Row(
       children: [
         SizedBox(
@@ -154,7 +171,8 @@ class _DayRow extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Icon(training ? Icons.bolt : Icons.bedtime_outlined,
-            size: 18, color: training ? DunkColors.primary : DunkColors.textTertiary),
+            size: 18,
+            color: training ? DunkColors.primary : DunkColors.textTertiary),
         const SizedBox(width: 8),
         Text(label,
             style: TextStyle(

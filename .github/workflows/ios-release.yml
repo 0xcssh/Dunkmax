@@ -67,6 +67,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Dunk It needs access to your photo library to analyze a previously recorded jump.'" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Dunk It saves your jump clip to your photo library when you choose to keep a shared clip.'" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/Runner/Info.plist
+          # The home-screen label. The scaffold names the app after the Dart
+          # package ("Dunkmax"); the product is called Dunk It.
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Dunk It" ios/Runner/Info.plist || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Dunk It" ios/Runner/Info.plist
 
       - name: Install dependencies
         run: flutter pub get

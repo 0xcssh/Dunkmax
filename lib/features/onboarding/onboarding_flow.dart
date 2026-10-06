@@ -19,7 +19,6 @@ import 'screens/gap_screen.dart';
 import 'screens/goal_screen.dart';
 import 'screens/height_screen.dart';
 import 'screens/hops_screen.dart';
-import 'screens/how_it_works_screen.dart';
 import 'screens/intro_carousel_screen.dart';
 import 'screens/plan_reveal_screen.dart';
 import 'screens/position_screen.dart';
@@ -47,14 +46,13 @@ enum _Step {
   commitment,
   gap,
   potential,
-  howItWorks,
   building,
   planReveal,
 }
 
 /// Drives the full onboarding sequence: a swipeable intro carousel, an
 /// 11-question quiz (with progress bar), then the sell screens (gap →
-/// potential → how it works → plan reveal), before handing the completed
+/// potential → plan reveal), before handing the completed
 /// [OnboardingProfile] to [onCompleted].
 ///
 /// Presentation lives here rather than in the steps: the painted [CourtBackdrop]
@@ -284,12 +282,6 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         return PotentialScreen(
           profile: _draftProfile,
           onBack: () => _go(_Step.gap),
-          onContinue: () => _go(_Step.howItWorks),
-        );
-
-      case _Step.howItWorks:
-        return HowItWorksScreen(
-          onBack: () => _go(_Step.potential),
           onContinue: () => _go(_Step.building),
         );
 
@@ -302,7 +294,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       case _Step.planReveal:
         return PlanRevealScreen(
           profile: _draftProfile,
-          onBack: () => _go(_Step.howItWorks),
+          onBack: () => _go(_Step.potential),
           onContinue: () => widget.onCompleted(_draftProfile),
         );
     }

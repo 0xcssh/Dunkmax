@@ -625,57 +625,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get potentialCta => 'SEE MY PLAN';
 
   @override
-  String get howItWorksTitle => 'HOW YOUR VERT\nGETS MEASURED';
-
-  @override
-  String get howItWorksSubtitle =>
-      'No wearables, no markers on the floor. Just physics and your phone camera.';
-
-  @override
-  String get hangTimeLabel => 'HANG TIME';
-
-  @override
-  String get hangTimeDecides => 'decides your height';
-
-  @override
-  String get hangTimeFormula => 'longer in the air  =  higher jump';
-
-  @override
-  String get hangTimeNote =>
-      'Two athletes with the same hang time jumped the same height. That is what we measure.';
-
-  @override
-  String get howItWorksPoint1Title => 'We watch your body, not the pixels';
-
-  @override
-  String get howItWorksPoint1Body =>
-      'On-device tracking follows your feet frame by frame and finds the exact instants they leave the floor and meet it again.';
-
-  @override
-  String get howItWorksPoint2Title => 'Measured, not guessed';
-
-  @override
-  String get howItWorksPoint2Body =>
-      'Your hang time gives your height through gravity alone — no camera calibration, no markers, no eyeballing.';
-
-  @override
-  String get howItWorksPoint3Title => 'A plan you can actually run';
-
-  @override
-  String get howItWorksPoint3Body =>
-      'Your experience, your training days and whether you have a gym decide your programme — no barbell drills if you train at home.';
-
-  @override
-  String get howItWorksPoint4Title => 'Progress you can check';
-
-  @override
-  String get howItWorksPoint4Body =>
-      'Every session and every analysed jump is logged, so the trend you see is your own history, not a motivational number.';
-
-  @override
-  String get howItWorksCta => 'START MY PLAN';
-
-  @override
   String get buildingPlanTitle => 'BUILDING YOUR PLAN';
 
   @override

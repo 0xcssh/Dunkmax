@@ -39,23 +39,84 @@ class DaysPerWeekScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _MotivationBanner(),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              for (final (value, label) in _options) ...[
-                Expanded(
-                  child: _DayChip(
-                    label: label,
-                    selected: selected == value,
-                    onTap: () => onSelect(value),
-                  ),
-                ),
-                if (value != 5) const SizedBox(width: 12),
-              ],
-            ],
+          const SizedBox(height: 16),
+          Expanded(
+            child: _DayGrid(
+              selected: selected,
+              onSelect: onSelect,
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The four choices, laid out to use the height the step has.
+///
+/// With room for it — any 844 pt phone, and the SE — they are a 2x2 grid of
+/// big tiles that fills the body down to the CTA. Only when the body is too
+/// short for two rows of [_minGridTile] do they fall back to the single row
+/// of narrow chips.
+class _DayGrid extends StatelessWidget {
+  final int? selected;
+  final ValueChanged<int> onSelect;
+
+  const _DayGrid({required this.selected, required this.onSelect});
+
+  static const double _gap = 12;
+  static const double _minGridTile = 96;
+
+  /// A tile taller than this stops looking like a button.
+  static const double _maxGridTile = 200;
+
+  Widget _chip(int value, String label) => _DayChip(
+        label: label,
+        selected: selected == value,
+        onTap: () => onSelect(value),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    const options = DaysPerWeekScreen._options;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tile =
+            ((constraints.maxHeight - _gap) / 2).clamp(0.0, _maxGridTile);
+        if (tile < _minGridTile) {
+          return Align(
+            alignment: Alignment.topCenter,
+            child: Row(
+              children: [
+                for (final (value, label) in options) ...[
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 0.82,
+                      child: _chip(value, label),
+                    ),
+                  ),
+                  if (value != options.last.$1) const SizedBox(width: _gap),
+                ],
+              ],
+            ),
+          );
+        }
+        Widget row(int from) => SizedBox(
+              height: tile,
+              child: Row(
+                children: [
+                  Expanded(child: _chip(options[from].$1, options[from].$2)),
+                  const SizedBox(width: _gap),
+                  Expanded(
+                    child: _chip(options[from + 1].$1, options[from + 1].$2),
+                  ),
+                ],
+              ),
+            );
+        return Column(
+          children: [row(0), const SizedBox(height: _gap), row(2)],
+        );
+      },
     );
   }
 }
@@ -74,8 +135,8 @@ class _MotivationBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-              Icons.local_fire_department, color: DunkColors.primary, size: 20),
+          const Icon(Icons.local_fire_department,
+              color: DunkColors.primary, size: 20),
           const SizedBox(width: 10),
           Expanded(
             // "Athletes who train 4+ days see results 2x faster" used to sit
@@ -117,8 +178,7 @@ class _DayChip extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        child: AspectRatio(
-          aspectRatio: 0.82,
+        child: SizedBox.expand(
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 140),
             padding: const EdgeInsets.all(6),
@@ -140,8 +200,10 @@ class _DayChip extends StatelessWidget {
                 children: [
                   Text(
                     label,
+                    // Sized for the big grid tile; the FittedBox above scales
+                    // it down in the narrow single-row chips.
                     style: TextStyle(
-                      fontSize: 30,
+                      fontSize: 44,
                       height: 1.1,
                       fontWeight: FontWeight.w800,
                       color: selected ? DunkColors.primary : Colors.white,

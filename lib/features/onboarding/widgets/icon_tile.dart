@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../shared/layout_density.dart';
+import '../../shared/widgets/selectable_card.dart';
 
 /// Side of the rounded-square badge on an option card. 44 pt keeps a card
 /// at ~68 pt, which is what lets five of them share a screen with the
 /// headline and the CTA; short phones drop to 40.
-double _tileSize(BuildContext context) =>
-    LayoutDensity.of(context).pick(44, 40);
+double _tileSize(BuildContext context) {
+  final base = LayoutDensity.of(context).pick(44.0, 40.0);
+  // A card its option list has grown gets a proportionally larger badge,
+  // up to 56 pt, so the extra height does not read as empty padding.
+  final card = OptionCardHeight.of(context);
+  return (card * 0.5).clamp(base, 56.0);
+}
 
 /// The small rounded-square icon badge used on onboarding option cards.
 class IconTile extends StatelessWidget {

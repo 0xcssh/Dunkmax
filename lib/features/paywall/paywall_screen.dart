@@ -31,8 +31,8 @@ import '../shared/widgets/fit_or_scroll.dart';
 /// reference app's — this is a brand-new, unpublished app with zero real
 /// ratings, and shipping a fabricated "4.8 · 675+ ratings" would be exactly
 /// the kind of fake social proof this app's own conventions refuse to show
-/// elsewhere (the onboarding sell flow sells the measurement method for the
-/// same reason — see features/onboarding/screens/how_it_works_screen.dart).
+/// elsewhere (the onboarding sell flow carries no ratings or testimonials
+/// either).
 /// No badge is better than a fake one.
 /// The palette has no error colour (nothing else in the app reports failure
 /// in-line), so this one lives here rather than being invented into the theme.

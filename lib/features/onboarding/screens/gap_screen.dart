@@ -62,10 +62,7 @@ class GapScreen extends StatelessWidget {
       ctaLabel: a.canAlreadyDunk ? l10n.gapCtaCanDunk : l10n.gapCta,
       onContinue: onContinue,
       children: [
-        Text(
-            a.reachIsMeasured
-                ? l10n.gapBasedOnReach
-                : l10n.gapBasedOnHeight,
+        Text(a.reachIsMeasured ? l10n.gapBasedOnReach : l10n.gapBasedOnHeight,
             style: const TextStyle(
                 color: DunkColors.primary,
                 fontWeight: FontWeight.w700,
@@ -108,38 +105,39 @@ class GapScreen extends StatelessWidget {
           const SizedBox(height: 10),
           _EstimatedReachNote(assessment: a),
         ],
-        SizedBox(height: density.pick(12, 8)),
-        _SummaryGrid(rows: [
-          (l10n.gapRowHeight, heightLabel),
-          (
-            l10n.gapRowStandingReach,
-            a.reachIsMeasured
-                ? l10n.length(unit, units.lengthValue(a.standingReach))
-                : l10n.gapReachEstimatedSuffix(
-                    unit, units.lengthValue(a.standingReach))
-          ),
-          (
-            l10n.gapRowEstToday,
-            l10n.length(unit, units.lengthValue(a.estimatedCurrentVert))
-          ),
-          (
-            l10n.gapRowDunkTarget,
-            l10n.length(unit, units.lengthValue(a.requiredVert))
-          ),
-          (
-            l10n.gapRowWeight,
-            l10n.gapWeightValue(unit, units.weight(profile.weightLbs).value)
-          ),
-          (
-            l10n.gapRowHops,
-            l10n.hopsLevelTitle(profile.hopsLevel.name)
-          ),
-          (l10n.gapRowGoals, _goals(l10n)),
-          (
-            l10n.gapRowTrainingDays,
-            l10n.gapTrainingDaysValue(profile.daysPerWeek)
-          ),
-        ]),
+        SizedBox(height: density.pick(14, 8)),
+        // The summary card takes the height left above the CTA; its rows
+        // spread out to fill it.
+        Expanded(
+          child: _SummaryGrid(rows: [
+            (l10n.gapRowHeight, heightLabel),
+            (
+              l10n.gapRowStandingReach,
+              a.reachIsMeasured
+                  ? l10n.length(unit, units.lengthValue(a.standingReach))
+                  : l10n.gapReachEstimatedSuffix(
+                      unit, units.lengthValue(a.standingReach))
+            ),
+            (
+              l10n.gapRowEstToday,
+              l10n.length(unit, units.lengthValue(a.estimatedCurrentVert))
+            ),
+            (
+              l10n.gapRowDunkTarget,
+              l10n.length(unit, units.lengthValue(a.requiredVert))
+            ),
+            (
+              l10n.gapRowWeight,
+              l10n.gapWeightValue(unit, units.weight(profile.weightLbs).value)
+            ),
+            (l10n.gapRowHops, l10n.hopsLevelTitle(profile.hopsLevel.name)),
+            (l10n.gapRowGoals, _goals(l10n)),
+            (
+              l10n.gapRowTrainingDays,
+              l10n.gapTrainingDaysValue(profile.daysPerWeek)
+            ),
+          ]),
+        ),
       ],
     );
   }
@@ -303,40 +301,53 @@ class _SummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Eight rows have to sit under the meter on one page, so each row is as
-    // tall as a line of 14 pt text plus a slim gap — a tabular summary, not a
-    // list of cards.
-    final rowGap = LayoutDensity.of(context).pick(5.0, 3.5);
-    return Column(
-      children: [
-        for (final (k, v) in rows)
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: rowGap),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(k,
-                    style: const TextStyle(
-                        color: DunkColors.textSecondary,
-                        fontSize: 14,
-                        height: 1.3)),
-                const SizedBox(width: 12),
-                // Flexible so a long value (a hops label, a goal title) wraps
-                // under itself instead of overflowing the row.
-                Flexible(
-                  child: Text(v,
-                      textAlign: TextAlign.end,
+    // A card the page sizes: eight rows of 14 pt text, spread evenly over
+    // whatever height it is given, packed at a slim gap when it is given
+    // only their natural height.
+    final density = LayoutDensity.of(context);
+    final rowGap = density.pick(5.0, 3.5);
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: density.pick(8.0, 4.0),
+      ),
+      decoration: BoxDecoration(
+        color: DunkColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DunkColors.stroke),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          for (final (k, v) in rows)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: rowGap),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(k,
                       style: const TextStyle(
-                          color: Colors.white,
+                          color: DunkColors.textSecondary,
                           fontSize: 14,
-                          height: 1.3,
-                          fontWeight: FontWeight.w600)),
-                ),
-              ],
+                          height: 1.3)),
+                  const SizedBox(width: 12),
+                  // Flexible so a long value (a hops label, a goal title) wraps
+                  // under itself instead of overflowing the row.
+                  Flexible(
+                    child: Text(v,
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            height: 1.3,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 # CLAUDE.md
 
-DunkMax is a **Flutter** clone of **DunkMax — Vertical Jump Trainer**
+**Dunk It** (internal/package name `dunkmax`) is a **Flutter** app modelled on
+**DunkMax — Vertical Jump Trainer**
 ([App Store](https://apps.apple.com/fr/app/dunkmax-vertical-jump-trainer/id6757568089)):
 a dark, orange-accented basketball jump-training coach. Sales-focused
 onboarding quiz → recommended multi-week program → daily guided sessions,
@@ -13,12 +14,24 @@ in **French**; code/comments/commits are in **English**.
 
 ## The constraint that shapes everything: NO MAC
 
-Development is 100% from Windows (now via VS Code + local Flutter). **No
-local Xcode, no local iOS build.** Never suggest opening Xcode or running
-xcodebuild. The loop for iOS:
+Development is 100% from Windows (VS Code). **No local Xcode, no local iOS
+build.** Never suggest opening Xcode or running xcodebuild. The loop for iOS:
 
-edit Dart → push → **GitHub Actions (macOS runner) builds the signed IPA** →
-user installs over USB on their iPhone → user tests and reports back.
+edit Dart → run the tests locally → push → CI green → dispatch **iOS Release**
+(macOS runner builds the signed IPA and uploads it to **TestFlight**) → user
+installs from TestFlight, tests, reports back.
+
+**There is no Flutter SDK on PATH on this machine.** Tests still run locally,
+and running them before every push is what stopped the analysis bugs
+ping-ponging through CI: clone the version CI pins into a SHORT path
+(`git clone --depth 1 -b 3.47.1 https://github.com/flutter/flutter.git`, then
+`git config core.longpaths true && git reset --hard HEAD` inside it) and call
+`bin/flutter.bat` / `bin/dart.bat` by full path. Windows quirks: in a deep
+path `flutter analyze` crashes listing the SDK's own folders — use
+`dart.bat analyze lib test`; `flutter pub get` / `flutter test` add an
+`exclude:` block to `analysis_options.yaml` — `git checkout --
+analysis_options.yaml` before committing; `flutter gen-l10n` regenerates the
+checked-in `lib/l10n/app_localizations*.dart`.
 
 Because a device round-trip is slow, **push as much logic as possible into
 the pure, unit-tested Dart core (`lib/core/`)** — CI tests (analyze + test
@@ -56,25 +69,36 @@ gitignored** and regenerated in CI with `flutter create --platforms=… .`
 replaced). If you add real `ios/`/`android/` config later (e.g. for
 signing), un-ignore just those files.
 
-## iOS on device (still no Mac) — TODO not yet wired
+## iOS on device (still no Mac) — wired, via TestFlight
 
-Signing isn't set up on this repo yet. To get a signed IPA on the iPhone:
-1. Register bundle id **`com.awdia.dunkmax`** in the Apple Developer portal.
-2. Add signing secrets to THIS repo (they don't carry across repos):
-   `CERT_P12_BASE64`, `CERT_DIST_P12_BASE64`, `CERT_P12_PASSWORD`, `ASC_*`,
-   plus the `APPLE_TEAM_ID` variable (`8L8G4P4Z9X`, shared with
-   RepLock/PodRadar). Local signing material lives in
-   `C:\Users\awdia\replock-signing\`.
-3. Add a signed archive/export step to the macOS job (mirror PodRadar's
-   `ios.yml`).
-4. Install over USB (Python 3.12, iPhone unlocked & plugged in):
-   ```
-   py -3.12 -m pymobiledevice3 apps install DunkMax.ipa
-   ```
-   Gotchas (field-tested on RepLock): if the device isn't detected, restart
-   the Windows Apple stack ("Appareils Apple") and replug; if install hangs,
-   reboot the iPhone; never run two installs at once.
-   Or use **TestFlight** for OTA (needs the ASC app record).
+`.github/workflows/ios-release.yml` (manual `workflow_dispatch`) scaffolds
+`ios/`, patches Info.plist, generates the icons, builds, signs and exports.
+Input `export_method`:
+- `app-store-connect` — uploads straight to **TestFlight** (what every device
+  test so far has used): `gh workflow run "iOS Release" --ref main -f
+  export_method=app-store-connect`. ~13 min, then a few more for Apple to
+  process the build.
+- `debugging` (the default) — a dev-signed IPA artifact for USB sideload:
+  `py -3.12 -m pymobiledevice3 apps install DunkMax.ipa`. Gotchas
+  (field-tested on RepLock): if the device isn't detected, restart the Windows
+  Apple stack ("Appareils Apple") and replug; if install hangs, reboot the
+  iPhone; never run two installs at once.
+
+Signing secrets are in the repo (`CERT_P12_BASE64`, `CERT_DIST_P12_BASE64`,
+`CERT_P12_PASSWORD`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_API_KEY_P8_BASE64`)
+plus the `APPLE_TEAM_ID` variable. Local signing material lives in
+`C:\Users\awdia\replock-signing\`.
+
+**Not in the repo, so off in every device build:** `SUPABASE_URL`,
+`SUPABASE_ANON_KEY` (global leaderboard shows its unavailable state) and
+`REVENUECAT_API_KEY` (purchases unconfigured). The release workflow passes
+`--dart-define=PREVIEW_UNLOCK=true`, which is the only reason a release build
+can get past the paywall today. **The day the RevenueCat key is added that
+flag goes inert**: if the offering then fails to load, the paywall has no way
+through — check products and agreements before adding the key.
+
+Launch the release build only when the owner asks for it, and only after the
+push's CI run is green.
 
 ## Architecture
 
@@ -88,9 +112,10 @@ lib/
   l10n/                  app_en.arb (the template — every message carries an
                          @description) + app_fr.arb, and the gen-l10n output
                          (app_localizations*.dart). The generated Dart is
-                         **checked in on purpose**: there is no Flutter SDK on
-                         the dev machine to run the generator, and CI has to
-                         compile from a plain checkout. `flutter pub get`
+                         **checked in on purpose**: CI has to compile from a
+                         plain checkout, and the dev machine has no SDK on
+                         PATH (run `flutter gen-l10n` from the scratch clone
+                         after editing an ARB). `flutter pub get`
                          regenerates it in place (pubspec sets `generate: true`,
                          config in `l10n.yaml`), so a stale copy self-heals.
                          Call sites read `AppLocalizations.of(context).key` —
@@ -114,6 +139,12 @@ lib/
                          files cannot drift
     program_progress.dart completed / remaining / % math (Train progress card)
     vert_assessment.dart  Height+age+hops → reach, vert-to-dunk, gap, projection
+    units.dart            UnitSystem (metric / imperial by REGION), exact
+                          conversions, input ranges — see "Units" below
+    athlete_track.dart    Where the athlete was last seen, for the crop retry
+    jump_analysis_pipeline.dart  Which frames to look at; the one way a clip
+                          becomes a measurement
+    pose_jump_detector.dart  Takeoff/landing from the tracked feet
     workout_streak.dart   Consecutive-day streak from completion timestamps
     jump_trend.dart       Latest vertical + delta-from-first-test, from jump log
     jump_form_scores.dart Bounce/Power/Control/Form 0-100 + takeoff type, from
@@ -158,9 +189,11 @@ lib/
                          restores; honest unavailable state with no API key
     home/                5-tab shell (Home, Analyze, Train, Feed, Progress) —
                          all five functional
-    feed/                Leaderboards: the athlete's OWN jumps ranked
-                         (core/leaderboard.dart); the community board is
-                         honestly locked (no backend, no accounts)
+    feed/                Leaderboards: a global board backed by Supabase
+                         (numbers only, never video; honest unavailable state
+                         with no credentials) above the athlete's OWN jumps
+                         ranked (core/leaderboard.dart)
+    progress/            Jump history list + clip playback/share
     analyze/             Source (record/pick video) → trim to one jump →
                          processing (real frame-count progress) → result
                          dashboard (flight-time vert); when nothing can be
@@ -183,8 +216,14 @@ lib/
                          the media slot renders an honest empty state and a
                          real url/asset drops into ExerciseGuide when one
                          exists
-    shared/widgets/      PrimaryButton (gradient CTA), SelectableCard
-test/                    Core unit tests + app smoke test
+    shared/              unit_scope.dart (unit system for the widget tree),
+                         layout_density.dart (regular / compact spacing),
+                         widgets/: PrimaryButton, SelectableCard,
+                         fit_or_scroll (scrolls only when it must)
+test/                    Core unit tests, app smoke test, screen_fit_test
+                         (every screen at two phone sizes, both locales),
+                         fixtures/ (a real clip's landmark series), fonts/
+                         (Roboto, so layout verdicts match on every machine)
 ```
 
 **Rule (same as PodRadar's Core vs Services split): all device/jump/program
@@ -508,8 +547,14 @@ did, and they don't. `ProgramCatalog.recommend` reads exactly two fields:
 week), plus `trainingLocation` since the home-substitution work. Onboarding
 asks eleven questions; goals, court position, weight, age, height and
 commitment are collected, persisted, shown back to the athlete — and never
-reach the programming. Either make them count or stop asking: the current
-state promises a personalisation that isn't there.
+reach the programming. The copy no longer pretends otherwise: each question's
+subtitle now says what the answer actually feeds (often only "saved to your
+athlete profile"), the hops question "sets your starting estimate" rather than
+"calibrates your whole plan", and the gap screen lists every goal picked
+instead of calling the first card tapped the "primary" one. **Still open, the
+owner's call:** make goals / position / weight / commitment count in
+`ProgramCatalog`, or drop them from the quiz. Do not write copy that promises
+tailoring until one of those happens.
 
 `hopsLevel`, `standingReachInches` and now `dunkHand` are the exception: they
 feed `VertAssessment` and visibly move the numbers (`dunkHand` is passed at
@@ -523,9 +568,20 @@ Intro carousel → **quiz (progress bar, 11 Q):** dunk goal (multi) · experienc
 position · days/week · training location · hops level · height (wheel) ·
 weight (slider) · age (wheel) · dunk hand (left/right/both) · commitment →
 **sell screens:** gap analysis
-("Here's the gap") → jump-potential projection → how it works (the
-measurement method — replaced the old placeholder social-proof screen) →
-building loader → plan reveal → **free analysis** → **paywall** → app shell.
+("Here's the gap") → jump-potential projection → building loader → plan
+reveal → **free analysis** → **paywall** → app shell.
+
+Coherence rules the sell screens now obey (each was a reported defect):
+- the **gap** between hops answers is visible: "below the rim" is 8" under
+  "touch", not 4";
+- the **projection window** is the recommended program's own length
+  (`ProgramCatalog.recommend(profile).weeks`), not a fixed 8 weeks;
+- the **plan reveal** week strip is built from `TrainingSchedule(program)` —
+  the real day focuses on the real weekdays — so it cannot contradict Home and
+  Train the next morning;
+- the first measured jump says on the result card that it **replaces the
+  onboarding estimate**; an athlete estimated to dunk already gets a margin,
+  not a "-0" gap.
 
 ### Presentation (owned by `onboarding_flow.dart`, not by the steps)
 
@@ -605,8 +661,9 @@ TODO (rough priority):
       (`core/jump_form_scores.dart`), each absent-with-a-reason when the clip
       can't support it, plus a **written breakdown built off those scores**
       (`core/jump_feedback.dart`: strength, weakness, targeted tips). Still
-      TODO: knee-angle metrics, potential projection on the result screen,
-      share, camera/library Info.plist permissions (see above).
+      TODO: knee-angle metrics, potential projection on the result screen.
+      **Device-unverified:** the crop retry (see above) has only been proven
+      off-device; the first report from a phone decides whether it stays.
 - [x] **Train v2.5** — `core/training_schedule.dart` (pure, 30 tests) wraps
       the authored 3-day rotation with real periodisation: **rest days**
       (the i-th of n weekly sessions lands on weekday `1 + (i*7)~/n`, so
@@ -619,12 +676,17 @@ TODO (rough priority):
       `WEEK 2 · DAY 2 OF 3`, a 7-day week strip, a DELOAD pill, and a rest-
       day state whose CTA is a muted TRAIN ANYWAY — recovery is recommended,
       not enforced. Home reads the same progressed prescription so the two
-      tabs can't disagree. Still TODO: no per-set edit/undo after logging;
+      tabs can't disagree (Home shows the same rest-day state as Train).
+      Leaving a session past the warm-up asks before discarding it; logged
+      weights are typed in the region's unit and accept a decimal comma.
+      Still TODO: no per-set edit/undo after logging; a finished program has
+      no "what next";
       the rest-day trigger is "already trained today", not a start-date-
       anchored calendar.
 - [x] **Progress v2** — workouts X/total, day streak, current vertical +
-      trend, all real/persisted. Still TODO: no vertical-trend chart (just
-      the latest number + delta), no workout history list/detail view.
+      trend with a chart (`tabs/widgets/jump_trend_chart.dart`), jump history
+      and clip replay, all real/persisted. Still TODO: no workout history
+      list/detail view.
 - [x] **Feed v2 — real global leaderboard** across all users, backed by
       Supabase (`services/leaderboard_service.dart`, anonymous auth, one
       upserted personal-best row per athlete). **Deliberately ranks numbers
@@ -639,7 +701,13 @@ TODO (rough priority):
       Setup SQL + RLS policies: `docs/supabase-setup.md`. The athlete's own
       board (medal ranks, thumbnails, tap to replay) remains below it.
 - [ ] **Coach** (AI chat).
-- [ ] **iOS signing** → IPA on device (see above).
+- [x] **iOS signing** → TestFlight (see "iOS on device" above).
+- [ ] **Exercise demo clips** — the player is wired and a clip is a drop-in
+      (`docs/exercise-media.md`, `tool/prepare_exercise_media.py`); what is
+      missing is footage the owner holds the rights to. Plan agreed: the owner
+      films the 20 drills himself (13 need no equipment), using THP Strength /
+      PJF Performance videos as form references only — their footage cannot be
+      bundled. `wall_sits` has no still either.
 - [x] **IAP via RevenueCat** — app-side done. `SubscriptionService` mirrors
       `LeaderboardService`: `isConfigured`, guarded `initialize()`, every call
       timed out and swallowed. Entitlement id is the single constant
@@ -713,6 +781,16 @@ than a page by design. Compact spacing lives in `features/shared/
 layout_density.dart`; `widgets/fit_or_scroll.dart` scrolls only when it must.
 Keep the test green when adding content; shorten before you scroll.
 
+**…and fill it.** The first pass shrank everything to fit the SE and left a
+band of empty screen above the tab bar on a normal phone — the owner's word
+was "you overdid it". So the same test also fails when, at 390x844, the
+content of Home, Train, Progress, every quiz step, Gap, Potential or Plan
+reveal ends more than 48 px above its CTA / tab bar. `FitOrScrollColumn` has a
+fill mode: one block per page grows into the spare height (Home's hero card,
+Train's drill list, Progress's chart, the quiz option list), and on a short
+screen falls back to natural height. Compact density is for genuinely short
+screens only; it must not set the look on a normal one.
+
 ## Conventions
 
 - Commit style: imperative subject + short "why" paragraph.
@@ -720,11 +798,13 @@ Keep the test green when adding content; shorten before you scroll.
 - **No fabricated social proof.** A new app has no reviews and no community,
   so nothing in the UI may imply otherwise. The onboarding sell flow used to
   hold a placeholder rating + invented testimonials; that screen is gone,
-  replaced by `features/onboarding/screens/how_it_works_screen.dart`, which
-  sells the measurement method (all claims true today). The paywall ships
+  and the paywall ships
   with no rating badge, and the Feed's community board is honestly locked
   rather than filled with made-up athletes. When real reviews exist they get
-  *added*; they never come back as placeholders.
+  *added*; they never come back as placeholders. (The "how it works" screen
+  that replaced the fake social proof has since been removed too, at the
+  owner's request: a fourth text-heavy sell screen in a row, and the Analyze
+  source screen already explains the method where it is used.)
 - **No new hardcoded user-facing copy.** Every string a user reads lives in
   `lib/l10n/app_en.arb` with an `@description` saying *where it appears* (the
   next translator will not have the app open), and in `app_fr.arb`. Copy built
@@ -752,14 +832,23 @@ Keep the test green when adding content; shorten before you scroll.
   deleted.
 - There's also a standalone interactive HTML mock of the flow (built as a
   Claude artifact) — a design reference only, not the real app.
+- **The product is called "Dunk It".** "DunkMax" is the reference app this
+  one is modelled on and survives only as the internal name: the Dart package
+  (`dunkmax`), the repo, the bundle id `com.awdia.dunkmax`, class names. Never
+  put "DunkMax" in anything a user reads. The home-screen label is set to
+  "Dunk It" by a PlistBuddy line in both iOS workflows (the scaffold would
+  otherwise name it after the package); the in-app wordmark is "DUNKIT".
+- All three workflows pin `flutter-version: 3.47.1`. Bump it deliberately,
+  in all three, and re-run the suite — an unpinned `stable` can break a
+  build with no code change.
 
-## Apple / store config (mostly TODO)
+## Apple / store config
 
 | Item | Value |
 |---|---|
-| Bundle ID | `com.awdia.dunkmax` (not yet registered) |
+| Bundle ID | `com.awdia.dunkmax` (registered; builds upload to TestFlight) |
 | Team ID | `8L8G4P4Z9X` (shared; GitHub var `APPLE_TEAM_ID`) |
-| Signing secrets | Not yet added to this repo (see iOS section) |
+| Signing secrets | In the repo (see iOS section). Supabase and RevenueCat secrets are NOT |
 | RevenueCat | App-side wired; dashboard/account not created yet. Entitlement id `pro`; secret `REVENUECAT_API_KEY` → `--dart-define`. See `docs/revenuecat-setup.md` |
 | Subscriptions | Yearly + weekly, each in a trial / no-trial pair (cascade); 3-day trial; price TBD. Not created in App Store Connect yet |
 | Legal URLs | `lib/core/legal_urls.dart`. Terms = Apple's standard EULA (real). Privacy = `.invalid` placeholder, **must be published before submission** |

@@ -8,7 +8,10 @@ import '../../shared/widgets/primary_button.dart';
 /// works, plan reveal): a back chevron, the screen's content, and a pinned
 /// CTA.
 ///
-/// The content is a [FitOrScrollColumn], so on the target phones it takes
+/// The content is a [FitOrScrollColumn.fill]: a screen marks the block that
+/// should grow (a chart, a summary card, the week list) as `Expanded`, and on
+/// a tall phone that block takes the spare height, so the content reaches
+/// down to the CTA instead of stopping short of it. Otherwise it takes
 /// the room between the chevron and the CTA and nothing scrolls; a longer
 /// locale on a shorter phone degrades to a scroll rather than a clip.
 class SellScaffold extends StatelessWidget {
@@ -45,7 +48,7 @@ class SellScaffold extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Expanded(
-                child: FitOrScrollColumn(
+                child: FitOrScrollColumn.fill(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: children,
                 ),
