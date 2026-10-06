@@ -230,7 +230,13 @@ def main():
                 print(f"    + 3-day free trial in {len(territories)} territories")
     if not group["id"].startswith("dry"):
         for s_ in get_all(f"/v1/subscriptionGroups/{group['id']}/subscriptions")[0]:
-            print(f"state {s_['attributes']['productId']}: {s_['attributes'].get('state')}")
+            a = s_["attributes"]
+            n_price = len(get_all(f"/v1/subscriptions/{s_['id']}/prices")[0])
+            n_intro = len(get_all(f"/v1/subscriptions/{s_['id']}/introductoryOffers")[0])
+            n_loc = len(get_all(f"/v1/subscriptions/{s_['id']}/subscriptionLocalizations")[0])
+            print(f"state {a['productId']}: {a.get('state')} · {a.get('subscriptionPeriod')} · "
+                  f"level {a.get('groupLevel')} · {n_price} prices · {n_intro} intro offers · "
+                  f"{n_loc} localizations")
     print("dry run, nothing written" if DRY else "done")
 
 
