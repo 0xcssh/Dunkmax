@@ -153,6 +153,22 @@ class SubscriptionService {
   /// or when the fetch failed — the paywall then shows an honest unavailable
   /// state instead of placeholder pricing.
   Future<SubscriptionOffer?> fetchOffer() async {
+    // The App Store sandbox — which is what App Review buys through — fails
+    // transiently far more often than production. Build 43 was rejected on
+    // an error at this exact step, so one quiet retry happens before the
+    // athlete (or the reviewer) is ever shown "plans unavailable".
+    for (var attempt = 0; attempt < _offerAttempts; attempt++) {
+      if (attempt > 0) await Future<void>.delayed(_offerRetryDelay);
+      final offer = await _fetchOfferOnce();
+      if (offer != null) return offer;
+    }
+    return null;
+  }
+
+  static const int _offerAttempts = 2;
+  static const Duration _offerRetryDelay = Duration(seconds: 2);
+
+  Future<SubscriptionOffer?> _fetchOfferOnce() async {
     // Retries a failed startup init; a no-op once the SDK is up.
     await initialize();
     if (!isAvailable) return null;
@@ -205,14 +221,41 @@ class SubscriptionService {
           ? PurchaseOutcome.success
           : PurchaseOutcome.notEntitled;
     } on PlatformException catch (e) {
-      // Backing out of the store sheet is an ordinary outcome, not an error.
-      if (PurchasesErrorHelper.getErrorCode(e) ==
-          PurchasesErrorCode.purchaseCancelledError) {
+      final code = PurchasesErrorHelper.getErrorCode(e);
+      // Backing out of the store sheet is an ordinary outcome, not an error;
+      // so is a payment waiting on Ask to Buy or a bank's approval — the
+      // listener unlocks the app when it clears.
+      if (code == PurchasesErrorCode.purchaseCancelledError ||
+          code == PurchasesErrorCode.paymentPendingError) {
         return PurchaseOutcome.cancelled;
       }
-      return PurchaseOutcome.failed;
+      return await _entitledAfterError()
+          ? PurchaseOutcome.success
+          : PurchaseOutcome.failed;
     } catch (_) {
-      return PurchaseOutcome.failed;
+      return await _entitledAfterError()
+          ? PurchaseOutcome.success
+          : PurchaseOutcome.failed;
+    }
+  }
+
+  /// Whether the athlete holds the entitlement despite the purchase call
+  /// having thrown. The sandbox can report an error for a transaction that
+  /// went through (or one already owned on this Apple ID); showing "could not
+  /// be completed" to someone who has just paid is the worst outcome there
+  /// is, so the error is only believed once the store confirms nothing
+  /// changed. Restore is the authoritative re-read.
+  Future<bool> _entitledAfterError() async {
+    try {
+      final info = await Purchases.getCustomerInfo().timeout(_storeTimeout);
+      _applyCustomerInfo(info);
+      if (_isEntitled(info)) return true;
+      final restored =
+          await Purchases.restorePurchases().timeout(_storeTimeout);
+      _applyCustomerInfo(restored);
+      return _isEntitled(restored);
+    } catch (_) {
+      return false;
     }
   }
 

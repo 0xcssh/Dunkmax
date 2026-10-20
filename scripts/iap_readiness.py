@@ -18,8 +18,8 @@ RevenueCat
   sdk key        whether the REVENUECAT_API_KEY secret the release build
                  passes is this app's key at all
   products       store ids and the current offering's packages
-  customers      recent customers and their entitlements — a reviewer who
-                 reached the paywall shows up here
+  customers      how many, and how many hold an entitlement (counts only:
+                 the CI logs are public)
 
 The Paid Apps Agreement has no public API: check it by hand in App Store
 Connect → Business.
@@ -121,16 +121,15 @@ def revenuecat():
                 prods = rc(f"/projects/{pid}/packages/{pk['id']}/products").get("items", [])
                 ids = [(x.get("product") or x).get("store_identifier") for x in prods]
                 print(f"    package {pk['lookup_key']}: {ids}")
-        customers = rc(f"/projects/{pid}/customers", {"limit": 20})
+        # Counts only: this repo and its CI logs are public, so nothing that
+        # describes an individual customer may be printed here.
+        customers = rc(f"/projects/{pid}/customers", {"limit": 50})
         if "error" in customers:
             print(f"  customers: {customers['error']}")
-        for c in customers.get("items", []):
-            ents = rc(f"/projects/{pid}/customers/{c['id']}/active_entitlements").get("items", [])
-            seen = time.strftime("%Y-%m-%d %H:%M", time.gmtime((c.get("last_seen_at") or 0) / 1000))
-            print(f"  customer last seen {seen} UTC · {c.get('last_seen_country')}"
-                  f" · {c.get('last_seen_platform')} {c.get('last_seen_app_version')}"
-                  f" · active entitlements {[x.get('entitlement_id') for x in ents]}")
-
+        rows = customers.get("items", [])
+        entitled = sum(1 for c in rows if rc(
+            f"/projects/{pid}/customers/{c['id']}/active_entitlements").get("items"))
+        print(f"  customers: {len(rows)} seen, {entitled} with an active entitlement")
 
 if __name__ == "__main__":
     app_store_connect()

@@ -102,10 +102,8 @@ jobs:
         # reports itself unavailable rather than failing, which is what keeps
         # ci.yml and web-preview.yml secret-free.
         #
-        # PREVIEW_UNLOCK opens the paywall on a build made before RevenueCat
-        # exists, so TestFlight can exercise everything that is not the
-        # purchase. It is inert once REVENUECAT_API_KEY is set, and removing
-        # this line is a submission step in docs/revenuecat-setup.md.
+        # PREVIEW_UNLOCK is deliberately NOT passed: this build goes to App
+        # Review, and a release must never carry a way past the paywall.
         run: |
           flutter build ios --release --no-codesign \
             --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
