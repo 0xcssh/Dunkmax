@@ -1,0 +1,24 @@
+name: IAP key check
+
+# Read-only: proves the In-App Purchase key RevenueCat validates purchases
+# with is accepted by Apple. See scripts/iap_key_check.py.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyjwt cryptography requests
+      - name: Check
+        env:
+          IAP_KEY_P8_B64: ${{ secrets.REVENUECAT_IAP_KEY_P8_BASE64 }}
+          IAP_KEY_ID: QL2P7M4WRG
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          export IAP_KEY_P8="$(echo "$IAP_KEY_P8_B64" | base64 -d)"
+          python scripts/iap_key_check.py
