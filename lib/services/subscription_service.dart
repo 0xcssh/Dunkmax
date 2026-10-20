@@ -214,8 +214,9 @@ class SubscriptionService {
   Future<PurchaseOutcome> purchase(Package package) async {
     if (!isAvailable) return PurchaseOutcome.unavailable;
     try {
-      final info =
-          await Purchases.purchasePackage(package).timeout(_purchaseTimeout);
+      final result = await Purchases.purchase(PurchaseParams.package(package))
+          .timeout(_purchaseTimeout);
+      final info = result.customerInfo;
       _applyCustomerInfo(info);
       return _isEntitled(info)
           ? PurchaseOutcome.success
