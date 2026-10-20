@@ -72,6 +72,20 @@ def app_store_connect():
         print(f"version {v['attributes']['versionString']}: {v['attributes']['appStoreState']}"
               f" · build {(build.get('attributes') or {}).get('version', '-')}")
 
+    avail = asc(f"/v1/apps/{app_id}/appAvailabilityV2").get("data")
+    if avail:
+        terr = asc(f"/v2/appAvailabilities/{avail['id']}/territoryAvailabilities",
+                   {"limit": 200, "include": "territory"})
+        rows = terr.get("data", [])
+        on = [r for r in rows if r["attributes"].get("available")]
+        ids = {r["id"]: r["relationships"]["territory"]["data"]["id"] for r in rows
+               if (r.get("relationships") or {}).get("territory", {}).get("data")}
+        by = {ids.get(r["id"]): r["attributes"].get("contentStatuses") for r in rows}
+        print(f"app availability: {len(on)}/{len(rows)} territories available"
+              f" · GRC {by.get('GRC')} · USA {by.get('USA')}")
+    else:
+        print("app availability: none set")
+
     subs = asc(f"/v1/reviewSubmissions", {"filter[app]": app_id, "limit": 10})
     for s in subs.get("data", []):
         a = s["attributes"]
