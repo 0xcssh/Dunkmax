@@ -189,7 +189,6 @@ html,body{width:%(w)dpx;height:%(h)dpx;overflow:hidden;background:#0A0A0B;color:
 .dev .scr{position:relative;width:100%%;height:100%%;overflow:hidden;background:#0A0A0B}
 .dev .scr img{width:100%%;display:block}
 .island{position:absolute;left:50%%;transform:translateX(-50%%);background:#000;z-index:3}
-.sb{position:absolute;left:0;right:0;display:flex;justify-content:space-between;font-weight:700;z-index:2}
 .ruler{position:absolute;top:0;bottom:0;width:6px;background:repeating-linear-gradient(180deg,#F26A21 0 6px,transparent 6px 64px);opacity:.75}
 .glow{position:absolute;border-radius:50%%;filter:blur(40px)}
 """
@@ -212,21 +211,18 @@ def device_frame(raw_png, device, x, y, w, rot=0, scroll=0.0):
         radius, pad, rim = w * 0.14, w * 0.024, max(3, w * 0.005)
         island = (f'<div class="island" style="top:{w*0.037}px;width:{w*0.27}px;'
                   f'height:{w*0.078}px;border-radius:{w*0.04}px"></div>')
-        sb_top, sb_font, sb_pad = w * 0.048, w * 0.05, w * 0.1
     else:
         h = w * 2752 / 2064
         radius, pad, rim = w * 0.045, w * 0.022, max(3, w * 0.003)
         island = ""
-        sb_top, sb_font, sb_pad = w * 0.012, w * 0.019, w * 0.04
-    status = (f'<div class="sb" style="top:{sb_top}px;padding:0 {sb_pad}px;font-size:{sb_font}px">'
-              f'<span>9:41</span><span style="letter-spacing:{sb_font*0.12}px">'
-              f'&#9646;&#9646;&#9646; 100%</span></div>')
+    # No status bar is drawn. A hand-made one ("9:41 ▮▮▮ 100%") is not iOS's,
+    # and App Review rejected build 45's listing for it under 2.3.10
+    # ("non-iOS status bar images"). The captures carry none of their own.
     shift = scroll * (w - 2 * pad) * (2868 / 1320 if device == "iphone69" else 2752 / 2064)
     return (f'<div class="dev" style="left:{x}px;top:{y}px;width:{w}px;height:{h}px;'
             f'border-radius:{radius}px;padding:{pad}px;transform:rotate({rot}deg);'
             f'box-shadow:0 0 0 {rim}px #3b3b41,0 70px 160px rgba(0,0,0,.75),0 0 140px rgba(242,106,33,.16)">'
             f'<div class="scr" style="border-radius:{radius - pad}px">{island}'
-            f'{"" if scroll else status}'
             f'<img src="{raw_png.as_uri()}" style="margin-top:-{shift}px"></div></div>')
 
 
