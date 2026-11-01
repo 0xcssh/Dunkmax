@@ -28,7 +28,9 @@ import json
 import os
 import pathlib
 import sys
+import struct
 import time
+import zlib
 
 import jwt
 import requests
@@ -101,6 +103,22 @@ def upsert(kind, parent_rel, parent_id, existing, locale, attrs):
     return made["data"]["id"]
 
 
+PNG_IEND = bytes.fromhex("0000000049454e44ae426082")  # the IEND chunk
+
+
+def unique_png(data):
+    """The same pixels with a fresh tEXt chunk, so every upload has its own
+    checksum. Re-sending a file byte-identical to a screenshot just deleted
+    left it in UPLOAD_COMPLETE for good (de-DE, 2026-11-01), which blocks
+    Add for Review."""
+    if not data.endswith(PNG_IEND):
+        return data
+    text = b"Comment" + bytes(1) + b"upload " + str(time.time_ns()).encode()
+    chunk = (struct.pack(">I", len(text)) + b"tEXt" + text
+             + struct.pack(">I", zlib.crc32(b"tEXt" + text) & 0xFFFFFFFF))
+    return data[:-12] + chunk + data[-12:]
+
+
 def upload_screenshots(loc_id, locale, files, display_type):
     sets = call("GET", f"/v1/appStoreVersionLocalizations/{loc_id}/appScreenshotSets",
                 params={"limit": 50})["data"]
@@ -119,7 +137,7 @@ def upload_screenshots(loc_id, locale, files, display_type):
         call("DELETE", f"/v1/appScreenshots/{old['id']}")
     ids = []
     for f in files:
-        data = f.read_bytes()
+        data = unique_png(f.read_bytes())
         shot = call("POST", "/v1/appScreenshots",
                     {"data": {"type": "appScreenshots",
                               "attributes": {"fileName": f.name, "fileSize": len(data)},
