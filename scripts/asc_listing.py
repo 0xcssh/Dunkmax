@@ -180,7 +180,13 @@ def main():
         from compose import STORE_LOCALES  # the locale -> caption-set map lives with the art
         root = pathlib.Path(shots_dir)
         print("screenshots")
+        # A screenshot can stick in UPLOAD_COMPLETE (one de-DE iPad shot did,
+        # blocking Add for Review); re-sending one locale beats re-processing
+        # all of them.
+        only = {l.strip() for l in os.environ.get("SCREENSHOT_LOCALES", "").split(",") if l.strip()}
         for locale, set_name in STORE_LOCALES.items():
+            if only and locale not in only:
+                continue
             if locale not in loc_ids:
                 print(f"  {locale}: no localization in the listing file, skipped")
                 continue

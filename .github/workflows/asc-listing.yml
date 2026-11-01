@@ -18,6 +18,10 @@ on:
         description: "Regenerate and upload the screenshots too"
         type: boolean
         default: false
+      locales:
+        description: "Only re-upload screenshots for these store locales (comma-separated, empty = all)"
+        required: false
+        default: ""
       dry_run:
         description: "Print the changes without writing"
         type: boolean
@@ -66,6 +70,7 @@ jobs:
           ASC_KEY_P8_B64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
           LISTING_FILE: scripts/listing/${{ inputs.listing }}.json
           SCREENSHOTS_DIR: ${{ inputs.screenshots && 'build/store_screenshots/final' || '' }}
+          SCREENSHOT_LOCALES: ${{ inputs.locales }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
         run: |
           export ASC_KEY_P8="$(echo "$ASC_KEY_P8_B64" | base64 -d)"
