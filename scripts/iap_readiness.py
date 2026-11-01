@@ -86,6 +86,26 @@ def app_store_connect():
     else:
         print("app availability: none set")
 
+    # Screenshot processing, per locale and display size: Add for Review is
+    # refused until every one is COMPLETE.
+    versions = asc(f"/v1/apps/{app_id}/appStoreVersions", {"filter[platform]": "IOS", "limit": 1})["data"]
+    if versions:
+        locs = asc(f"/v1/appStoreVersions/{versions[0]['id']}/appStoreVersionLocalizations",
+                   {"limit": 50}).get("data", [])
+        for loc in locs:
+            for st in asc(f"/v1/appStoreVersionLocalizations/{loc['id']}/appScreenshotSets",
+                          {"limit": 50}).get("data", []):
+                shots = asc(f"/v1/appScreenshotSets/{st['id']}/appScreenshots", {"limit": 50}).get("data", [])
+                states = {}
+                for sh in shots:
+                    d = sh["attributes"].get("assetDeliveryState") or {}
+                    key = d.get("state", "?")
+                    if d.get("errors"):
+                        key += f" {[e.get('code') for e in d['errors']]}"
+                    states[key] = states.get(key, 0) + 1
+                print(f"screenshots {loc['attributes']['locale']} "
+                      f"{st['attributes']['screenshotDisplayType']}: {states}")
+
     subs = asc(f"/v1/reviewSubmissions", {"filter[app]": app_id, "limit": 10})
     for s in subs.get("data", []):
         a = s["attributes"]
