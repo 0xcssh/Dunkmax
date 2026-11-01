@@ -119,6 +119,18 @@ def unique_png(data):
     return data[:-12] + chunk + data[-12:]
 
 
+STALL_WAIT = 240     # seconds a screenshot may take to process before it is re-sent
+STALL_RETRIES = 3
+
+
+def delivery_state(shot_id):
+    shot = call("GET", f"/v1/appScreenshots/{shot_id}")["data"]
+    state = (shot["attributes"].get("assetDeliveryState") or {})
+    if state.get("errors"):
+        raise RuntimeError(f"screenshot {shot_id} failed: {state['errors']}")
+    return state.get("state")
+
+
 def upload_screenshots(loc_id, locale, files, display_type):
     sets = call("GET", f"/v1/appStoreVersionLocalizations/{loc_id}/appScreenshotSets",
                 params={"limit": 50})["data"]
@@ -135,8 +147,8 @@ def upload_screenshots(loc_id, locale, files, display_type):
     for old in call("GET", f"/v1/appScreenshotSets/{shot_set['id']}/appScreenshots",
                     params={"limit": 50})["data"]:
         call("DELETE", f"/v1/appScreenshots/{old['id']}")
-    ids = []
-    for f in files:
+
+    def send(f):
         data = unique_png(f.read_bytes())
         shot = call("POST", "/v1/appScreenshots",
                     {"data": {"type": "appScreenshots",
@@ -152,7 +164,32 @@ def upload_screenshots(loc_id, locale, files, display_type):
              {"data": {"type": "appScreenshots", "id": shot["id"],
                        "attributes": {"uploaded": True,
                                       "sourceFileChecksum": hashlib.md5(data).hexdigest()}}})
-        ids.append(shot["id"])
+        return shot["id"]
+
+    ids = [send(f) for f in files]
+
+    # Apple's processing sometimes stalls on a file for good: UPLOAD_COMPLETE,
+    # no error, and Add for Review refused until it clears (four de-DE shots,
+    # 2026-11-01). Wait for every one; re-send any that has not finished.
+    for attempt in range(1, STALL_RETRIES + 1):
+        stuck = []
+        deadline = time.time() + STALL_WAIT
+        while True:
+            stuck = [i for i, sid in enumerate(ids) if delivery_state(sid) != "COMPLETE"]
+            if not stuck or time.time() > deadline:
+                break
+            time.sleep(15)
+        if not stuck:
+            break
+        print(f"      {len(stuck)} still processing after {STALL_WAIT}s, re-sending (attempt {attempt}):"
+              f" {[files[i].name for i in stuck]}")
+        for i in stuck:
+            call("DELETE", f"/v1/appScreenshots/{ids[i]}")
+            ids[i] = send(files[i])
+    else:
+        left = [files[i].name for i, sid in enumerate(ids) if delivery_state(sid) != "COMPLETE"]
+        if left:
+            print(f"      still processing after {STALL_RETRIES} re-sends: {left}")
     # Creation order is not guaranteed to be display order: set it.
     call("PATCH", f"/v1/appScreenshotSets/{shot_set['id']}/relationships/appScreenshots",
          {"data": [{"type": "appScreenshots", "id": i} for i in ids]})
