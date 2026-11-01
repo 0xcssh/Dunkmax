@@ -103,6 +103,10 @@ def app_store_connect():
                     if d.get("errors"):
                         key += f" {[e.get('code') for e in d['errors']]}"
                     states[key] = states.get(key, 0) + 1
+                    if key != "COMPLETE":
+                        a = sh["attributes"]
+                        print(f"  pending {a.get('fileName')} {a.get('fileSize')} bytes"
+                              f" dims={(a.get('imageAsset') or {}).get('width')} {d}")
                 print(f"screenshots {loc['attributes']['locale']} "
                       f"{st['attributes']['screenshotDisplayType']}: {states}")
 
